@@ -8,6 +8,8 @@ import ReactNativeZoomableView from '@dudigital/react-native-zoomable-view/src/R
 import { Text, View } from '../components/Themed';
 import CommentInput from "./CommentInput";
 
+import { socketUtils } from "../utils/socketUtils";
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -41,6 +43,17 @@ export class Room extends Component {
       moveAnimation: new Animated.Value(0),
       message: '',
     };
+  }
+
+  componentDidMount() {
+    socketUtils.socket.on("receive_message", ({ roomId, userId, message }) => {
+      receiveMessage({ roomId, userId, message });
+    });
+  }
+
+  receiveMessage({ roomId, userId, message }) {
+    this.moveCharacter(this.state.characters[3], 300, 300);
+    this.bubbleCharacter(this.state.characters[3], message);
   }
 
   renderCharacters(characters) {
@@ -97,9 +110,9 @@ export class Room extends Component {
   }
 
   sendMessage(message) {
-    this.props.socket.emit('send_message', {
-      content: message,
-      to: room
+    socketUtils.socket.emit('send_message', {
+      message: message,
+      roomId: this.props.roomId,
     });
     this.bubbleMe(message);
   }

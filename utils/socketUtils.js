@@ -1,1 +1,3 @@
-export let socket = null;
+let socketUtils = { socket: null };
+
+export { socketUtils };

@@ -3,10 +3,10 @@ import { StyleSheet } from 'react-native';
 import Room from '../components/Room';
 import { Text, View } from '../components/Themed';
 
-export default function RoomScreen({ navigation, socket }) {
+export default function RoomScreen({ route }) {
   return (
     <View style={styles.container}>
-      <Room socket={socket} />
+      <Room roomId={route.params.roomId}/>
     </View>
   );
 }

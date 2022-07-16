@@ -8,7 +8,7 @@ const Bubble = (props = {
   duration: 3500,
 }) => {
     return (
-        <Text style={{backgroundColor: 'white', color: 'black'}}>{this.props.message}</Text>
+        <Text style={{backgroundColor: 'white', color: 'black'}}>{props.message}</Text>
     );
 }
 
