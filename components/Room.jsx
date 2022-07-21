@@ -46,12 +46,15 @@ export class Room extends Component {
   }
 
   componentDidMount() {
+    console.log('HERE');
     socketUtils.socket.on("receive_message", ({ roomId, userId, message }) => {
+      console.log('HERE2');
       receiveMessage({ roomId, userId, message });
     });
   }
 
   receiveMessage({ roomId, userId, message }) {
+    console.log(message);
     this.moveCharacter(this.state.characters[3], 300, 300);
     this.bubbleCharacter(this.state.characters[3], message);
   }
@@ -102,9 +105,6 @@ export class Room extends Component {
 
   closeBubble(index) {
     const character = this.state.characters[index];
-    console.log(this.state.characters);
-    console.log(index);
-
     character.bubbleActive = false;
     this.setState({characters: this.state.characters});
   }

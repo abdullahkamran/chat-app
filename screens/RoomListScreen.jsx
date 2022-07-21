@@ -41,8 +41,17 @@ export default function RoomListScreen({ navigation }) {
       console.log("SOCKET DISCONNECTED");
     });
 
+    socketUtils.socket.on("receive_message", ({ roomId, userId, message }) => {
+      console.log('HERE2');
+      receiveMessage({ roomId, userId, message });
+    });  
+
     socketUtils.socket.connect();
   };
+
+  function receiveMessage({ roomId, userId, message }) {
+    console.log(message);
+  }
 
   useEffect(() => {
     fetchRooms();
