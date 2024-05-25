@@ -8,7 +8,7 @@ import { SERVER_ORIGIN, USER_ID1, USER_ID2 } from '../utils/config';
 
 import { socketUtils } from "../utils/socketUtils";
 import { myFetch } from '../utils/fetch';
-import { UserContext } from '../App';
+import { UserContext } from '../context/user.context';
 
 const styles = StyleSheet.create({
   container: {

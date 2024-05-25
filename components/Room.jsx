@@ -6,7 +6,7 @@ import ReactNativeZoomableView from '@dudigital/react-native-zoomable-view/src/R
 
 import { socketUtils } from "../utils/socketUtils";
 import { USER_ID1, USER_ID2 } from "../utils/config";
-import { UserContext } from "../App";
+import { UserContext } from "../context/user.context";
 
 const styles = StyleSheet.create({
   container: {
@@ -41,10 +41,6 @@ export function Room({ roomId }) {
   const [characters, setCharacters] = useState(devCharacters);
   const [message, setMessage] = useState('');
   const { user } = useContext(UserContext);
-
-  const getCharacter = (id) => {
-    return characters.find(char => char.id === id);
-  };
 
   useEffect(() => {
     setupSockets();
