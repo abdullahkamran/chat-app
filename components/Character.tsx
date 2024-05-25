@@ -3,6 +3,7 @@ import { Image, Animated, View } from 'react-native';
 import Bubble from './Bubble';
 
 interface CharacterProps {
+  id: string;
   index: number,
   flavor?: String,
   scaleX: number,
@@ -16,6 +17,7 @@ interface CharacterProps {
 }
 
 const Character = ({
+  id,
   index,
   flavor,
   scaleX,
@@ -29,13 +31,12 @@ const Character = ({
 } : CharacterProps) => {
 
   useEffect(() => {
-    let timer: number;
+    let timer: ReturnType<typeof setTimeout>;
     if (bubbleActive) {
       timer = setTimeout(() => {
-        closeBubble(index);
+        closeBubble(id);
       }, bubbleDuration);
     }
-
 
     return () => {
       clearTimeout(timer);

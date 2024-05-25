@@ -1,14 +1,12 @@
-import React, { Component } from "react";
+import React, { Component, useContext, useEffect, useState } from "react";
 import { StyleSheet, SafeAreaView, ScrollView, Image, TouchableOpacity, Animated, GestureResponderEvent, TextInput, NativeSyntheticEvent, TextInputSubmitEditingEventData } from 'react-native';
-import ZoomableImage from './ZoomableImage';
 import Character from './Character';
-import Bubble from './Bubble';
 import Constants from 'expo-constants';
 import ReactNativeZoomableView from '@dudigital/react-native-zoomable-view/src/ReactNativeZoomableView';
-import { Text, View } from '../components/Themed';
-import CommentInput from "./CommentInput";
 
 import { socketUtils } from "../utils/socketUtils";
+import { USER_ID1, USER_ID2 } from "../utils/config";
+import { UserContext } from "../App";
 
 const styles = StyleSheet.create({
   container: {
@@ -26,153 +24,213 @@ const styles = StyleSheet.create({
   },
 });
 
-const devCharacters = [
-  {index: 0, posX: 0, posY: 0, speed: 500, animation: new Animated.ValueXY({x: 0, y: 0}), scaleX: 1, scaleY: 1, bubbleActive: false, bubbleDuration: 3500},
-  {index: 1, flavor: 'kami', posX: 200, posY: 1000, speed: 500, animation: new Animated.ValueXY({x: 200, y: 1000}), scaleX: 1, scaleY: 1, bubbleActive: false, bubbleDuration: 3500},
-  {index: 2, flavor: 'mansoor', posX: 500, posY: 200, speed: 500, animation: new Animated.ValueXY({x: 300, y: 0}), scaleX: 1, scaleY: 1, bubbleActive: false, bubbleDuration: 3500},
-  {index: 3, flavor: 'lamba', posX: 100, posY: 200, speed: 2000, animation: new Animated.ValueXY({x: -300, y: -300}), scaleX: 1, scaleY: 2, bubbleActive: false, bubbleDuration: 7000},
-];
+const devCharacters = {
+  [USER_ID1]: { id: USER_ID1, posX: 0, posY: 0, speed: 500, animation: new Animated.ValueXY({ x: 0, y: 0 }), scaleX: 1, scaleY: 1, bubbleActive: false, bubbleDuration: 3500, active: false },
+  [USER_ID2]: { id: USER_ID2, flavor: 'kami', posX: 200, posY: 1000, speed: 500, animation: new Animated.ValueXY({ x: 200, y: 1000 }), scaleX: 1, scaleY: 1, bubbleActive: false, bubbleDuration: 3500, active: false },
+  'mansoor': { id: 'mansoor', flavor: 'mansoor', posX: 500, posY: 200, speed: 500, animation: new Animated.ValueXY({ x: 300, y: 0 }), scaleX: 1, scaleY: 1, bubbleActive: false, bubbleDuration: 3500, active: true },
+  'lamba': { id: 'lamba', flavor: 'lamba', posX: 100, posY: 200, speed: 2000, animation: new Animated.ValueXY({ x: -300, y: -300 }), scaleX: 1, scaleY: 2, bubbleActive: false, bubbleDuration: 7000, active: true },
+};
 
-export class Room extends Component {
+function Characters({ characters, closeBubble }) {
+  return Object.values(characters).filter(({ active }) => active).map(character => <Animated.View key={character.id} style={[character.animation?.getLayout(), { position: 'absolute', zIndex: 1000 }]}>
+    <Character {...character} closeBubble={closeBubble} /></Animated.View>);
+}
 
-  constructor(props) {
-    super(props);
-    this.state = {
-      characters: devCharacters,
-      me: devCharacters[0],
-      moveAnimation: new Animated.Value(0),
-      message: '',
+export function Room({ roomId }) {
+
+  const [characters, setCharacters] = useState(devCharacters);
+  const [message, setMessage] = useState('');
+  const { user } = useContext(UserContext);
+
+  const getCharacter = (id) => {
+    return characters.find(char => char.id === id);
+  };
+
+  useEffect(() => {
+    setupSockets();
+    enterMe();
+
+    return () => {
+      exitMe();
+      cleanupSockets();
     };
+  }, []);
+
+  function setupSockets() {
+    socketUtils.socket.on("receive_enter", receiveEnter);
+    socketUtils.socket.on("receive_exit", receiveExit);
+    socketUtils.socket.on("receive_point", receivePoint);
+    socketUtils.socket.on("receive_message", receiveMessage);
   }
 
-  componentDidMount() {
-    console.log('HERE');
-    socketUtils.socket.on("receive_message", ({ roomId, userId, message }) => {
-      console.log('HERE2');
-      receiveMessage({ roomId, userId, message });
-    });
+  function cleanupSockets() {
+    socketUtils.socket.off("receive_enter", receiveEnter);
+    socketUtils.socket.off("receive_exit", receiveExit);
+    socketUtils.socket.off("receive_point", receivePoint);
+    socketUtils.socket.off("receive_message", receiveMessage);
   }
 
-  receiveMessage({ roomId, userId, message }) {
-    console.log(message);
-    this.moveCharacter(this.state.characters[3], 300, 300);
-    this.bubbleCharacter(this.state.characters[3], message);
+  // RECEIVE FUNCTIONS
+
+  function receiveEnter({ userId }) {
+    enterCharacter(userId);
+    pointMe();
   }
 
-  renderCharacters(characters) {
-    return characters.map(character =>     <Animated.View key={character.index} style={[character.animation?.getLayout(), {position: 'absolute', zIndex: 1000}]}>
-    <Character {...character} closeBubble={this.closeBubble.bind(this)}/></Animated.View>);
+  function receiveExit({ userId }) {
+    exitCharacter(userId);
   }
 
-  moveCharacter(character, x, y) {
+  function receivePoint({ userId, x, y }) {
+    moveCharacter(userId, x, y);
+  }
+
+  function receiveMessage({ userId, message }) {
+    bubbleCharacter(userId, message);
+  }
+
+  // RECEIVE FUNCTIONS END
+
+  // CHARACTER FUNCTIONS
+
+  function enterCharacter(userId) {
+    console.log('enterCharacter', userId);
+    const character = characters[userId];
+    character.active = true;
+    renderCharacters();
+  }
+
+  function exitCharacter(userId) {
+    console.log('exitCharacter', userId);
+    const character = characters[userId];
+    character.active = false;
+    renderCharacters();
+  }
+
+  function moveCharacter(userId, x, y) {
+    const character = characters[userId];
+    character.active = true;
     Animated.timing(character.animation, {
-      toValue: {x, y},
+      toValue: { x, y },
       duration: character.speed,
       useNativeDriver: false, // TODO: try to make it true
     }).start();
-    // character.posX = x;
-    // character.posY = y;
-    // this.setState({characters: this.state.characters});
+    renderCharacters();
   }
 
-  moveMe(x, y) {
-    this.moveCharacter(this.state.me, x, y);
-  }
-
-  moveFellow() {
-
-  }
-
-  bubbleCharacter(character, message) {
+  function bubbleCharacter(userId, message) {
+    const character = characters[userId];
+    character.active = true;
     character.bubbleActive = true;
     character.bubbleMessage = message;
+    renderCharacters();
   }
 
-  bubbleMe(message) {
-    this.bubbleCharacter(this.state.me, message);
+  // CHARACTER FUNCTIONS END
+
+  // ME FUNCTIONS
+  
+  function enterMe() {
+    socketUtils.socket.emit('send_enter', {
+      roomId,
+    });
+    enterCharacter(user.userId);
+  }
+
+  function exitMe() {
+    socketUtils.socket.emit('send_exit', {
+      roomId,
+    });
+    exitCharacter(user.userId);
+  }
+
+  function pointMe() {
+    const character = characters[user.userId];
+    socketUtils.socket.emit('send_point', {
+      roomId,
+      x: character.animation.x,
+      y: character.animation.y,
+    });
+  }
+
+  function moveMe(x, y) {
+    socketUtils.socket.emit('send_point', {
+      roomId,
+      x,
+      y,
+    });
+    moveCharacter(user.userId, x, y);
+  }
+
+  function bubbleMe(message) {
+    socketUtils.socket.emit('send_message', {
+      message: message,
+      roomId,
+    });
+    bubbleCharacter(user.userId, message);
     if (message === 'Halo') {
       setTimeout(() => {
-        this.moveCharacter(this.state.characters[3], 300, 300);
-        this.bubbleCharacter(this.state.characters[3], 'AYYYYY WADDUP BITCHEZ XD');
+        moveCharacter('lamba', 300, 300);
+        bubbleCharacter('lamba', 'AYYYYY WADDUP BITCHEZ XD');
       }, 1000);
-
     }
   }
 
-  bubbleFellow() {
+  // ME FUNCTIONS END
 
-  }
-
-  closeBubble(index) {
-    const character = this.state.characters[index];
+  function closeBubble(userId) {
+    console.log('closeBubble', userId);
+    const character = characters[userId];
     character.bubbleActive = false;
-    this.setState({characters: this.state.characters});
+    renderCharacters();
   }
 
-  sendMessage(message) {
-    socketUtils.socket.emit('send_message', {
-      message: message,
-      roomId: this.props.roomId,
-    });
-    this.bubbleMe(message);
-  }
-
-  handleRoomPress(e) {
+  function handleRoomPress(e) {
     const { locationX, locationY } = e.nativeEvent;
-    this.moveMe(locationX, locationY);
+    moveMe(locationX, locationY);
   }
 
-  onMessageSubmit(e) {
-    this.sendMessage(e.nativeEvent.text);
-    this.setState({
-      message: '',
-    });
+  function onMessageSubmit(e) {
+    bubbleMe(e.nativeEvent.text);
+    setMessage('');
   }
 
-  onMessageChange(newText) {
-    this.setState({
-      message: newText,
-    });
+  function renderCharacters() {
+    setCharacters(currentCharacters => ({ ...currentCharacters }));
   }
 
-
-  render() {
-
-    return (
-      <SafeAreaView style={styles.container}>
-
-        <ReactNativeZoomableView
-          maxZoom={1.5}
-          minZoom={0.5}
-          zoomStep={0.5}
-          initialZoom={1}
-          bindToBorders={true}
-          captureEvent={true}
-        >
-          <TouchableOpacity    activeOpacity={1}        style={{
-            flex: 1
-          }}          onPress={(e) => this.handleRoomPress(e)}>
+  return (
+    <SafeAreaView style={styles.container}>
+      <ReactNativeZoomableView
+        maxZoom={1.5}
+        minZoom={0.5}
+        zoomStep={0.5}
+        initialZoom={1}
+        bindToBorders={true}
+        captureEvent={true}
+      >
+        <TouchableOpacity activeOpacity={1} style={{
+          flex: 1
+        }} onPress={(e) => handleRoomPress(e)}>
 
 
           <Image
-          style={{
-            flex: 1
-          }}
-          source={require('../assets/images/home.png')}
-        />
-          {this.renderCharacters(this.state.characters)}
-          </TouchableOpacity>
-        </ReactNativeZoomableView>
-        <TextInput
-          style={styles.chatInput}
-          returnKeyLabel="send"
-          placeholder="Type a message..."
-          value={this.state.message} onChangeText={(text) => this.onMessageChange(text)}
-          onSubmitEditing={(e) => this.onMessageSubmit(e)}/>
-        </SafeAreaView>
-    );
-  }
-
+            style={{
+              flex: 1
+            }}
+            source={require('../assets/images/home.png')}
+          />
+          <Characters characters={characters} closeBubble={closeBubble} />
+        </TouchableOpacity>
+      </ReactNativeZoomableView>
+      <TextInput
+        style={styles.chatInput}
+        returnKeyLabel="send"
+        placeholder="Type a message..."
+        value={message} onChangeText={(text) => setMessage(text)}
+        onSubmitEditing={(e) => onMessageSubmit(e)} />
+    </SafeAreaView>
+  );
 }
 
 export default Room;

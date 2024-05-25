@@ -1,12 +1,14 @@
 import { RootTabScreenProps } from '../types';
 
-import React, { useEffect, useState } from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
+import React, { useContext, useEffect, useState } from 'react';
+import { Button, FlatList, StyleSheet, View } from 'react-native';
 import RoomListItem from '../components/RoomListItem';
 import { io } from "socket.io-client";
-import { SERVER_ORIGIN, USER_ID } from '../utils/config';
+import { SERVER_ORIGIN, USER_ID1, USER_ID2 } from '../utils/config';
 
 import { socketUtils } from "../utils/socketUtils";
+import { myFetch } from '../utils/fetch';
+import { UserContext } from '../App';
 
 const styles = StyleSheet.create({
   container: {
@@ -17,21 +19,22 @@ const styles = StyleSheet.create({
 
 export default function RoomListScreen({ navigation }) {
 
+  const { user, setUser } = useContext(UserContext);
+  const { userId } = user;
   const [rooms, setRooms] = useState([]);
 
   const fetchRooms = async () => {
-    const response = await fetch(`${SERVER_ORIGIN}/api/v1/users/${USER_ID}/rooms`);
+    const response = await myFetch(`/api/v1/users/${userId}/rooms`);
     const data = await response.json();
     setRooms(data);
   };
 
   const connectSocket = async () => {
+    if (socketUtils.socket) {
+      socketUtils.socket.disconnect();
+    }
     socketUtils.socket = io(SERVER_ORIGIN, { autoConnect: false });
-    socketUtils.socket.auth = { id: USER_ID };
-
-    socketUtils.socket.onAny((event, ...args) => {
-      console.log(event, args);
-    });
+    socketUtils.socket.auth = { id: userId };
 
     socketUtils.socket.on("connect", () => {
       console.log("SOCKET CONNECTED");
@@ -42,7 +45,6 @@ export default function RoomListScreen({ navigation }) {
     });
 
     socketUtils.socket.on("receive_message", ({ roomId, userId, message }) => {
-      console.log('HERE2');
       receiveMessage({ roomId, userId, message });
     });
 
@@ -54,9 +56,10 @@ export default function RoomListScreen({ navigation }) {
   }
 
   useEffect(() => {
-    fetchRooms();
+    console.log('changed');
     connectSocket();
-  }, [])
+    fetchRooms();
+  }, [userId])
 
   function goToRoom(room) {
     navigation.navigate('RoomScreen', { roomId: room._id });
@@ -73,6 +76,8 @@ export default function RoomListScreen({ navigation }) {
             onPress={() => goToRoom(item)}>
           </RoomListItem>}
       />
+      <Button title='User1' onPress={() => setUser({ userId: USER_ID1 })}></Button>
+      <Button title='User2' onPress={() => setUser({ userId: USER_ID2 })}></Button>
     </View>
   );
 }
