@@ -10,8 +10,8 @@ import { socketUtils } from "../utils/socketUtils";
 
 const styles = StyleSheet.create({
   container: {
-   flex: 1,
-   paddingTop: 22
+    flex: 1,
+    paddingTop: 22
   },
 });
 
@@ -28,7 +28,7 @@ export default function RoomListScreen({ navigation }) {
   const connectSocket = async () => {
     socketUtils.socket = io(SERVER_ORIGIN, { autoConnect: false });
     socketUtils.socket.auth = { id: USER_ID };
-    
+
     socketUtils.socket.onAny((event, ...args) => {
       console.log(event, args);
     });
@@ -36,7 +36,7 @@ export default function RoomListScreen({ navigation }) {
     socketUtils.socket.on("connect", () => {
       console.log("SOCKET CONNECTED");
     });
-    
+
     socketUtils.socket.on("disconnect", () => {
       console.log("SOCKET DISCONNECTED");
     });
@@ -44,7 +44,7 @@ export default function RoomListScreen({ navigation }) {
     socketUtils.socket.on("receive_message", ({ roomId, userId, message }) => {
       console.log('HERE2');
       receiveMessage({ roomId, userId, message });
-    });  
+    });
 
     socketUtils.socket.connect();
   };
