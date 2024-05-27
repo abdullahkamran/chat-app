@@ -1,6 +1,14 @@
-import React, { Component, useEffect } from "react";
+import React, { Component, useEffect, useState } from "react";
 import { Image, Animated, View } from 'react-native';
 import Bubble from './Bubble';
+
+let BUBBLE_KEY = 0;
+
+interface BubbleProps {
+  key?: string;
+  message: string;
+  duration: number;
+}
 
 interface CharacterProps {
   id: string;
@@ -10,8 +18,7 @@ interface CharacterProps {
   scaleY: number,
   posX: number,
   posY: number,
-  bubbleActive?: boolean,
-  bubbleMessage?: string,
+  bubble?: BubbleProps,
   bubbleDuration?: number,
   closeBubble: Function,
 }
@@ -24,24 +31,22 @@ const Character = ({
   scaleY,
   posX,
   posY,
-  bubbleActive,
-  bubbleMessage,
+  bubble,
   bubbleDuration,
-  closeBubble,
 } : CharacterProps) => {
 
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout>;
-    if (bubbleActive) {
-      timer = setTimeout(() => {
-        closeBubble(id);
-      }, bubbleDuration);
-    }
+  const [bubbles, setBubbles] = useState<Array<BubbleProps>>([]);
 
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [bubbleActive]);
+  useEffect(() => {
+    if (bubble?.message) {
+      setBubbles(current => ([...current, { ...bubble, key: `${BUBBLE_KEY}`}]));
+      BUBBLE_KEY += 1;
+    }
+  }, [bubble]);
+
+  function closeBubble() {
+    setBubbles(current => current.toSpliced(0, 1));
+  }
 
   function renderFlavor(flavor?: String) {
     switch(flavor) { 
@@ -62,9 +67,11 @@ const Character = ({
   }
 
   return (
-    <View>
-      <View>
-      { bubbleActive && <Bubble message={bubbleMessage}/> }
+    <View style={{ position: 'relative' }}>
+      <View style={{ position: 'absolute', bottom: 160, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center', left: 0 }}>
+        {bubbles.map((bubble) =>
+          <Bubble key={bubble.key} message={bubble.message} duration={bubbleDuration} close={() => closeBubble()} />
+        )}
       </View>
       <Image style={{ width: 150 * scaleX, height: 150 * scaleY }} source={renderFlavor(flavor)}></Image>
     </View> 

@@ -1,12 +1,14 @@
 import React, { Component, useContext, useEffect, useState } from "react";
-import { StyleSheet, SafeAreaView, ScrollView, Image, TouchableOpacity, Animated, GestureResponderEvent, TextInput, NativeSyntheticEvent, TextInputSubmitEditingEventData } from 'react-native';
+import { StyleSheet, SafeAreaView, ScrollView, Image, TouchableOpacity, Animated, GestureResponderEvent, TextInput, NativeSyntheticEvent, TextInputSubmitEditingEventData, View, Keyboard } from 'react-native';
 import Character from './Character';
 import Constants from 'expo-constants';
 import ReactNativeZoomableView from '@dudigital/react-native-zoomable-view/src/ReactNativeZoomableView';
+import { Button } from 'react-native-elements';
 
 import { socketUtils } from "../utils/socketUtils";
 import { USER_ID1, USER_ID2 } from "../utils/config";
 import { UserContext } from "../context/user.context";
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 const styles = StyleSheet.create({
   container: {
@@ -14,26 +16,32 @@ const styles = StyleSheet.create({
     marginTop: Constants.statusBarHeight,
   },
   chatInput: {
+    flex: 1,
     zIndex: 1001,
-    borderWidth: 1,
-    borderColor: 'blue',
+    backgroundColor: 'grey',
+    borderRadius: 25,
     color: 'white',
-    fontSize: 16,
+    fontSize: 18,
     padding: 10,
-    height: 50,
   },
+  sendButton: {
+    borderRadius: 24,
+    backgroundColor: 'white',
+    height: 48,
+    width: 48,
+  }
 });
 
 const devCharacters = {
-  [USER_ID1]: { id: USER_ID1, posX: 0, posY: 0, speed: 500, animation: new Animated.ValueXY({ x: 0, y: 0 }), scaleX: 1, scaleY: 1, bubbleActive: false, bubbleDuration: 3500, active: false },
-  [USER_ID2]: { id: USER_ID2, flavor: 'kami', posX: 200, posY: 1000, speed: 500, animation: new Animated.ValueXY({ x: 200, y: 1000 }), scaleX: 1, scaleY: 1, bubbleActive: false, bubbleDuration: 3500, active: false },
-  'mansoor': { id: 'mansoor', flavor: 'mansoor', posX: 500, posY: 200, speed: 500, animation: new Animated.ValueXY({ x: 300, y: 0 }), scaleX: 1, scaleY: 1, bubbleActive: false, bubbleDuration: 3500, active: true },
-  'lamba': { id: 'lamba', flavor: 'lamba', posX: 100, posY: 200, speed: 2000, animation: new Animated.ValueXY({ x: -300, y: -300 }), scaleX: 1, scaleY: 2, bubbleActive: false, bubbleDuration: 7000, active: true },
+  [USER_ID1]: { id: USER_ID1, posX: 0, posY: 0, speed: 500, animation: new Animated.ValueXY({ x: 0, y: 0 }), scaleX: 1, scaleY: 1, bubbleDuration: 3500, active: false },
+  [USER_ID2]: { id: USER_ID2, flavor: 'kami', posX: 200, posY: 1000, speed: 500, animation: new Animated.ValueXY({ x: 200, y: 1000 }), scaleX: 1, scaleY: 1, bubbleDuration: 3500, active: false },
+  'mansoor': { id: 'mansoor', flavor: 'mansoor', posX: 500, posY: 200, speed: 500, animation: new Animated.ValueXY({ x: 300, y: 0 }), scaleX: 1, scaleY: 1, bubbleDuration: 3500, active: true },
+  'lamba': { id: 'lamba', flavor: 'lamba', posX: 100, posY: 200, speed: 2000, animation: new Animated.ValueXY({ x: -300, y: -300 }), scaleX: 1, scaleY: 2, bubbleDuration: 7000, active: true },
 };
 
-function Characters({ characters, closeBubble }) {
+function Characters({ characters }) {
   return Object.values(characters).filter(({ active }) => active).map(character => <Animated.View key={character.id} style={[character.animation?.getLayout(), { position: 'absolute', zIndex: 1000 }]}>
-    <Character {...character} closeBubble={closeBubble} /></Animated.View>);
+    <Character {...character} /></Animated.View>);
 }
 
 export function Room({ roomId }) {
@@ -41,6 +49,7 @@ export function Room({ roomId }) {
   const [characters, setCharacters] = useState(devCharacters);
   const [message, setMessage] = useState('');
   const { user } = useContext(UserContext);
+  const [inputHeight, setInputHeight] = useState(42);
 
   useEffect(() => {
     setupSockets();
@@ -117,8 +126,7 @@ export function Room({ roomId }) {
   function bubbleCharacter(userId, message) {
     const character = characters[userId];
     character.active = true;
-    character.bubbleActive = true;
-    character.bubbleMessage = message;
+    character.bubble = { message };
     renderCharacters();
   }
 
@@ -174,21 +182,15 @@ export function Room({ roomId }) {
 
   // ME FUNCTIONS END
 
-  function closeBubble(userId) {
-    console.log('closeBubble', userId);
-    const character = characters[userId];
-    character.bubbleActive = false;
-    renderCharacters();
-  }
-
   function handleRoomPress(e) {
     const { locationX, locationY } = e.nativeEvent;
     moveMe(locationX, locationY);
   }
 
-  function onMessageSubmit(e) {
-    bubbleMe(e.nativeEvent.text);
+  function onMessageSubmit() {
+    bubbleMe(message);
     setMessage('');
+    Keyboard.dismiss();
   }
 
   function renderCharacters() {
@@ -216,15 +218,19 @@ export function Room({ roomId }) {
             }}
             source={require('../assets/images/home.png')}
           />
-          <Characters characters={characters} closeBubble={closeBubble} />
+          <Characters characters={characters} />
         </TouchableOpacity>
       </ReactNativeZoomableView>
-      <TextInput
-        style={styles.chatInput}
-        returnKeyLabel="send"
-        placeholder="Type a message..."
-        value={message} onChangeText={(text) => setMessage(text)}
-        onSubmitEditing={(e) => onMessageSubmit(e)} />
+      <View style={{ display: 'flex', flexDirection: 'row', gap: 8, alignItems: 'flex-end', padding: 4 }}>
+        <TextInput
+          style={{...styles.chatInput, height: inputHeight}}
+          multiline
+          placeholder="Type a message..."
+          value={message} onChangeText={(text) => setMessage(text)}
+          onContentSizeChange={e => setInputHeight(e.nativeEvent.contentSize.height)} />
+          <Button buttonStyle={styles.sendButton} icon={<Ionicons name="send" size={24} color="black" />}
+            onPress={onMessageSubmit}/>
+      </View>
     </SafeAreaView>
   );
 }
