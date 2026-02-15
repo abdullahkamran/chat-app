@@ -1,0 +1,26 @@
+{
+  "name": "@chat-app/backend",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "nodemon",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@chat-app/shared-types": "workspace:*",
+    "@chat-app/socket-constants": "workspace:*",
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.17",
+    "@types/node": "^20.11.19",
+    "typescript": "~5.9.2",
+    "nodemon": "^3.0.3",
+    "ts-node": "^10.9.2"
+  }
+}

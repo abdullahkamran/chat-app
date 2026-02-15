@@ -1,0 +1,10 @@
+{
+  "extends": ["expo/tsconfig.base", "./base.json"],
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./*"],
+      "@chat-app/shared-types": ["../../packages/shared-types/src"],
+      "@chat-app/socket-constants": ["../../packages/socket-constants/src"]
+    }
+  }
+}

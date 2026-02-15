@@ -1,0 +1,6 @@
+{
+  "name": "@chat-app/typescript-config",
+  "version": "1.0.0",
+  "main": "base.json",
+  "files": ["base.json", "expo.json", "node.json"]
+}

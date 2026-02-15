@@ -3,12 +3,19 @@
 # dependencies
 node_modules/
 
+# Turborepo
+.turbo/
+
+# Build outputs
+dist/
+
 # Expo
 .expo/
-dist/
 web-build/
+expo-env.d.ts
 
 # Native
+.kotlin/
 *.orig.*
 *.jks
 *.p8
@@ -28,8 +35,25 @@ yarn-error.*
 .DS_Store
 *.pem
 
+# Windows
+Thumbs.db
+
 # local env files
+.env
 .env*.local
 
 # typescript
 *.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+app-example
+
+# generated native folders
+/ios
+/android

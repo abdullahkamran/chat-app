@@ -1,0 +1,15 @@
+{
+  "extends": "./base.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "ES2020",
+    "lib": ["ES2020"],
+    "moduleResolution": "node",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "paths": {
+      "@chat-app/shared-types": ["../../packages/shared-types/src"],
+      "@chat-app/socket-constants": ["../../packages/socket-constants/src"]
+    }
+  }
+}
