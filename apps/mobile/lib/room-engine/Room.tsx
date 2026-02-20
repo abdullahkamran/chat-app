@@ -1,38 +1,22 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { ReactNativeZoomableView } from '@openspacelabs/react-native-zoomable-view';
-import Constants from 'expo-constants';
-import React, { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Keyboard, SafeAreaView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { ActivityIndicator, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Button } from 'react-native-elements';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { CharacterDirection, type RoomCharacter, type User } from '@chat-app/shared-types';
 import { useUserInfo } from '@/context/user.context';
 import { useChat } from '@/hooks/useChat';
 import { useRoomDetails } from '@/hooks/useRoomDetails';
-import Character from './Character';
-import { RoomBackdrop } from './RoomBackdrop';
-import { TypingIndicator } from './TypingIndicator';
+import { CharacterDirection, type RoomCharacter, type User } from '@chat-app/shared-types';
+import { RoomBackdrop } from '../../components/RoomBackdrop';
+import { TypingIndicator } from '../../components/TypingIndicator';
+import Character from './components/Character';
+import { ChatInput } from './components/ChatInput';
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    marginTop: Constants.statusBarHeight,
   },
-  chatInput: {
-    flex: 1,
-    zIndex: 1001,
-    backgroundColor: 'grey',
-    borderRadius: 25,
-    color: 'white',
-    fontSize: 18,
-    padding: 10,
-  },
-  sendButton: {
-    borderRadius: 24,
-    backgroundColor: 'white',
-    height: 48,
-    width: 48,
-  }
 });
 
 export function Room({ roomId }: Readonly<{ roomId: string }>) {
@@ -40,16 +24,11 @@ export function Room({ roomId }: Readonly<{ roomId: string }>) {
   const { data: roomDetails, isLoading: isRoomLoading, error: roomError } = useRoomDetails(roomId);
   const [roomCharacters, setRoomCharacters] = useState<Record<User['_id'], RoomCharacter>>({});
 
-  const [message, setMessage] = useState('');
   const { user } = useUserInfo();
   const userId = user?.userId ?? '';
 
-  const [inputHeight, setInputHeight] = useState(42);
-
   const [typingUserIds, setTypingUserIds] = useState<Set<string>>(new Set());
   const typingTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-  const sendTypingTimeoutRef = useRef<ReturnType<typeof setTimeout>>(0);
-
   const { moveMe, sendMessage, sendTyping } = useChat({
     roomId,
     userId,
@@ -98,11 +77,6 @@ export function Room({ roomId }: Readonly<{ roomId: string }>) {
     }, 2000);
   }
 
-  const handleMessageChange = useCallback((text: string) => {
-    setMessage(text);
-    clearTimeout(sendTypingTimeoutRef.current);
-    sendTypingTimeoutRef.current = setTimeout(() => sendTyping(), 300);
-  }, [sendTyping]);
 
 
   function enterCharacter(userId: string) {
@@ -129,13 +103,19 @@ export function Room({ roomId }: Readonly<{ roomId: string }>) {
   }
 
   function moveCharacter(userId: string, x: number, y: number) {
-    const character = roomCharacters[userId];
-    character.position = { x, y, z: 0 };
+    setRoomCharacters(current => {
+      const character = current[userId];
+      if (!character) return current;
+      return { ...current, [userId]: { ...character, position: { x, y, z: 0 } } };
+    });
   }
 
   function pushChatMessage(userId: string, message: string) {
-    const character = roomCharacters[userId];
-    character.messages.push(message);
+    setRoomCharacters(current => {
+      const character = current[userId];
+      if (!character) return current;
+      return { ...current, [userId]: { ...character, messages: [...character.messages, message] } };
+    });
   }
 
   function moveMeWithCharacter(x: number, y: number) {
@@ -159,10 +139,8 @@ export function Room({ roomId }: Readonly<{ roomId: string }>) {
     moveMeWithCharacter(locationX, locationY);
   }
 
-  function onMessageSubmit() {
+  function onMessageSubmit(message: string) {
     bubbleMe(message);
-    setMessage('');
-    Keyboard.dismiss();
   }
 
   if (isRoomLoading) {
@@ -215,16 +193,7 @@ export function Room({ roomId }: Readonly<{ roomId: string }>) {
         </TouchableOpacity>
       </ReactNativeZoomableView>
       <TypingIndicator typingUserIds={typingUserIds} />
-      <View style={{ display: 'flex', flexDirection: 'row', gap: 8, alignItems: 'flex-end', padding: 4 }}>
-        <TextInput
-          style={{...styles.chatInput, height: inputHeight}}
-          multiline
-          placeholder="Type a message..."
-          value={message} onChangeText={handleMessageChange}
-          onContentSizeChange={e => setInputHeight(e.nativeEvent.contentSize.height)} />
-          <Button buttonStyle={styles.sendButton} icon={<Ionicons name="send" size={24} color="black" />}
-            onPress={onMessageSubmit}/>
-      </View>
+      <ChatInput onTyping={sendTyping} onSubmit={onMessageSubmit} />
     </SafeAreaView>
   );
 }

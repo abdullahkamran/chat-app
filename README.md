@@ -179,3 +179,13 @@ When ready to migrate your existing backend:
 - [Expo Documentation](https://docs.expo.dev/)
 - [Expo Router](https://docs.expo.dev/router/introduction/)
 - [Socket.io Documentation](https://socket.io/docs/v4/)
+
+
+
+
+Create a Firebase project and enable Cloud Messaging
+Place google-services.json in apps/mobile/ (Android)
+Place GoogleService-Info.plist in apps/mobile/ (iOS)
+Place your Firebase Admin SDK service account JSON in the backend and set FIREBASE_SERVICE_ACCOUNT_KEY in .env
+Run npm install / pnpm install in both apps
+Build a dev client (npx expo run:android / npx expo run:ios) — push notifications don't work in Expo Go

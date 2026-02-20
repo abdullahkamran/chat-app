@@ -1,9 +1,8 @@
 import { RoomCharacter } from "@chat-app/shared-types";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Animated, View } from 'react-native';
 import Bubble from './Bubble';
-import { TypingBubble } from './TypingBubble';
-import UserCharacter from "./ui/UserCharacter";
+import UserCharacter from "../../../components/ui/UserCharacter";
 
 let BUBBLE_KEY = 0;
 
@@ -62,7 +61,7 @@ const Character = ({
     <Animated.View style={[animation?.getLayout(), { position: 'absolute', zIndex: 1000 }]}>
       <View style={{ position: 'relative' }}>
         <View style={{ position: 'absolute', bottom: 160, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center', left: 0 }}>
-          {isTyping && <TypingBubble />}
+          {isTyping && <Bubble isTyping />}
           {bubbles.map((bubble) =>
             <Bubble
               key={bubble.key}

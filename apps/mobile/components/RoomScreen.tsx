@@ -1,7 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
-import Room from './Room';
+import Room from '../lib/room-engine/Room';
 
 export default function RoomScreen(): React.JSX.Element {
   const { roomId } = useLocalSearchParams<{ roomId: string }>();
