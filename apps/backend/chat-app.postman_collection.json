@@ -1,0 +1,535 @@
+{
+    "info": {
+        "name": "Chat App API",
+        "_postman_id": "chat-app-api-v1",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+        {
+            "key": "baseUrl",
+            "value": "http://localhost:1017",
+            "type": "string"
+        },
+        {
+            "key": "userId",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "roomId",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "accessToken",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "refreshToken",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "avatarId",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "avatarItemId",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "avatarVariantId",
+            "value": "",
+            "type": "string"
+        }
+    ],
+    "item": [
+        {
+            "name": "Auth",
+            "item": [
+                {
+                    "name": "Sign Up",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "const res = pm.response.json();",
+                                    "if (res._id) pm.collectionVariables.set('userId', res._id);"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Content-Type", "value": "application/json" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/auth/signup",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "auth", "signup"]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"username\": \"johndoe\",\n    \"password\": \"password123\",\n    \"email\": \"johndoe@example.com\",\n    \"phoneNumber\": \"+11234567890\",\n    \"city\": \"New York\",\n    \"state\": \"NY\",\n    \"country\": \"US\"\n}",
+                            "options": { "raw": { "language": "json" } }
+                        }
+                    }
+                },
+                {
+                    "name": "Login",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "const res = pm.response.json();",
+                                    "if (res.accessToken)  pm.collectionVariables.set('accessToken',  res.accessToken);",
+                                    "if (res.refreshToken) pm.collectionVariables.set('refreshToken', res.refreshToken);",
+                                    "if (res.userId)       pm.collectionVariables.set('userId',       res.userId);"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Content-Type", "value": "application/json" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/auth/login",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "auth", "login"]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"username\": \"johndoe\",\n    \"password\": \"password123\"\n}",
+                            "options": { "raw": { "language": "json" } }
+                        }
+                    }
+                },
+                {
+                    "name": "Refresh Token",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "const res = pm.response.json();",
+                                    "if (res.accessToken)  pm.collectionVariables.set('accessToken',  res.accessToken);",
+                                    "if (res.refreshToken) pm.collectionVariables.set('refreshToken', res.refreshToken);"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Content-Type", "value": "application/json" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/auth/refresh",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "auth", "refresh"]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"refreshToken\": \"{{refreshToken}}\"\n}",
+                            "options": { "raw": { "language": "json" } }
+                        }
+                    }
+                },
+                {
+                    "name": "Logout",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.collectionVariables.set('accessToken',  '');",
+                                    "pm.collectionVariables.set('refreshToken', '');"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Content-Type", "value": "application/json" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/auth/logout",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "auth", "logout"]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"refreshToken\": \"{{refreshToken}}\"\n}",
+                            "options": { "raw": { "language": "json" } }
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Users",
+            "item": [
+                {
+                    "name": "Get All Users",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/users/all",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "users", "all"]
+                        }
+                    }
+                },
+                {
+                    "name": "Get User by Username",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/users?username=johndoe",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "users"],
+                            "query": [
+                                {
+                                    "key": "username",
+                                    "value": "johndoe"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Get User by ID",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/users/{{userId}}",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "users", "{{userId}}"]
+                        }
+                    }
+                },
+                {
+                    "name": "Get User Rooms",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/users/{{userId}}/rooms",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "users", "{{userId}}", "rooms"]
+                        }
+                    }
+                },
+                {
+                    "name": "Delete User",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            { "key": "Content-Type", "value": "application/json" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/users/delete",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "users", "delete"]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"_id\": \"{{userId}}\"\n}",
+                            "options": { "raw": { "language": "json" } }
+                        }
+                    }
+                },
+                {
+                    "name": "Save Push Token",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Content-Type", "value": "application/json" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/users/{{userId}}/push-token",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "users", "{{userId}}", "push-token"]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"token\": \"ExponentPushToken[xxxxxxxxxxxxxxxxxxxx]\"\n}",
+                            "options": { "raw": { "language": "json" } }
+                        }
+                    }
+                },
+                {
+                    "name": "Remove Push Token",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            { "key": "Content-Type", "value": "application/json" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/users/{{userId}}/push-token",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "users", "{{userId}}", "push-token"]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"token\": \"ExponentPushToken[xxxxxxxxxxxxxxxxxxxx]\"\n}",
+                            "options": { "raw": { "language": "json" } }
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Rooms",
+            "item": [
+                {
+                    "name": "Get My Rooms (Paginated)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/rooms?page=1&limit=20",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "rooms"],
+                            "query": [
+                                { "key": "page", "value": "1" },
+                                { "key": "limit", "value": "20" }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Get All Rooms",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/rooms/all",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "rooms", "all"]
+                        }
+                    }
+                },
+                {
+                    "name": "Get Room by ID",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/rooms/{{roomId}}",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "rooms", "{{roomId}}"]
+                        }
+                    }
+                },
+                {
+                    "name": "Get Room Details",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/rooms/{{roomId}}/details",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "rooms", "{{roomId}}", "details"]
+                        }
+                    }
+                },
+                {
+                    "name": "Create Room",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "const res = pm.response.json();",
+                                    "if (res._id) pm.collectionVariables.set('roomId', res._id);"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Content-Type", "value": "application/json" },
+                            { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/rooms/",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "rooms", ""]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Chill Zone\",\n    \"description\": \"A place to hang out\",\n    \"category\": \"social\",\n    \"personLimit\": 10\n}",
+                            "options": { "raw": { "language": "json" } }
+                        }
+                    }
+                },
+                {
+                    "name": "Delete Room",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            { "key": "Content-Type", "value": "application/json" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/rooms/delete",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "rooms", "delete"]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"_id\": \"{{roomId}}\"\n}",
+                            "options": { "raw": { "language": "json" } }
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Avatar",
+            "item": [
+                {
+                    "name": "Get Catalog Items (by category)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "const res = pm.response.json();",
+                                    "if (Array.isArray(res) && res[0]) {",
+                                    "    pm.collectionVariables.set('avatarItemId', res[0]._id);",
+                                    "    if (res[0].variants && res[0].variants[0]) {",
+                                    "        pm.collectionVariables.set('avatarVariantId', res[0].variants[0]._id);",
+                                    "    }",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/avatar/items?category=skin",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "avatar", "items"],
+                            "query": [
+                                { "key": "category", "value": "skin", "description": "eye | hair | skin | mouth | tops | bottoms | headwear | facewear | wristwear | footwear" }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Get My Avatars",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/avatar",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "avatar"]
+                        }
+                    }
+                },
+                {
+                    "name": "Create Avatar",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "const res = pm.response.json();",
+                                    "if (res._id) pm.collectionVariables.set('avatarId', res._id);"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Content-Type", "value": "application/json" },
+                            { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/avatar",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "avatar"]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"skin\":    { \"itemId\": \"{{avatarItemId}}\", \"variantId\": \"{{avatarVariantId}}\" },\n    \"eye\":     { \"itemId\": \"{{avatarItemId}}\", \"variantId\": \"{{avatarVariantId}}\" },\n    \"mouth\":   { \"itemId\": \"{{avatarItemId}}\", \"variantId\": \"{{avatarVariantId}}\" },\n    \"tops\":    { \"itemId\": \"{{avatarItemId}}\", \"variantId\": \"{{avatarVariantId}}\" },\n    \"bottoms\": { \"itemId\": \"{{avatarItemId}}\", \"variantId\": \"{{avatarVariantId}}\" }\n}",
+                            "options": { "raw": { "language": "json" } }
+                        }
+                    }
+                },
+                {
+                    "name": "Edit Avatar",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            { "key": "Content-Type", "value": "application/json" },
+                            { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/avatar/{{avatarId}}",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "avatar", "{{avatarId}}"]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"skin\":    { \"itemId\": \"{{avatarItemId}}\", \"variantId\": \"{{avatarVariantId}}\" },\n    \"eye\":     { \"itemId\": \"{{avatarItemId}}\", \"variantId\": \"{{avatarVariantId}}\" },\n    \"mouth\":   { \"itemId\": \"{{avatarItemId}}\", \"variantId\": \"{{avatarVariantId}}\" },\n    \"tops\":    { \"itemId\": \"{{avatarItemId}}\", \"variantId\": \"{{avatarVariantId}}\" },\n    \"bottoms\": { \"itemId\": \"{{avatarItemId}}\", \"variantId\": \"{{avatarVariantId}}\" },\n    \"hair\":    { \"itemId\": \"{{avatarItemId}}\", \"variantId\": \"{{avatarVariantId}}\" }\n}",
+                            "options": { "raw": { "language": "json" } }
+                        }
+                    }
+                },
+                {
+                    "name": "Set Default Avatar",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/avatar/{{avatarId}}/set-default",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "avatar", "{{avatarId}}", "set-default"]
+                        }
+                    }
+                },
+                {
+                    "name": "Delete Avatar",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/avatar/{{avatarId}}",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "avatar", "{{avatarId}}"]
+                        }
+                    }
+                }
+            ]
+        }
+    ]
+}

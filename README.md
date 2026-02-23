@@ -1,114 +1,90 @@
-# Chat App v2 - Turborepo Monorepo
+# Chat App — Turborepo Monorepo
 
 A social chat application with real-time Socket.io features, interactive rooms, and avatar customization.
 
 ## Monorepo Structure
 
-This project uses [Turborepo](https://turbo.build/repo) to manage a monorepo containing:
-
 ```
-chat-app-v2/
+chat-app/
 ├── apps/
-│   ├── mobile/          # Expo React Native app
-│   └── backend/         # Express backend server (placeholder)
+│   ├── mobile/           # Expo React Native app
+│   └── backend/          # Express + Socket.io backend
 └── packages/
-    ├── shared-types/    # Shared TypeScript types
-    ├── socket-constants/# Socket.io event constants
+    ├── shared-types/     # Shared TypeScript types
+    ├── socket-constants/ # Socket.io event constants
     └── typescript-config/# Shared TypeScript configurations
 ```
-
-### Apps
-
-- **mobile** - Expo React Native application with file-based routing (Expo Router)
-- **backend** - Minimal Express server (placeholder for existing backend migration)
-
-### Shared Packages
-
-- **@chat-app/shared-types** - TypeScript types used by both mobile and backend (Room, User, Item, Avatar, etc.)
-- **@chat-app/socket-constants** - Socket.io event names shared across the stack
-- **@chat-app/typescript-config** - Shared TypeScript configuration presets
 
 ## Getting Started
 
 ### Prerequisites
 
 - Node.js 18+
-- pnpm 8+ (recommended) or npm/yarn
+- pnpm 8+
 
 ### Installation
 
-1. Install dependencies for all packages:
-
-   ```bash
-   pnpm install
-   ```
-
-### Development
-
-Run both mobile and backend in parallel:
-
 ```bash
-pnpm dev
+pnpm install
 ```
 
-Or run them individually:
+### Environment setup
+
+Copy the example env file and fill in your values:
 
 ```bash
-# Mobile app only
-pnpm mobile
+cp apps/backend/.env.example apps/backend/.env
+```
 
-# Backend only
+Required variables:
+
+```env
+PORT=1017
+ATLAS_DB_URL=mongodb+srv://...
+JWT_ACCESS_SECRET=<random 32+ char string>
+JWT_REFRESH_SECRET=<different random 32+ char string>
+```
+
+Generate secrets with:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+---
+
+## Running the app
+
+**Open two separate terminals:**
+
+**Terminal 1 — Backend**
+```bash
 pnpm backend
 ```
+Starts the Express + Socket.io server at `http://localhost:1017`.
 
-### Mobile App
-
-The mobile app is an Expo project located in `apps/mobile/`.
-
+**Terminal 2 — Mobile**
 ```bash
-cd apps/mobile
-pnpm start
+pnpm mobile
 ```
+Starts the Expo dev server. Scan the QR code with Expo Go, or press `a` for Android emulator / `i` for iOS simulator.
 
-In the output, you'll find options to open the app in:
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go)
-
-The app uses [Expo Router](https://docs.expo.dev/router/introduction) for file-based routing.
-
-### Backend
-
-The backend is a minimal Express server placeholder located in `apps/backend/`.
-
-```bash
-cd apps/backend
-pnpm dev
-```
-
-The server runs on `http://localhost:1017` by default.
-
-**Note:** This is a placeholder. The existing backend will be migrated here later.
+---
 
 ## Available Scripts
 
 From the root directory:
 
-- `pnpm dev` - Run all apps in development mode
-- `pnpm build` - Build all packages and apps
-- `pnpm lint` - Lint all packages
-- `pnpm type-check` - Type check all packages
-- `pnpm mobile` - Run mobile app only
-- `pnpm backend` - Run backend only
+| Command | Description |
+|---------|-------------|
+| `pnpm backend` | Run backend only |
+| `pnpm mobile` | Run mobile app only |
+| `pnpm dev` | Run both in parallel (single terminal) |
+| `pnpm build` | Build all packages and apps |
+| `pnpm type-check` | Type check all packages |
+| `pnpm lint` | Lint all packages |
 
-## Features
-
-- **Real-time Chat** - Socket.io integration for instant messaging
-- **Interactive Rooms** - Users can join rooms and see other users
-- **Avatar System** - Customizable user avatars
-- **Character Positioning** - Real-time character position tracking
-- **Typing Indicators** - See when users are typing
-- **Tab Navigation** - Home, Conversations, Explore tabs
+---
 
 ## Tech Stack
 
@@ -116,76 +92,73 @@ From the root directory:
 - React Native / Expo 54
 - Expo Router (file-based routing)
 - Socket.io Client
-- React Query (data fetching)
+- React Query
+- expo-secure-store (auth token storage)
 - TypeScript
 
-### Backend (Placeholder)
+### Backend
 - Express
+- Socket.io
+- Mongoose / MongoDB
+- JWT (access + refresh tokens)
+- bcryptjs
+- Firebase Admin (push notifications)
 - TypeScript
 
 ### Shared
-- TypeScript (strict mode)
-- Shared types for type safety across stack
+- `@chat-app/shared-types` — TypeScript types for User, Room, Avatar, etc.
+- `@chat-app/socket-constants` — Socket.io event name constants
+
+---
+
+## Authentication
+
+The app uses short-lived JWT access tokens (15 min) + long-lived refresh tokens (30 days).
+See [docs/auth.md](docs/auth.md) for the full breakdown.
+
+---
 
 ## Project Structure
 
-### Mobile App (`apps/mobile/`)
-- `app/` - Expo Router screens (file-based routing)
-- `components/` - React Native components
-- `hooks/` - Custom React hooks
-- `context/` - React Context providers
-- `utils/` - Utility functions
-- `assets/` - Images, fonts, etc.
-- `mock/` - Mock data for development
+### Mobile (`apps/mobile/`)
+- `app/` — Expo Router screens
+- `components/` — React Native components
+- `context/` — React Context providers (auth, user, active room)
+- `lib/` — API client, auth helpers, room engine
+- `hooks/` — Custom React hooks
+- `utils/` — Utility functions
 
-### Backend (`apps/backend/`)
-- `src/index.ts` - Express server entry point
-- Ready for existing backend migration
+### Backend (`apps/backend/src/`)
+- `index.ts` — Server entry point
+- `routes/` — Express routers
+- `controllers/` — Request handlers
+- `models/` — Mongoose models
+- `services/` — Auth, notifications
+- `middleware/` — Auth middleware
+- `sockets/` — Socket.io event handlers
+- `db/` — MongoDB connection
 
-## Development Workflow
+---
 
-### Adding Dependencies
+## Push Notifications
+
+1. Create a Firebase project and enable Cloud Messaging
+2. Place `google-services.json` in `apps/mobile/` (Android)
+3. Place `GoogleService-Info.plist` in `apps/mobile/` (iOS)
+4. Place your Firebase Admin SDK service account JSON in `apps/backend/` and set `FIREBASE_SERVICE_ACCOUNT_KEY` in `.env`
+5. Build a dev client (`npx expo run:android` / `npx expo run:ios`) — push notifications don't work in Expo Go
+
+---
+
+## Adding Dependencies
 
 ```bash
-# For mobile
+# Mobile
 cd apps/mobile && pnpm add <package>
 
-# For backend
+# Backend
 cd apps/backend && pnpm add <package>
 
-# For shared packages
+# Shared packages
 cd packages/shared-types && pnpm add <package>
 ```
-
-### Making Changes to Shared Types
-
-1. Edit files in `packages/shared-types/src/`
-2. Both mobile and backend automatically pick up changes (TypeScript project references)
-3. No build step needed during development
-
-### Migrating Existing Backend
-
-When ready to migrate your existing backend:
-
-1. Copy backend code to `apps/backend/src/`
-2. Update imports to use `@chat-app/shared-types` and `@chat-app/socket-constants`
-3. Update `apps/backend/package.json` with additional dependencies
-4. Ensure backend uses shared types for API responses and Socket.io events
-5. Test integration between mobile and backend
-
-## Learn More
-
-- [Turborepo Documentation](https://turbo.build/repo/docs)
-- [Expo Documentation](https://docs.expo.dev/)
-- [Expo Router](https://docs.expo.dev/router/introduction/)
-- [Socket.io Documentation](https://socket.io/docs/v4/)
-
-
-
-
-Create a Firebase project and enable Cloud Messaging
-Place google-services.json in apps/mobile/ (Android)
-Place GoogleService-Info.plist in apps/mobile/ (iOS)
-Place your Firebase Admin SDK service account JSON in the backend and set FIREBASE_SERVICE_ACCOUNT_KEY in .env
-Run npm install / pnpm install in both apps
-Build a dev client (npx expo run:android / npx expo run:ios) — push notifications don't work in Expo Go

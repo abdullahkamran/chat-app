@@ -49,3 +49,11 @@ export interface RoomTheme {
     leftWall: Item;
     rightWall: Item;
 }
+
+export interface PaginatedRooms {
+    rooms: Array<Room>;
+    page: number;
+    limit: number;
+    total: number;
+    hasMore: boolean;
+}

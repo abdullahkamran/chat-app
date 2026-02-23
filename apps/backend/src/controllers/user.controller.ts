@@ -33,17 +33,6 @@ const controller = {
         }
     },
 
-    addUser: async (req: Request, res: Response): Promise<void> => {
-        const userToAdd = new User(req.body);
-        try {
-            const addedUser = await User.addUser(userToAdd);
-            res.send(addedUser);
-        } catch (e) {
-            console.error(`Error: ${e}`);
-            res.sendStatus(500);
-        }
-    },
-
     deleteUser: async (req: Request, res: Response): Promise<void> => {
         const user = req.body;
         try {

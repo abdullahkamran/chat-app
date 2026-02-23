@@ -1,3 +1,3 @@
-export let USER_ID1 = '62c6f420fccaa7c05d7d87f1';
-export let USER_ID2 = '62d2dec10161f49fa96b17c1';
-export const SERVER_ORIGIN = 'http://localhost:1017';
+export let USER_ID1 = '699ae04b11234c3f2246838a';
+export let USER_ID2 = '699ae07711234c3f2246838d';
+export const SERVER_ORIGIN = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:1017';

@@ -19,10 +19,6 @@ userRouter.get('/:id/rooms', (req, res) => {
     userController.getRooms(req, res, req.params.id);
 });
 
-userRouter.post('/add', (req, res) => {
-    userController.addUser(req, res);
-});
-
 userRouter.delete('/delete', (req, res) => {
     userController.deleteUser(req, res);
 });

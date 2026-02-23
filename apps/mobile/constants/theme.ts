@@ -1,41 +1,121 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
-
 import { Platform } from 'react-native';
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+// ---------------------------------------------------------------------------
+// Raw palette — all color values in one place. Change here, changes everywhere.
+// ---------------------------------------------------------------------------
+export const palette = {
+  // Brand
+  yellow: '#FFFC00',
+  black: '#000000',
+  white: '#FFFFFF',
 
+  // Dark surfaces (light → dark)
+  surface100: '#111111',
+  surface200: '#1a1a1a',
+  surface300: '#222222',
+  surface400: '#333333',
+  surface500: '#444444',
+
+  // Neutral text / icons
+  neutral400: '#555555',
+  neutral500: '#666666',
+  neutral600: '#888888',
+  neutral700: '#aaaaaa',
+  neutral800: '#cccccc',
+
+  // Status
+  error: '#ff4d4d',
+
+  // Overlay
+  overlay: 'rgba(0,0,0,0.75)',
+
+  // Avatar accent palette (used for auto-generated avatar backgrounds)
+  avatarRed: '#FF6B6B',
+  avatarTeal: '#4ECDC4',
+  avatarBlue: '#45B7D1',
+  avatarGreen: '#96CEB4',
+  avatarYellow: '#FFEAA7',
+  avatarPlum: '#DDA0DD',
+  avatarMint: '#98D8C8',
+} as const;
+
+// ---------------------------------------------------------------------------
+// Semantic theme — use these tokens in components, not the palette directly.
+// Switching to a light theme (or any other brand) only requires updating here.
+// ---------------------------------------------------------------------------
+export const theme = {
+  colors: {
+    // Backgrounds
+    background: palette.black,
+    surface: palette.surface100,
+    surfaceElevated: palette.surface200,
+    border: palette.surface300,
+    borderSubtle: palette.surface400,
+
+    // Text
+    text: palette.white,
+    textSecondary: palette.neutral600,
+    textMuted: palette.neutral400,
+    textDisabled: palette.neutral500,
+    placeholder: palette.neutral700,
+
+    // Brand / interactive
+    primary: palette.yellow,
+    primaryText: palette.black,   // text on top of a yellow background
+
+    // Status
+    error: palette.error,
+
+    // Misc
+    overlay: palette.overlay,
+    icon: palette.neutral600,
+    tabBar: palette.black,
+    tabIconDefault: palette.neutral600,
+    tabIconSelected: palette.yellow,
+  },
+
+  // Avatar accent palette exposed as an ordered array for easy indexing
+  avatarPalette: [
+    palette.avatarRed,
+    palette.avatarTeal,
+    palette.avatarBlue,
+    palette.avatarGreen,
+    palette.avatarYellow,
+    palette.avatarPlum,
+    palette.avatarMint,
+  ] as const,
+} as const;
+
+// ---------------------------------------------------------------------------
+// Legacy Colors export — keeps existing themed-text / themed-view hooks working.
+// ---------------------------------------------------------------------------
 export const Colors = {
   light: {
-    text: '#11181C',
-    background: '#fff',
-    tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
+    text: theme.colors.text,
+    background: theme.colors.background,
+    tint: theme.colors.primary,
+    icon: theme.colors.icon,
+    tabIconDefault: theme.colors.tabIconDefault,
+    tabIconSelected: theme.colors.tabIconSelected,
   },
   dark: {
-    text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
+    text: theme.colors.text,
+    background: theme.colors.background,
+    tint: theme.colors.primary,
+    icon: theme.colors.icon,
+    tabIconDefault: theme.colors.tabIconDefault,
+    tabIconSelected: theme.colors.tabIconSelected,
   },
 };
 
+// ---------------------------------------------------------------------------
+// Fonts
+// ---------------------------------------------------------------------------
 export const Fonts = Platform.select({
   ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
     sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
     serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
     rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
     mono: 'ui-monospace',
   },
   default: {

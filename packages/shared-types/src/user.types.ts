@@ -1,11 +1,13 @@
 import { Avatar } from "./avatar.types";
 import { Amount } from "./currency.types";
+import { Item } from "./item.types";
 import { Room } from "./room.types";
 
 export interface User {
     _id: string;
     username: string;
     password: string;
+    email: string;
     phoneNumber: string;
     city: string;
     state: string;
@@ -28,6 +30,7 @@ export interface User {
     ownedRooms: Array<Room>;
     favouriteRooms: Array<Room>;
     friends: Array<User['_id']>;
+    inventory: Array<Item['_id']>;
     badges: Array<Badge>;
 }
 

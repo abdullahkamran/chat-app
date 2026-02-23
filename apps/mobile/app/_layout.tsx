@@ -1,100 +1,100 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { QueryClientProvider } from '@tanstack/react-query';
-import * as Notifications from 'expo-notifications';
+// import * as Notifications from 'expo-notifications';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ActiveRoomContext } from '@/context/activeRoom.context';
-import { User, UserContext } from '@/context/user.context';
+import { AuthProvider, useAuth } from '@/context/auth.context';
+import { UserContext } from '@/context/user.context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { USER_ID1 } from '@/utils/config';
-import { registerForPushNotificationsAsync, savePushTokenToServer } from '@/utils/notifications';
+// import { registerForPushNotificationsAsync, savePushTokenToServer } from '@/utils/notifications';
 import { queryClient } from '@/utils/queryClient';
 
-// Reference to activeRoomId for the notification handler (avoids stale closures)
-let activeRoomIdRef: string | null = null;
+// // Smart foreground suppression: suppress notifications for the room the user is currently viewing
+// Notifications.setNotificationHandler({
+//   handleNotification: async (notification) => {
+//     const roomId = notification.request.content.data?.roomId;
+//     const shouldSuppress = roomId && roomId === activeRoomIdRef;
+//     return {
+//       shouldShowAlert: !shouldSuppress,
+//       shouldShowBanner: !shouldSuppress,
+//       shouldShowList: !shouldSuppress,
+//       shouldPlaySound: !shouldSuppress,
+//       shouldSetBadge: false,
+//     };
+//   },
+// });
 
-// Smart foreground suppression: suppress notifications for the room the user is currently viewing
-Notifications.setNotificationHandler({
-  handleNotification: async (notification) => {
-    const roomId = notification.request.content.data?.roomId;
-    const shouldSuppress = roomId && roomId === activeRoomIdRef;
-
-    return {
-      shouldShowAlert: !shouldSuppress,
-      shouldShowBanner: !shouldSuppress,
-      shouldShowList: !shouldSuppress,
-      shouldPlaySound: !shouldSuppress,
-      shouldSetBadge: false,
-    };
-  },
-});
-
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
-
-export default function RootLayout() {
+function AppNavigator() {
   const colorScheme = useColorScheme();
   const router = useRouter();
-  const [user, setUser] = useState<User | null>({
-    userId: USER_ID1,
-  });
+  const { userId, isLoading, isAuthenticated } = useAuth();
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
-  const notificationResponseListener = useRef<Notifications.EventSubscription | null>(null);
 
-  const userContext = { user, setUser };
-
-  // Keep the module-level ref in sync with state
   useEffect(() => {
-    activeRoomIdRef = activeRoomId;
-  }, [activeRoomId]);
+    if (isLoading) return;
+    if (isAuthenticated) {
+      router.replace('/(tabs)');
+    } else {
+      router.replace('/(auth)/login');
+    }
+  }, [isLoading, isAuthenticated]);
 
-  // Register for push notifications and save token to server
-  useEffect(() => {
-    if (!user?.userId) return;
+  // // Register for push notifications once authenticated
+  // useEffect(() => {
+  //   if (!userId) return;
+  //   registerForPushNotificationsAsync().then((token) => {
+  //     if (token) savePushTokenToServer(userId, token);
+  //   });
+  // }, [userId]);
 
-    registerForPushNotificationsAsync().then((token) => {
-      if (token) {
-        savePushTokenToServer(user.userId, token);
-      }
-    });
-  }, [user?.userId]);
+  // // Handle notification taps — navigate to the room
+  // useEffect(() => {
+  //   const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+  //     const roomId = response.notification.request.content.data?.roomId;
+  //     if (roomId) router.push(`/room/${roomId}`);
+  //   });
+  //   return () => sub.remove();
+  // }, [router]);
 
-  // Handle notification taps — navigate to the room
-  useEffect(() => {
-    notificationResponseListener.current = Notifications.addNotificationResponseReceivedListener(
-      (response) => {
-        const roomId = response.notification.request.content.data?.roomId;
-        if (roomId) {
-          router.push(`/room/${roomId}`);
-        }
-      }
-    );
-
-    return () => {
-      notificationResponseListener.current?.remove();
-    };
-  }, [router]);
+  if (isLoading) return null;
 
   return (
+    <UserContext.Provider value={{ user: { userId: userId ?? '' }, setUser: () => {} }}>
+      <ActiveRoomContext.Provider value={{ activeRoomId, setActiveRoomId }}>
+        <QueryClientProvider client={queryClient}>
+          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+            <Stack>
+              {isAuthenticated ? (
+                <>
+                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                  <Stack.Screen name="(avatar)" options={{ headerShown: false }} />
+                  <Stack.Screen name="room" options={{ headerShown: false }} />
+                  <Stack.Screen name="create-room" options={{ headerShown: false, presentation: 'modal' }} />
+                  <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+                </>
+              ) : (
+                <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+              )}
+            </Stack>
+            <StatusBar style="auto" />
+          </ThemeProvider>
+        </QueryClientProvider>
+      </ActiveRoomContext.Provider>
+    </UserContext.Provider>
+  );
+}
+
+export default function RootLayout() {
+  return (
     <SafeAreaProvider>
-      <UserContext.Provider value={userContext}>
-        <ActiveRoomContext.Provider value={{ activeRoomId, setActiveRoomId }}>
-          <QueryClientProvider client={queryClient}>
-            <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-              <Stack>
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-              </Stack>
-              <StatusBar style="auto" />
-            </ThemeProvider>
-          </QueryClientProvider>
-        </ActiveRoomContext.Provider>
-      </UserContext.Provider>
+      <AuthProvider>
+        <AppNavigator />
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }

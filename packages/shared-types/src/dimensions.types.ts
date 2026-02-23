@@ -10,14 +10,18 @@ export interface Position {
     z: number;
 }
 
-export enum Orientiation {
-    ZERO,
-    NINETY,
-    ONE_EIGHTY,
-    TWO_SEVENTY,
-}
+export const Orientiation = {
+    ZERO: 'ZERO',
+    NINETY: 'NINETY',
+    ONE_EIGHTY: 'ONE_EIGHTY',
+    TWO_SEVENTY: 'TWO_SEVENTY',
+} as const;
 
-export enum CharacterDirection {
-    LEFT,
-    RIGHT,
-}
+export type Orientiation = (typeof Orientiation)[keyof typeof Orientiation];
+
+export const CharacterDirection = {
+    LEFT: 'LEFT',
+    RIGHT: 'RIGHT',
+} as const;
+
+export type CharacterDirection = (typeof CharacterDirection)[keyof typeof CharacterDirection];
