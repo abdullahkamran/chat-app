@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import Item from '../models/item.model';
 import User from '../models/user.model';
 import { requireAuth } from '../middleware/auth.middleware';
+import { logTransaction } from './transaction.controller';
 
 // ── Shop Router ───────────────────────────────────────────────────────────────
 // Mounted at /api/v1/shop in index.ts
@@ -88,6 +89,8 @@ shopRouter.post('/buy', requireAuth, async (req: Request, res: Response): Promis
         if (item.price.cash > 0) inc['amount.cash'] = -item.price.cash;
         if (item.price.realMoney > 0) inc['amount.realMoney'] = -item.price.realMoney;
 
+        const balanceBefore = { ...user.amount };
+
         const updated = await User.findByIdAndUpdate(
             new mongoose.Types.ObjectId(userId),
             {
@@ -96,6 +99,18 @@ shopRouter.post('/buy', requireAuth, async (req: Request, res: Response): Promis
             },
             { new: true }
         );
+
+        await logTransaction({
+            userId,
+            type: 'ROOM_ITEM_PURCHASE',
+            direction: 'debit',
+            description: `Purchased ${item.name}`,
+            amount: item.price,
+            balanceBefore,
+            balanceAfter: updated!.amount,
+            itemId,
+            itemName: item.name,
+        });
 
         res.send(updated);
     } catch (e) {

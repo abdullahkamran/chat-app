@@ -8,24 +8,31 @@ import {
   Text,
   View,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Avatar, AvatarItem } from '@chat-app/shared-types';
+import { Avatar, AvatarInventoryEntry, AvatarItem } from '@chat-app/shared-types';
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/auth.context';
+import { theme } from '@/constants/theme';
+import { resolveAvatarSource } from '@/constants/avatarAssets';
+import UserCharacter, { AVATAR_PART_RENDER_ORDER, AvatarLayer } from '@/components/ui/UserCharacter';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 const PART_CATEGORIES = [
-  { key: 'skin',     label: 'Skin',    required: true  },
-  { key: 'eye',      label: 'Eyes',    required: true  },
-  { key: 'mouth',    label: 'Mouth',   required: true  },
-  { key: 'tops',     label: 'Tops',    required: true  },
-  { key: 'bottoms',  label: 'Bottoms', required: true  },
-  { key: 'hair',     label: 'Hair',    required: false },
-  { key: 'headwear', label: 'Head',    required: false },
-  { key: 'facewear', label: 'Face',    required: false },
-  { key: 'wristwear',label: 'Wrist',   required: false },
-  { key: 'footwear', label: 'Shoes',   required: false },
+  { key: 'face',       label: 'Face',        required: true  },
+  { key: 'eye',        label: 'Eyes',        required: true  },
+  { key: 'mouth',      label: 'Mouth',       required: true  },
+  { key: 'tops',       label: 'Tops',        required: true  },
+  { key: 'bottoms',    label: 'Bottoms',     required: true  },
+  { key: 'nose',       label: 'Nose',        required: true  },
+  { key: 'skin',       label: 'Skin',        required: true  },
+  { key: 'hair',       label: 'Hair',        required: false },
+  { key: 'facialHair', label: 'Facial Hair', required: false },
+  { key: 'headwear',   label: 'Headwear',    required: false },
+  { key: 'facewear',   label: 'Facewear',    required: false },
+  { key: 'wristwear',  label: 'Wrist',       required: false },
+  { key: 'footwear',   label: 'Shoes',       required: false },
 ] as const;
 
 type AvatarPartKey = (typeof PART_CATEGORIES)[number]['key'];
@@ -55,11 +62,19 @@ export default function AvatarEditorScreen({ mode, avatarId, initialSelections, 
   const [activeCategory, setActiveCategory] = useState<AvatarPartKey>('skin');
   const [selections, setSelections] = useState<AvatarSelections>(initialSelections ?? {});
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
+  // Maps part key → sourceUrl of the selected variant, used to build the live preview
+  const [resolvedSourceUrls, setResolvedSourceUrls] = useState<Partial<Record<AvatarPartKey, string>>>({});
 
   // Fetch catalog items for the active category tab
   const { data: catalogItems = [], isLoading: loadingItems } = useQuery({
     queryKey: ['avatar-items', activeCategory],
     queryFn: () => api.get<AvatarItem[]>(`/api/v1/avatar/items?category=${activeCategory}`),
+  });
+
+  // Fetch owned avatar item variants to gate the editor
+  const { data: avatarInventory = [] } = useQuery<AvatarInventoryEntry[]>({
+    queryKey: ['avatar-inventory'],
+    queryFn: () => api.get<AvatarInventoryEntry[]>('/api/v1/inventory/avatar'),
   });
 
   const createMutation = useMutation({
@@ -89,6 +104,12 @@ export default function AvatarEditorScreen({ mode, avatarId, initialSelections, 
 
   function selectVariant(itemId: string, variantId: string) {
     setSelections((prev) => ({ ...prev, [activeCategory]: { itemId, variantId } }));
+    const variant = catalogItems
+      .find((i) => i._id === itemId)
+      ?.variants.find((v) => v._id === variantId);
+    if (variant?.sourceUrl) {
+      setResolvedSourceUrls((prev) => ({ ...prev, [activeCategory]: variant.sourceUrl }));
+    }
   }
 
   function handleSave() {
@@ -108,32 +129,31 @@ export default function AvatarEditorScreen({ mode, avatarId, initialSelections, 
     (item) => item._id === (selections[activeCategory]?.itemId ?? null)
   );
 
+  // Build a set of owned variantIds for quick lookup
+  const ownedVariantIds = new Set(avatarInventory.map((e) => e.variantId));
+
+  // Only show items that have at least one owned variant
+  const availableItems = catalogItems.filter((item) =>
+    item.variants.some((v) => ownedVariantIds.has(v._id))
+  );
+
   const errorMessage =
     (createMutation.error as Error | null)?.message ??
     (editMutation.error as Error | null)?.message ?? null;
+
+  // Build ordered layer list for the live preview from resolved sourceUrls
+  const previewLayers: AvatarLayer[] = AVATAR_PART_RENDER_ORDER.flatMap((key) => {
+    const url = resolvedSourceUrls[key as AvatarPartKey];
+    return url ? [{ key, sourceUrl: url }] : [];
+  });
 
   return (
     <View style={styles.container}>
       {/* ── Preview ── */}
       <View style={styles.preview}>
         <Text style={styles.previewLabel}>Preview</Text>
-        <View style={styles.previewBody}>
-          {PART_CATEGORIES.filter((c) => selections[c.key]).map((c) => (
-            <View
-              key={c.key}
-              style={[
-                styles.previewPart,
-                { backgroundColor: getPartColor(selections[c.key]!, catalogItems) },
-              ]}
-            >
-              <Text style={styles.previewPartText}>{c.label}</Text>
-            </View>
-          ))}
-          {PART_CATEGORIES.filter((c) => !selections[c.key] && c.required).map((c) => (
-            <View key={c.key} style={[styles.previewPart, styles.previewPartEmpty]}>
-              <Text style={styles.previewPartText}>{c.label}</Text>
-            </View>
-          ))}
+        <View style={styles.previewCharacter}>
+          <UserCharacter layers={previewLayers} size={220} />
         </View>
       </View>
 
@@ -171,19 +191,23 @@ export default function AvatarEditorScreen({ mode, avatarId, initialSelections, 
       ) : (
         <FlatList
           key={activeCategory}
-          data={catalogItems}
+          data={availableItems}
           keyExtractor={(item) => item._id}
           numColumns={3}
           contentContainerStyle={styles.grid}
           renderItem={({ item }) => {
             const isChosen = selections[activeCategory]?.itemId === item._id;
-            const previewColor = item.variants[0]?.color ?? '#555';
+            const source = resolveAvatarSource(item.variants[0]?.sourceUrl ?? '');
+            const fallbackColor = item.variants[0]?.color ?? theme.colors.border;
             return (
               <Pressable
                 style={[styles.gridItem, isChosen && styles.gridItemChosen]}
                 onPress={() => handleSelectItem(item)}
               >
-                <View style={[styles.gridItemSwatch, { backgroundColor: previewColor }]} />
+                {source
+                  ? <Image source={source} style={styles.gridItemSwatch} contentFit="contain" />
+                  : <View style={[styles.gridItemSwatch, { backgroundColor: fallbackColor }]} />
+                }
                 <Text style={styles.gridItemName} numberOfLines={1}>
                   {item.name}
                 </Text>
@@ -191,7 +215,7 @@ export default function AvatarEditorScreen({ mode, avatarId, initialSelections, 
             );
           }}
           ListEmptyComponent={
-            <Text style={styles.emptyText}>No options available for this category yet.</Text>
+            <Text style={styles.emptyText}>No owned items for this category yet. Visit the Shop to buy some!</Text>
           }
         />
       )}
@@ -201,7 +225,9 @@ export default function AvatarEditorScreen({ mode, avatarId, initialSelections, 
         <View style={styles.variantRow}>
           <Text style={styles.variantLabel}>Choose colour / style</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {(catalogItems.find((i) => i._id === activeItemId)?.variants ?? []).map((variant) => {
+            {(catalogItems.find((i) => i._id === activeItemId)?.variants ?? [])
+              .filter((v) => ownedVariantIds.has(v._id))
+              .map((variant) => {
               const isChosen = selections[activeCategory]?.variantId === variant._id;
               return (
                 <Pressable
@@ -246,55 +272,31 @@ export default function AvatarEditorScreen({ mode, avatarId, initialSelections, 
   );
 }
 
-// Returns a preview color for a part based on its selected variant
-function getPartColor(
-  selection: { itemId: string; variantId: string },
-  items: AvatarItem[]
-): string {
-  const item = items.find((i) => i._id === selection.itemId);
-  const variant = item?.variants.find((v) => v._id === selection.variantId);
-  return variant?.color ?? '#444';
-}
-
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: theme.colors.background,
   },
   preview: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#222',
+    borderBottomColor: theme.colors.border,
+    alignItems: 'center',
   },
   previewLabel: {
-    color: '#666',
+    color: theme.colors.textSecondary,
     fontSize: 12,
-    marginBottom: 8,
+    marginBottom: 12,
     textTransform: 'uppercase',
     letterSpacing: 1,
+    alignSelf: 'flex-start',
   },
-  previewBody: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  previewPart: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  previewPartEmpty: {
-    backgroundColor: '#1a1a1a',
-    borderWidth: 1,
-    borderColor: '#333',
-    borderStyle: 'dashed',
-  },
-  previewPartText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '600',
+  previewCharacter: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 240,
   },
   tabBar: {
     borderBottomWidth: 1,

@@ -3,15 +3,17 @@ import { User } from '@chat-app/shared-types';
 
 // Override ref-array fields with ObjectId since mongoose stores references, not populated docs
 export interface IUser
-    extends Omit<User, '_id' | 'rooms' | 'ownedRooms' | 'favouriteRooms' | 'friends' | 'inventory' | 'avatars' | 'selectedAvatar'>,
+    extends Omit<User, '_id' | 'rooms' | 'ownedRooms' | 'favouriteRooms' | 'friends' | 'inventory' | 'avatarInventory' | 'avatars' | 'selectedAvatar' | 'animations'>,
         Document {
     rooms: mongoose.Types.ObjectId[];
     ownedRooms: mongoose.Types.ObjectId[];
     favouriteRooms: mongoose.Types.ObjectId[];
     friends: mongoose.Types.ObjectId[];
     inventory: mongoose.Types.ObjectId[];
+    avatarInventory: Array<{ item: mongoose.Types.ObjectId; variantId: string }>;
     avatars: mongoose.Types.ObjectId[];
     selectedAvatar: mongoose.Types.ObjectId | null;
+    animations: mongoose.Types.ObjectId[];
     pushTokens: string[];    // backend-only, for push notifications
     refreshTokens: string[]; // backend-only, for auth session management
 }
@@ -42,7 +44,7 @@ const UserSchema = new Schema<IUser, IUserModel>(
         selectedAvatar: { type: mongoose.Schema.Types.ObjectId, ref: 'Avatar', default: null },
         mood: { type: String, default: '' },
         level: { type: Number, default: 1 },
-        emotes: [{ type: String }],
+        animations: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Animation' }],
         attributes: {
             speed: { type: Number, default: 1 },
             maxSpeed: { type: Number, default: 5 },
@@ -63,6 +65,12 @@ const UserSchema = new Schema<IUser, IUserModel>(
         favouriteRooms: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Room' }],
         friends: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
         inventory: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Item' }],
+        avatarInventory: [
+            {
+                item: { type: mongoose.Schema.Types.ObjectId, ref: 'AvatarItem', required: true },
+                variantId: { type: String, required: true },
+            },
+        ],
         badges: [
             {
                 rizz: { type: Number, default: 0 },

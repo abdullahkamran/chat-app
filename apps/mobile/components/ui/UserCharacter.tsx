@@ -1,204 +1,161 @@
-import { Avatar, AvatarEye, AvatarHair, AvatarMouth, AvatarSkin, User } from "@chat-app/shared-types";
-import { myFetch } from "@/utils/fetch";
-import React, { useEffect, useState } from "react";
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Avatar, AvatarItem } from '@chat-app/shared-types';
+import { api } from '@/lib/api';
+import { theme } from '@/constants/theme';
+import { resolveAvatarSource } from '@/constants/avatarAssets';
 
-enum AvatarPartName {
-  SKIN = 'skin',
-  HAIR = 'hair',
-  EYE = 'eye',
-  MOUTH = 'mouth',
+// ── Layer ordering ─────────────────────────────────────────────────────────────
+// Defines back-to-front compositing order for avatar parts.
+export const AVATAR_PART_RENDER_ORDER = [
+  'skin',
+  'face',
+  'bottoms',
+  'tops',
+  'footwear',
+  'wristwear',
+  'facialHair',
+  'nose',
+  'eye',
+  'mouth',
+  'hair',
+  'headwear',
+  'facewear',
+] as const;
+
+export type AvatarPartKey = (typeof AVATAR_PART_RENDER_ORDER)[number];
+
+// ── Public types ───────────────────────────────────────────────────────────────
+
+/** A single composited image layer for the avatar display. */
+export interface AvatarLayer {
+  key: string;
+  sourceUrl: string;
 }
 
-interface UserCharacterProps {
-  userId: User['_id'];
-  avatarId?: Avatar['_id'];
+/**
+ * Convert a fully-populated Avatar (from API) to a flat layer list.
+ * The API returns each part with `variants[0]` = the selected variant.
+ */
+export function avatarToLayers(avatar: Avatar): AvatarLayer[] {
+  return AVATAR_PART_RENDER_ORDER.flatMap((key) => {
+    const part = avatar[key as keyof Avatar] as (AvatarItem & { variants: Array<{ sourceUrl: string }> }) | undefined;
+    const sourceUrl = part?.variants?.[0]?.sourceUrl;
+    return sourceUrl ? [{ key, sourceUrl }] : [];
+  });
 }
 
-const SkeletonPlaceholder = () => {
+// ── Props (discriminated union) ────────────────────────────────────────────────
+
+type UserCharacterProps = {
+  /** Display height in dp. Width is calculated automatically (2:3 ratio). */
+  size?: number;
+} & (
+  | { userId: string; avatarId?: string } // fetch from API
+  | { avatar: Avatar }                    // pre-loaded Avatar object
+  | { layers: AvatarLayer[] }             // raw layers (editor preview)
+);
+
+// ── Skeleton ───────────────────────────────────────────────────────────────────
+
+const Skeleton = ({ size }: { size: number }) => {
+  const w = Math.round(size * (2 / 3));
   return (
-    <View style={styles.skeletonContainer}>
-      <View style={styles.skeletonHead} />
-      <View style={styles.skeletonBody} />
-      <View style={styles.skeletonLegs} />
+    <View style={[styles.skeleton, { width: w, height: size }]}>
+      <View style={[styles.skeletonHead, { width: w * 0.5, height: w * 0.5, borderRadius: w * 0.25 }]} />
+      <View style={[styles.skeletonBody, { width: w * 0.65, height: size * 0.42 }]} />
+      <View style={[styles.skeletonLegs, { width: w * 0.5, height: size * 0.18 }]} />
     </View>
   );
 };
 
-interface BodyPartProps {
-  part: AvatarEye | AvatarHair | AvatarSkin | AvatarMouth;
-  partName: AvatarPartName;
-}
+// ── Core renderer ──────────────────────────────────────────────────────────────
 
-const BodyPart = ({ part, partName }: BodyPartProps) => {
-  // Render each body part based on its properties
-  // Adjust based on actual Avatar part structure when properties are defined
-  const partStyle = styles[`${partName}Part` as keyof typeof styles] || styles.bodyPart;
-  
-  // When avatar parts have properties, render them here
-  // Example: If parts have imageUrl property
-  // const partWithUrl = part as { imageUrl?: string };
-  // if (partWithUrl.imageUrl) {
-  //   return (
-  //     <Image source={{ uri: partWithUrl.imageUrl }} style={partStyle} />
-  //   );
-  // }
-  
-  // Example: If parts have color property
-  // const partWithColor = part as { color?: string };
-  // if (partWithColor.color) {
-  //   return (
-  //     <View style={[partStyle, { backgroundColor: partWithColor.color }]} />
-  //   );
-  // }
-  
-  // Placeholder rendering until avatar part properties are defined
+function AvatarLayersView({ layers, size }: { layers: AvatarLayer[]; size: number }) {
+  const w = Math.round(size * (2 / 3));
   return (
-    <View style={partStyle}>
-      {/* Body part will be rendered here when properties are available */}
+    <View style={{ width: w, height: size }}>
+      {layers.map(({ key, sourceUrl }) => {
+        const source = resolveAvatarSource(sourceUrl);
+        if (!source) return null;
+        return (
+          <Image
+            key={key}
+            source={source}
+            style={StyleSheet.absoluteFill}
+            contentFit="contain"
+          />
+        );
+      })}
     </View>
   );
-};
+}
 
-const UserCharacter = ({
+// ── Fetched variant ────────────────────────────────────────────────────────────
+
+function FetchedUserCharacter({
   userId,
   avatarId,
-}: UserCharacterProps) => {
-  const [avatar, setAvatar] = useState<Avatar | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  size,
+}: {
+  userId: string;
+  avatarId?: string;
+  size: number;
+}) {
+  const [layers, setLayers] = useState<AvatarLayer[] | null>(null);
 
   useEffect(() => {
-    const fetchAvatar = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await myFetch(`/api/v1/users/${userId}/avatar/${avatarId}`); // gets default avatar when !avatarId
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch avatar: ${response.statusText}`);
-        }
-        
-        const avatarData: Avatar = await response.json();
-        setAvatar(avatarData);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load avatar');
-        console.error('Error fetching avatar:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAvatar();
+    const endpoint = avatarId
+      ? `/api/v1/users/${userId}/avatar/${avatarId}`
+      : `/api/v1/users/${userId}/avatar`;
+    api
+      .get<Avatar>(endpoint)
+      .then((avatar) => setLayers(avatarToLayers(avatar)))
+      .catch(() => setLayers([]));
   }, [userId, avatarId]);
 
-  if (loading) {
-    return <SkeletonPlaceholder />;
+  if (layers === null) return <Skeleton size={size} />;
+  if (layers.length === 0) return <Skeleton size={size} />;
+  return <AvatarLayersView layers={layers} size={size} />;
+}
+
+// ── Public component ───────────────────────────────────────────────────────────
+
+export default function UserCharacter(props: UserCharacterProps) {
+  const size = props.size ?? 200;
+
+  if ('layers' in props) {
+    if (props.layers.length === 0) return <Skeleton size={size} />;
+    return <AvatarLayersView layers={props.layers} size={size} />;
   }
 
-  if (error) {
-    return (
-      <View style={styles.errorContainer}>
-        <ActivityIndicator size="small" color="#999" />
-      </View>
-    );
+  if ('avatar' in props) {
+    const layers = avatarToLayers(props.avatar);
+    if (layers.length === 0) return <Skeleton size={size} />;
+    return <AvatarLayersView layers={layers} size={size} />;
   }
 
-  if (!avatar) {
-    return null;
-  }
+  return <FetchedUserCharacter userId={props.userId} avatarId={props.avatarId} size={size} />;
+}
 
-  return (
-    <View style={styles.avatarContainer}>
-      {/* Render avatar body parts in proper z-order (back to front) */}
-      {/* Skin/base layer first */}
-      <BodyPart part={avatar.eye} partName={AvatarPartName.SKIN} />
-      {/* Then hair */}
-      {avatar.hair && <BodyPart part={avatar.hair} partName={AvatarPartName.HAIR} />}
-      {/* Then facial features */}
-      <BodyPart part={avatar.eye} partName={AvatarPartName.EYE} />
-      <BodyPart part={avatar.mouth} partName={AvatarPartName.MOUTH} />
-    </View>
-  );
-};
+// ── Styles ─────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  skeletonContainer: {
-    width: 150,
-    height: 200,
+  skeleton: {
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
   },
   skeletonHead: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#e0e0e0',
-    marginBottom: 10,
+    backgroundColor: theme.colors.surfaceElevated,
   },
   skeletonBody: {
-    width: 80,
-    height: 100,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 10,
-    marginBottom: 10,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderRadius: 8,
   },
   skeletonLegs: {
-    width: 60,
-    height: 40,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 5,
-  },
-  avatarContainer: {
-    position: 'relative',
-    width: 150,
-    height: 200,
-  },
-  bodyPart: {
-    position: 'absolute',
-  },
-  skinPart: {
-    position: 'absolute',
-    width: 150,
-    height: 200,
-    zIndex: 1,
-  },
-  hairPart: {
-    position: 'absolute',
-    top: 0,
-    width: 150,
-    height: 80,
-    zIndex: 2,
-  },
-  eyePart: {
-    position: 'absolute',
-    top: 40,
-    width: 150,
-    height: 30,
-    zIndex: 3,
-  },
-  mouthPart: {
-    position: 'absolute',
-    top: 70,
-    width: 150,
-    height: 20,
-    zIndex: 3,
-  },
-  partImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'contain',
-  },
-  partColor: {
-    width: '100%',
-    height: '100%',
-  },
-  errorContainer: {
-    width: 150,
-    height: 200,
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: theme.colors.surfaceElevated,
+    borderRadius: 4,
   },
 });
-
-export default UserCharacter;

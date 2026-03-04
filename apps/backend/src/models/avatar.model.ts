@@ -10,11 +10,14 @@ export interface IAvatarPart {
 
 export interface IAvatar extends Document {
     eye: IAvatarPart;
-    hair?: IAvatarPart;
-    skin: IAvatarPart;
+    face: IAvatarPart;
     mouth: IAvatarPart;
     tops: IAvatarPart;
     bottoms: IAvatarPart;
+    skin: IAvatarPart;
+    nose: IAvatarPart;
+    hair?: IAvatarPart;
+    facialHair?: IAvatarPart;
     headwear?: IAvatarPart;
     facewear?: IAvatarPart;
     wristwear?: IAvatarPart;
@@ -31,16 +34,19 @@ const AvatarPartSchema = new Schema<IAvatarPart>(
 
 const AvatarSchema = new Schema<IAvatar>(
     {
-        eye:      { type: AvatarPartSchema, required: true },
-        skin:     { type: AvatarPartSchema, required: true },
-        mouth:    { type: AvatarPartSchema, required: true },
-        tops:     { type: AvatarPartSchema, required: true },
-        bottoms:  { type: AvatarPartSchema, required: true },
-        hair:      { type: AvatarPartSchema },
-        headwear:  { type: AvatarPartSchema },
-        facewear:  { type: AvatarPartSchema },
-        wristwear: { type: AvatarPartSchema },
-        footwear:  { type: AvatarPartSchema },
+        eye:        { type: AvatarPartSchema, required: true },
+        face:       { type: AvatarPartSchema, required: true },
+        mouth:      { type: AvatarPartSchema, required: true },
+        tops:       { type: AvatarPartSchema, required: true },
+        bottoms:    { type: AvatarPartSchema, required: true },
+        skin:       { type: AvatarPartSchema, required: true },
+        nose:       { type: AvatarPartSchema, required: true },
+        hair:       { type: AvatarPartSchema },
+        facialHair: { type: AvatarPartSchema },
+        headwear:   { type: AvatarPartSchema },
+        facewear:   { type: AvatarPartSchema },
+        wristwear:  { type: AvatarPartSchema },
+        footwear:   { type: AvatarPartSchema },
     },
     { timestamps: true, collection: 'avatars' }
 );

@@ -1,7 +1,7 @@
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
-import { myFetch } from './fetch';
+import { api } from '@/lib/api';
 
 export async function registerForPushNotificationsAsync(): Promise<string | null> {
   if (!Device.isDevice) {
@@ -38,18 +38,10 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
   return token;
 }
 
-export async function savePushTokenToServer(userId: string, token: string): Promise<void> {
-  await myFetch(`/api/v1/users/${userId}/push-token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token }),
-  });
+export async function savePushTokenToServer(token: string): Promise<void> {
+  await api.post('/api/v1/users/push-token', { token });
 }
 
-export async function removePushTokenFromServer(userId: string, token: string): Promise<void> {
-  await myFetch(`/api/v1/users/${userId}/push-token`, {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token }),
-  });
+export async function removePushTokenFromServer(token: string): Promise<void> {
+  await api.delete('/api/v1/users/push-token', { token });
 }

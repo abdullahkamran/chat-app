@@ -1,17 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 
 import type { RoomDetails } from '@chat-app/shared-types';
-import { myFetch } from '@/utils/fetch';
+import { api } from '@/lib/api';
 
-const fetchRoomDetails = async (roomId: string): Promise<RoomDetails> => {
-  const response = await myFetch(`/api/v1/rooms/${roomId}/details`);
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch room details');
-  }
-
-  return response.json();
-};
+const fetchRoomDetails = (roomId: string): Promise<RoomDetails> =>
+  api.get<RoomDetails>(`/api/v1/rooms/${roomId}/details`);
 
 export const useRoomDetails = (roomId?: string) =>
   useQuery({

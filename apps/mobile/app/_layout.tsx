@@ -48,7 +48,7 @@ function AppNavigator() {
   // useEffect(() => {
   //   if (!userId) return;
   //   registerForPushNotificationsAsync().then((token) => {
-  //     if (token) savePushTokenToServer(userId, token);
+  //     if (token) savePushTokenToServer(token);
   //   });
   // }, [userId]);
 

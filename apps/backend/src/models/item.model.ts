@@ -12,7 +12,7 @@ interface IItemModel extends Model<IItem> {
 
 const ItemSchema = new Schema<IItem, IItemModel>(
     {
-        name: { type: String, required: true },
+        name: { type: String, required: true, unique: true },
         description: { type: String, default: '' },
         category: { type: String, required: true, index: true },
         placement: {

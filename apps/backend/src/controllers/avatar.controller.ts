@@ -4,8 +4,8 @@ import AvatarModel, { IAvatar } from '../models/avatar.model';
 import AvatarItemModel from '../models/avatar-item.model';
 import User from '../models/user.model';
 
-const REQUIRED_PARTS = ['eye', 'skin', 'mouth', 'tops', 'bottoms'] as const;
-const OPTIONAL_PARTS = ['hair', 'headwear', 'facewear', 'wristwear', 'footwear'] as const;
+const REQUIRED_PARTS = ['eye', 'face', 'nose', 'skin', 'mouth', 'tops', 'bottoms'] as const;
+const OPTIONAL_PARTS = ['hair', 'facialHair', 'headwear', 'facewear', 'wristwear', 'footwear'] as const;
 const ALL_PARTS = [...REQUIRED_PARTS, ...OPTIONAL_PARTS] as const;
 
 type AvatarPartKey = (typeof ALL_PARTS)[number];

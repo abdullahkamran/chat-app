@@ -56,7 +56,7 @@ const controller = {
 
     savePushToken: async (req: Request, res: Response): Promise<void> => {
         try {
-            const { id } = req.params;
+            const id = req.user!.userId;
             const { token } = req.body;
             if (!token) {
                 res.status(400).send({ error: 'token is required' });
@@ -72,7 +72,7 @@ const controller = {
 
     removePushToken: async (req: Request, res: Response): Promise<void> => {
         try {
-            const { id } = req.params;
+            const id = req.user!.userId;
             const { token } = req.body;
             if (!token) {
                 res.status(400).send({ error: 'token is required' });

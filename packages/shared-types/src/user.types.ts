@@ -1,4 +1,5 @@
-import { Avatar } from "./avatar.types";
+import { Animation } from "./animation.types";
+import { Avatar, AvatarInventoryEntry } from "./avatar.types";
 import { Amount } from "./currency.types";
 import { Item } from "./item.types";
 import { Room } from "./room.types";
@@ -19,7 +20,7 @@ export interface User {
     selectedAvatar: Avatar['_id'];
     mood: Mood;
     level: number;
-    emotes: Array<string>;
+    animations: Array<Animation['_id']>;
     attributes: UserAttributes;
     amount: Amount;
     respecc: number;
@@ -31,6 +32,7 @@ export interface User {
     favouriteRooms: Array<Room>;
     friends: Array<User['_id']>;
     inventory: Array<Item['_id']>;
+    avatarInventory: Array<AvatarInventoryEntry>;
     badges: Array<Badge>;
 }
 

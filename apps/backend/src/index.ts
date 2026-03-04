@@ -12,8 +12,12 @@ import roomRouter from './routes/room.route';
 import authRouter from './routes/auth.route';
 import avatarRouter from './routes/avatar.route';
 import { shopRouter, inventoryRouter } from './controllers/shop.controller';
+import { avatarShopRouter, avatarInventoryRouter } from './controllers/avatar-shop.controller';
+import { animationShopRouter, animationInventoryRouter } from './controllers/animation-shop.controller';
+import { transactionRouter } from './controllers/transaction.controller';
 import connect from './db/connect';
 import socketHandler from './sockets/socketHandler';
+import { syncCatalog } from './services/catalog-sync.service';
 
 const PORT = process.env.PORT;
 
@@ -28,6 +32,11 @@ app.use('/api/v1/rooms/', roomRouter);
 app.use('/api/v1/shop', shopRouter);
 app.use('/api/v1/inventory', inventoryRouter);
 app.use('/api/v1/avatar', avatarRouter);
+app.use('/api/v1/shop', avatarShopRouter);
+app.use('/api/v1/inventory', avatarInventoryRouter);
+app.use('/api/v1/shop', animationShopRouter);
+app.use('/api/v1/inventory', animationInventoryRouter);
+app.use('/api/v1/transaction-history', transactionRouter);
 
 app.get('/', (_req, res) => {
     res.send({ name: 'test' });
@@ -42,6 +51,7 @@ io.on('connection', socketHandler.clientConnected);
 
 async function main() {
     await connect();
+    await syncCatalog();
     server.listen(PORT, () => console.log(`Server started. Listening on port ${PORT}`));
 }
 

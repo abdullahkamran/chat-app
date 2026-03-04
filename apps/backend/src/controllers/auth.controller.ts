@@ -8,6 +8,7 @@ import {
     generateRefreshToken,
     verifyRefreshToken,
 } from '../services/auth.service';
+import { applySignupDefaults } from '../services/signup-defaults.service';
 
 const authController = {
     signup: async (req: Request, res: Response): Promise<void> => {
@@ -36,6 +37,7 @@ const authController = {
             const hashed = await bcrypt.hash(password, 10);
             const user = new User({ ...req.body, password: hashed });
             const saved = await user.save();
+            await applySignupDefaults(saved._id as any, saved.username);
             res.status(201).send(saved);
         } catch (e) {
             console.error(e);

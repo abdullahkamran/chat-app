@@ -3,7 +3,10 @@ import { AvatarItem, AvatarItemVariant } from '@chat-app/shared-types';
 
 export const AvatarCategory = {
     EYE: 'eye',
+    FACE: 'face',
+    NOSE: 'nose',
     HAIR: 'hair',
+    FACIAL_HAIR: 'facialHair',
     SKIN: 'skin',
     MOUTH: 'mouth',
     TOPS: 'tops',
@@ -36,7 +39,7 @@ interface IAvatarItemModel extends Model<IAvatarItem> {}
 
 const AvatarItemSchema = new Schema<IAvatarItem, IAvatarItemModel>(
     {
-        name: { type: String, required: true },
+        name: { type: String, required: true, unique: true },
         description: { type: String, default: '' },
         subCategory: { type: String, default: '' },
         category: {

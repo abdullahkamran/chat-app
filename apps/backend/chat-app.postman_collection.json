@@ -36,6 +36,11 @@
             "type": "string"
         },
         {
+            "key": "itemId",
+            "value": "",
+            "type": "string"
+        },
+        {
             "key": "avatarItemId",
             "value": "",
             "type": "string"
@@ -396,6 +401,178 @@
                             "mode": "raw",
                             "raw": "{\n    \"_id\": \"{{roomId}}\"\n}",
                             "options": { "raw": { "language": "json" } }
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Shop",
+            "item": [
+                {
+                    "name": "Get Shop Items (by category)",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/shop/items?page=1&limit=20",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "shop", "items"],
+                            "query": [
+                                { "key": "category", "value": "", "description": "Optional category filter" },
+                                { "key": "page", "value": "1" },
+                                { "key": "limit", "value": "20" }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Get Shop Categories",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/shop/categories",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "shop", "categories"]
+                        }
+                    }
+                },
+                {
+                    "name": "Buy Item",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Content-Type", "value": "application/json" },
+                            { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/shop/buy",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "shop", "buy"]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"itemId\": \"{{itemId}}\"\n}",
+                            "options": { "raw": { "language": "json" } }
+                        }
+                    }
+                },
+                {
+                    "name": "Get My Inventory",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/inventory",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "inventory"]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Avatar Shop",
+            "item": [
+                {
+                    "name": "Get Avatar Shop Items (by category)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "const res = pm.response.json();",
+                                    "if (res.items && res.items[0]) {",
+                                    "    pm.collectionVariables.set('avatarItemId', res.items[0]._id);",
+                                    "    if (res.items[0].variants && res.items[0].variants[0]) {",
+                                    "        pm.collectionVariables.set('avatarVariantId', res.items[0].variants[0]._id);",
+                                    "    }",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/shop/avatar-items?category=tops&page=1&limit=20",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "shop", "avatar-items"],
+                            "query": [
+                                { "key": "category", "value": "tops", "description": "eye | hair | skin | mouth | tops | bottoms | headwear | facewear | wristwear | footwear" },
+                                { "key": "page", "value": "1" },
+                                { "key": "limit", "value": "20" }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Get Avatar Shop Categories",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/shop/avatar-items/categories",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "shop", "avatar-items", "categories"]
+                        }
+                    }
+                },
+                {
+                    "name": "Buy Avatar Item Variant",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Content-Type", "value": "application/json" },
+                            { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/shop/avatar-items/buy",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "shop", "avatar-items", "buy"]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"itemId\": \"{{avatarItemId}}\",\n    \"variantId\": \"{{avatarVariantId}}\"\n}",
+                            "options": { "raw": { "language": "json" } }
+                        }
+                    }
+                },
+                {
+                    "name": "Get My Avatar Inventory",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/inventory/avatar",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "inventory", "avatar"]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Transaction History",
+            "item": [
+                {
+                    "name": "Get My Transaction History",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/transaction-history?page=1&limit=20",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "transaction-history"],
+                            "query": [
+                                { "key": "page", "value": "1" },
+                                { "key": "limit", "value": "20" }
+                            ]
                         }
                     }
                 }

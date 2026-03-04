@@ -1,6 +1,9 @@
 import React from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image } from 'expo-image';
 import { Amount, Item } from '@chat-app/shared-types';
+import { theme } from '@/constants/theme';
+import { resolveItemSource } from '@/constants/avatarAssets';
 
 function formatPrice(price: Amount): string {
     const parts: string[] = [];
@@ -12,29 +15,25 @@ function formatPrice(price: Amount): string {
 
 interface ShopItemCardProps {
     item: Item;
-    onBuy: () => void;
-    isBuying: boolean;
+    onPress: () => void;
 }
 
-export default function ShopItemCard({ item, onBuy, isBuying }: ShopItemCardProps) {
+export default function ShopItemCard({ item, onPress }: ShopItemCardProps) {
+    const source = resolveItemSource(item.assetUrl);
+
     return (
-        <View style={styles.card}>
+        <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
+            {source
+                ? <Image source={source} style={styles.thumbnail} contentFit="contain" />
+                : <View style={[styles.thumbnail, styles.thumbnailPlaceholder]} />
+            }
             <View style={styles.info}>
                 <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
                 <Text style={styles.description} numberOfLines={2}>{item.description}</Text>
                 <Text style={styles.price}>{formatPrice(item.price)}</Text>
             </View>
-            <TouchableOpacity
-                style={styles.buyButton}
-                onPress={onBuy}
-                disabled={isBuying}
-                activeOpacity={0.7}
-            >
-                {isBuying
-                    ? <ActivityIndicator color="#000" size="small" />
-                    : <Text style={styles.buyText}>Buy</Text>}
-            </TouchableOpacity>
-        </View>
+            <Text style={styles.chevron}>›</Text>
+        </TouchableOpacity>
     );
 }
 
@@ -44,20 +43,21 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 16,
         paddingVertical: 12,
+        gap: 12,
         borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: '#222',
+        borderBottomColor: theme.colors.border,
     },
-    info: { flex: 1, marginRight: 12 },
-    name: { color: '#fff', fontSize: 16, fontWeight: '600' },
-    description: { color: '#888', fontSize: 13, marginTop: 2 },
-    price: { color: '#FFFC00', fontSize: 13, marginTop: 4, fontWeight: '500' },
-    buyButton: {
-        backgroundColor: '#FFFC00',
+    thumbnail: {
+        width: 48,
+        height: 48,
         borderRadius: 8,
-        paddingHorizontal: 14,
-        paddingVertical: 8,
-        minWidth: 58,
-        alignItems: 'center',
     },
-    buyText: { color: '#000', fontWeight: '700', fontSize: 14 },
+    thumbnailPlaceholder: {
+        backgroundColor: theme.colors.border,
+    },
+    info: { flex: 1 },
+    name: { color: theme.colors.text, fontSize: 16, fontWeight: '600' },
+    description: { color: theme.colors.textSecondary, fontSize: 13, marginTop: 2 },
+    price: { color: theme.colors.primary, fontSize: 13, marginTop: 4, fontWeight: '500' },
+    chevron: { color: theme.colors.textMuted, fontSize: 20 },
 });
