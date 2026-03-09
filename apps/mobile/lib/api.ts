@@ -46,6 +46,7 @@ async function request<T>(path: string, options: RequestInit = {}, timeoutMs = 1
         throw Object.assign(new Error(body.error ?? res.statusText), { status: res.status });
     }
 
+    if (res.status === 204 || res.status === 205) return null as T;
     return res.json() as Promise<T>;
 }
 
@@ -55,6 +56,8 @@ export const api = {
         request<T>(path, { method: 'POST', body: JSON.stringify(body) }),
     put: <T>(path: string, body: unknown) =>
         request<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
+    patch: <T>(path: string, body: unknown) =>
+        request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }),
     delete: <T>(path: string, body?: unknown) =>
         request<T>(path, { method: 'DELETE', body: body ? JSON.stringify(body) : undefined }),
 };

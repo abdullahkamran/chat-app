@@ -38,14 +38,15 @@ export const SIGNUP_DEFAULTS = {
     ] as Array<{ itemName: string; variantName: string }>,
 
     /** Room item names (must match Item.name in DB) to add to the user's inventory on signup. */
-    inventoryItemNames: ['Test Chair', 'Test Table'] as string[],
+    inventoryItemNames: ['Test Chair', 'Test Couch'] as string[],
 
-    /** Config for the default room created and owned by the new user. */
+    /**
+     * Config for the default room created and owned by the new user.
+     * personLimit and theme/doors come from room-defaults.catalog.ts.
+     */
     defaultRoom: {
-        name: 'My Room',
         description: 'Welcome to my room!',
         category: 'personal',
-        personLimit: 10,
-        dimensions: { length: 10, width: 10, height: 5 },
+        dimensions: { x: 10, y: 10, z: 0 },
     },
 };

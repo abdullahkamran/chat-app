@@ -6,6 +6,7 @@ import AnimationModel from '../models/animation.model';
 import AvatarItemModel from '../models/avatar-item.model';
 import ItemModel from '../models/item.model';
 import { logTransaction } from '../controllers/transaction.controller';
+import { resolveRoomDefaults } from './room-defaults.service';
 
 /**
  * Grants all configured default resources to a newly created user.
@@ -131,10 +132,11 @@ async function grantInventoryItems(userId: mongoose.Types.ObjectId): Promise<voi
 
 async function createDefaultRoom(userId: mongoose.Types.ObjectId, username: string): Promise<void> {
     try {
-        const { description, category, personLimit, dimensions } = SIGNUP_DEFAULTS.defaultRoom;
+        const { description, category, dimensions } = SIGNUP_DEFAULTS.defaultRoom;
         const name = `${username}'s Room`;
 
-        const room = new RoomModel({ ownerId: userId, name, description, category, personLimit, dimensions });
+        const roomDefaults = await resolveRoomDefaults();
+        const room = new RoomModel({ ownerId: userId, name, description, category, dimensions, ...roomDefaults });
         const saved = await room.save();
 
         await User.findByIdAndUpdate(userId, {

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
+    Modal,
     Pressable,
     ScrollView,
     StyleSheet,
@@ -132,6 +133,7 @@ export default function ProfileScreen() {
     const { userId, selectedAvatar, logout, setSelectedAvatar } = useAuth();
     const router = useRouter();
     const queryClient = useQueryClient();
+    const [logoutModalVisible, setLogoutModalVisible] = useState(false);
 
     const userQuery = useQuery({
         queryKey: ['user', userId],
@@ -176,12 +178,7 @@ export default function ProfileScreen() {
         );
     };
 
-    const handleLogout = () => {
-        Alert.alert('Logout', 'Are you sure you want to log out?', [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Logout', style: 'destructive', onPress: logout },
-        ]);
-    };
+    const handleLogout = () => setLogoutModalVisible(true);
 
     const user = userQuery.data;
     const avatarData = avatarsQuery.data;
@@ -197,6 +194,7 @@ export default function ProfileScreen() {
     }
 
     return (
+        <>
         <ScrollView
             style={styles.container}
             contentContainerStyle={styles.content}
@@ -272,6 +270,36 @@ export default function ProfileScreen() {
                 <Text style={styles.logoutText}>Logout</Text>
             </Pressable>
         </ScrollView>
+
+        {/* Logout confirmation modal */}
+        <Modal
+            visible={logoutModalVisible}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setLogoutModalVisible(false)}
+        >
+            <Pressable style={styles.modalOverlay} onPress={() => setLogoutModalVisible(false)}>
+                <Pressable style={styles.modalBox} onPress={() => {}}>
+                    <Text style={styles.modalTitle}>Log out?</Text>
+                    <Text style={styles.modalSubtitle}>You'll need to sign in again to access your account.</Text>
+                    <View style={styles.modalActions}>
+                        <Pressable
+                            style={[styles.modalBtn, styles.modalBtnCancel]}
+                            onPress={() => setLogoutModalVisible(false)}
+                        >
+                            <Text style={styles.modalBtnCancelText}>Cancel</Text>
+                        </Pressable>
+                        <Pressable
+                            style={[styles.modalBtn, styles.modalBtnConfirm]}
+                            onPress={() => { setLogoutModalVisible(false); logout(); }}
+                        >
+                            <Text style={styles.modalBtnConfirmText}>Log out</Text>
+                        </Pressable>
+                    </View>
+                </Pressable>
+            </Pressable>
+        </Modal>
+        </>
     );
 }
 
@@ -474,6 +502,61 @@ const styles = StyleSheet.create({
     actionBtnDangerText: {
         color: theme.colors.error,
         fontSize: 13,
+    },
+
+    // Logout modal
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: theme.colors.overlay,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 32,
+    },
+    modalBox: {
+        width: '100%',
+        backgroundColor: theme.colors.surfaceElevated,
+        borderRadius: 20,
+        padding: 24,
+        gap: 8,
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: theme.colors.text,
+        textAlign: 'center',
+    },
+    modalSubtitle: {
+        fontSize: 14,
+        color: theme.colors.textSecondary,
+        textAlign: 'center',
+        marginBottom: 8,
+    },
+    modalActions: {
+        flexDirection: 'row',
+        gap: 10,
+        marginTop: 8,
+    },
+    modalBtn: {
+        flex: 1,
+        borderRadius: 12,
+        paddingVertical: 14,
+        alignItems: 'center',
+    },
+    modalBtnCancel: {
+        backgroundColor: theme.colors.surface,
+    },
+    modalBtnCancelText: {
+        color: theme.colors.text,
+        fontWeight: '600',
+        fontSize: 15,
+    },
+    modalBtnConfirm: {
+        backgroundColor: theme.colors.error,
+    },
+    modalBtnConfirmText: {
+        color: theme.colors.text,
+        fontWeight: '700',
+        fontSize: 15,
     },
 
     // Logout

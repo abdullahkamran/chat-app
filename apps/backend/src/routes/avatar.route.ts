@@ -5,6 +5,7 @@ import { requireAuth } from '../middleware/auth.middleware';
 const avatarRouter = express.Router();
 
 // Catalog — no auth required (browsing available parts)
+avatarRouter.get('/defaults', avatarController.getDefaults);
 avatarRouter.get('/items', avatarController.getCatalogItems);
 
 // User avatar management — auth required

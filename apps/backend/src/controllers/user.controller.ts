@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import User from '../models/user.model';
+import AvatarModel from '../models/avatar.model';
+import { populateAvatar } from './avatar.controller';
 
 const controller = {
     getAll: async (_req: Request, res: Response): Promise<void> => {
@@ -80,6 +82,26 @@ const controller = {
             }
             await User.findByIdAndUpdate(id, { $pull: { pushTokens: token } });
             res.sendStatus(200);
+        } catch (e) {
+            console.error(`Error: ${e}`);
+            res.sendStatus(500);
+        }
+    },
+
+    // GET /users/:id/avatar — get a user's selected avatar (for room display)
+    getSelectedAvatar: async (_req: Request, res: Response, id: string): Promise<void> => {
+        try {
+            const user = await User.findById(new mongoose.Types.ObjectId(id)).select('selectedAvatar avatars');
+            if (!user) { res.sendStatus(404); return; }
+
+            const avatarId = user.selectedAvatar ?? user.avatars[0];
+            if (!avatarId) { res.sendStatus(404); return; }
+
+            const avatar = await AvatarModel.findById(avatarId);
+            if (!avatar) { res.sendStatus(404); return; }
+
+            const populated = await populateAvatar(avatar);
+            res.send(populated);
         } catch (e) {
             console.error(`Error: ${e}`);
             res.sendStatus(500);

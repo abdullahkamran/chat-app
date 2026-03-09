@@ -1,9 +1,13 @@
+import bcrypt from 'bcryptjs';
 import AnimationModel from '../models/animation.model';
 import AvatarItemModel from '../models/avatar-item.model';
 import ItemModel from '../models/item.model';
+import UserModel from '../models/user.model';
 import { ANIMATIONS_CATALOG } from '../catalog/animations.catalog';
 import { AVATAR_ITEMS_CATALOG } from '../catalog/avatar-items.catalog';
 import { ITEMS_CATALOG } from '../catalog/items.catalog';
+import { TEST_USERS_CATALOG } from '../catalog/test-users.catalog';
+import { applySignupDefaults } from './signup-defaults.service';
 
 /**
  * Inserts any catalog entries that don't yet exist in the DB.
@@ -19,6 +23,8 @@ export async function syncCatalog(): Promise<void> {
         syncAvatarItems(),
         syncItems(),
     ]);
+    // Test users run after items are seeded — applySignupDefaults depends on them
+    await syncTestUsers();
 }
 
 async function syncAnimations(): Promise<void> {
@@ -67,4 +73,27 @@ async function syncItems(): Promise<void> {
     }
 
     console.log(`[catalog-sync] items: ${inserted} inserted, ${ITEMS_CATALOG.length - inserted} already exist`);
+}
+
+async function syncTestUsers(): Promise<void> {
+    if (TEST_USERS_CATALOG.length === 0) return;
+
+    let inserted = 0;
+    for (const entry of TEST_USERS_CATALOG) {
+        const exists = await UserModel.findOne({ username: entry.username }).select('_id').lean();
+        if (exists) continue;
+
+        try {
+            const { password, ...rest } = entry;
+            const hashed = await bcrypt.hash(password, 10);
+            const user = new UserModel({ ...rest, password: hashed });
+            const saved = await user.save();
+            await applySignupDefaults(saved._id as any, saved.username);
+            inserted++;
+        } catch (e) {
+            console.error(`[catalog-sync] Failed to seed test user "${entry.username}":`, e);
+        }
+    }
+
+    console.log(`[catalog-sync] test_users: ${inserted} inserted, ${TEST_USERS_CATALOG.length - inserted} already exist`);
 }

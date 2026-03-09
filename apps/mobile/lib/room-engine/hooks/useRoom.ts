@@ -12,5 +12,3 @@ export const useRoom = (roomId?: string) =>
     queryFn: () => fetchRoom(roomId as string),
     enabled: !!roomId,
   });
-
-

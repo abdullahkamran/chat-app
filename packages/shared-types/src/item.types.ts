@@ -14,6 +14,7 @@ export interface Item {
     states: ItemState;
     isOverlappable: boolean;
     assetUrl: string;
+    canOwnMultiple?: boolean;
 }
 
 export interface PaginatedItems {

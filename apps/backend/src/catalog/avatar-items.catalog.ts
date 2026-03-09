@@ -12,7 +12,6 @@ type CatalogAvatarItem = Omit<AvatarItem, '_id' | 'variants'> & {
  */
 export const AVATAR_ITEMS_CATALOG: CatalogAvatarItem[] = [
     // ── Skin ──────────────────────────────────────────────────────────────────
-    // TODO: replace sourceUrl once skin SVG assets are added to assets/avatars/skin/
     {
         name: 'Default Skin',
         description: 'Default skin tone',
@@ -20,7 +19,7 @@ export const AVATAR_ITEMS_CATALOG: CatalogAvatarItem[] = [
         category: 'skin',
         isOverlappable: false,
         variants: [
-            { name: 'Default', sourceUrl: 'avatar/skin/default.svg', price: { coins: 0, cash: 0, realMoney: 0 } },
+            { name: 'Default', color: '#FFDBB8', price: { coins: 0, cash: 0, realMoney: 0 } },
         ],
     },
 

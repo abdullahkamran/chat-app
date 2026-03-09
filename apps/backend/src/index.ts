@@ -15,6 +15,7 @@ import { shopRouter, inventoryRouter } from './controllers/shop.controller';
 import { avatarShopRouter, avatarInventoryRouter } from './controllers/avatar-shop.controller';
 import { animationShopRouter, animationInventoryRouter } from './controllers/animation-shop.controller';
 import { transactionRouter } from './controllers/transaction.controller';
+import devRouter from './routes/dev.route';
 import connect from './db/connect';
 import socketHandler from './sockets/socketHandler';
 import { syncCatalog } from './services/catalog-sync.service';
@@ -37,6 +38,8 @@ app.use('/api/v1/inventory', avatarInventoryRouter);
 app.use('/api/v1/shop', animationShopRouter);
 app.use('/api/v1/inventory', animationInventoryRouter);
 app.use('/api/v1/transaction-history', transactionRouter);
+
+app.use('/api/v1/dev', devRouter);
 
 app.get('/', (_req, res) => {
     res.send({ name: 'test' });

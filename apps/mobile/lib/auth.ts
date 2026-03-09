@@ -75,7 +75,7 @@ export async function loginRequest(username: string, password: string): Promise<
     return api.post<AuthTokens>('/api/v1/auth/login', { username, password });
 }
 
-export async function refreshRequest(refreshToken: string): Promise<Pick<AuthTokens, 'accessToken' | 'refreshToken'>> {
+export async function refreshRequest(refreshToken: string): Promise<Pick<AuthTokens, 'accessToken' | 'refreshToken' | 'selectedAvatar'>> {
     return api.post('/api/v1/auth/refresh', { refreshToken });
 }
 

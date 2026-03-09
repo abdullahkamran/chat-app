@@ -10,23 +10,6 @@ interface MyAvatarsResponse {
   selectedAvatar: string | null;
 }
 
-// Reconstruct editor selections from a populated Avatar object.
-// The server filters each part's variants[] to just the selected one,
-// so variants[0] is the active variant.
-function avatarToSelections(avatar: Avatar) {
-  const parts = ['eye', 'skin', 'mouth', 'tops', 'bottoms', 'hair', 'headwear', 'facewear', 'wristwear', 'footwear'] as const;
-  const result: Partial<Record<string, { itemId: string; variantId: string }>> = {};
-
-  for (const part of parts) {
-    const item = avatar[part as keyof Avatar] as (Avatar[keyof Avatar] & { _id?: string; variants?: Array<{ _id: string }> }) | undefined;
-    if (item && typeof item === 'object' && '_id' in item && item._id && item.variants?.[0]) {
-      result[part] = { itemId: item._id as string, variantId: item.variants[0]._id };
-    }
-  }
-
-  return result;
-}
-
 export default function EditAvatarScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -37,13 +20,12 @@ export default function EditAvatarScreen() {
   });
 
   const avatar = data?.avatars.find((a) => a._id === id);
-  const initialSelections = avatar ? avatarToSelections(avatar) : undefined;
 
   function handleSaved(_updated: Avatar) {
     router.back();
   }
 
-  if (isLoading || !initialSelections) {
+  if (isLoading || !avatar) {
     return (
       <View style={styles.loader}>
         <ActivityIndicator color="#FFFC00" size="large" />
@@ -57,7 +39,7 @@ export default function EditAvatarScreen() {
       <AvatarEditorScreen
         mode="edit"
         avatarId={id}
-        initialSelections={initialSelections}
+        initialAvatar={avatar}
         onSaved={handleSaved}
       />
     </>

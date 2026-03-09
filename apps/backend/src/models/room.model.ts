@@ -34,9 +34,9 @@ const RoomSchema = new Schema<IRoom, IRoomModel>(
         personLimit: { type: Number, default: 10 },
         members: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
         dimensions: {
-            length: { type: Number, default: 0 },
-            width: { type: Number, default: 0 },
-            height: { type: Number, default: 0 },
+            x: { type: Number, default: 0 },
+            y: { type: Number, default: 0 },
+            z: { type: Number, default: 0 },
         },
         items: [
             {
@@ -50,7 +50,7 @@ const RoomSchema = new Schema<IRoom, IRoomModel>(
                 state: { type: String, enum: Object.values(ItemState), default: ItemState.NONE },
             },
         ],
-        door: [
+        doors: [
             {
                 position: {
                     x: { type: Number, default: 0 },
@@ -58,9 +58,9 @@ const RoomSchema = new Schema<IRoom, IRoomModel>(
                     z: { type: Number, default: 0 },
                 },
                 dimensions: {
-                    length: { type: Number, default: 0 },
-                    width: { type: Number, default: 0 },
-                    height: { type: Number, default: 0 },
+                    x: { type: Number, default: 0 },
+                    y: { type: Number, default: 0 },
+                    z: { type: Number, default: 0 },
                 },
                 category: { type: String, default: '' },
                 isEntry: { type: Boolean, default: false },

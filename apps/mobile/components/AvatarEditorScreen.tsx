@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -8,6 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Avatar, AvatarInventoryEntry, AvatarItem } from '@chat-app/shared-types';
@@ -43,6 +44,8 @@ interface Props {
   mode: 'create' | 'edit';
   avatarId?: string;
   initialSelections?: AvatarSelections;
+  /** Pass the full Avatar object in edit mode to seed the live preview immediately. */
+  initialAvatar?: Avatar;
   onSaved: (avatar: Avatar) => void;
 }
 
@@ -54,16 +57,65 @@ function isComplete(selections: AvatarSelections): boolean {
   return REQUIRED_PARTS.every((k) => !!selections[k]);
 }
 
+/** Extract selections + resolved visual state from a fully-populated Avatar object. */
+function deriveFromAvatar(avatar: Avatar): {
+  selections: AvatarSelections;
+  sourceUrls: Partial<Record<AvatarPartKey, string>>;
+  colors: Partial<Record<AvatarPartKey, string>>;
+} {
+  const selections: AvatarSelections = {};
+  const sourceUrls: Partial<Record<AvatarPartKey, string>> = {};
+  const colors: Partial<Record<AvatarPartKey, string>> = {};
+
+  for (const { key } of PART_CATEGORIES) {
+    const item = avatar[key as keyof Avatar] as (AvatarItem & { variants?: Array<{ _id: string; sourceUrl?: string; color?: string }> }) | undefined;
+    const variant = item?.variants?.[0];
+    if (!item?._id || !variant) continue;
+    selections[key] = { itemId: item._id, variantId: variant._id };
+    if (variant.sourceUrl) sourceUrls[key] = variant.sourceUrl;
+    else if (variant.color) colors[key] = variant.color;
+  }
+
+  return { selections, sourceUrls, colors };
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export default function AvatarEditorScreen({ mode, avatarId, initialSelections, onSaved }: Props) {
+export default function AvatarEditorScreen({ mode, avatarId, initialSelections, initialAvatar, onSaved }: Props) {
   const { setSelectedAvatar } = useAuth();
+  const insets = useSafeAreaInsets();
+
+  const derived = initialAvatar ? deriveFromAvatar(initialAvatar) : null;
 
   const [activeCategory, setActiveCategory] = useState<AvatarPartKey>('skin');
-  const [selections, setSelections] = useState<AvatarSelections>(initialSelections ?? {});
+  const [selections, setSelections] = useState<AvatarSelections>(derived?.selections ?? initialSelections ?? {});
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
-  // Maps part key → sourceUrl of the selected variant, used to build the live preview
-  const [resolvedSourceUrls, setResolvedSourceUrls] = useState<Partial<Record<AvatarPartKey, string>>>({});
+  // Maps part key → sourceUrl (SVG layers) or solid color (e.g. skin), for live preview
+  const [resolvedSourceUrls, setResolvedSourceUrls] = useState<Partial<Record<AvatarPartKey, string>>>(derived?.sourceUrls ?? {});
+  const [resolvedColors, setResolvedColors] = useState<Partial<Record<AvatarPartKey, string>>>(derived?.colors ?? {});
+
+  // Pre-populate defaults when opening the create editor
+  useEffect(() => {
+    if (mode !== 'create') return;
+    api
+      .get<Record<string, { itemId: string; variantId: string; sourceUrl: string | null; color: string | null }>>(
+        '/api/v1/avatar/defaults'
+      )
+      .then((defaults) => {
+        const sel: AvatarSelections = {};
+        const urls: Partial<Record<AvatarPartKey, string>> = {};
+        const colors: Partial<Record<AvatarPartKey, string>> = {};
+        for (const [cat, d] of Object.entries(defaults)) {
+          sel[cat as AvatarPartKey] = { itemId: d.itemId, variantId: d.variantId };
+          if (d.sourceUrl) urls[cat as AvatarPartKey] = d.sourceUrl;
+          if (d.color) colors[cat as AvatarPartKey] = d.color;
+        }
+        setSelections(sel);
+        setResolvedSourceUrls(urls);
+        setResolvedColors(colors);
+      })
+      .catch(() => {});
+  }, [mode]);
 
   // Fetch catalog items for the active category tab
   const { data: catalogItems = [], isLoading: loadingItems } = useQuery({
@@ -109,6 +161,8 @@ export default function AvatarEditorScreen({ mode, avatarId, initialSelections, 
       ?.variants.find((v) => v._id === variantId);
     if (variant?.sourceUrl) {
       setResolvedSourceUrls((prev) => ({ ...prev, [activeCategory]: variant.sourceUrl }));
+    } else if (variant?.color) {
+      setResolvedColors((prev) => ({ ...prev, [activeCategory]: variant.color! }));
     }
   }
 
@@ -137,18 +191,42 @@ export default function AvatarEditorScreen({ mode, avatarId, initialSelections, 
     item.variants.some((v) => ownedVariantIds.has(v._id))
   );
 
+  const isOptionalCategory = PART_CATEGORIES.find((c) => c.key === activeCategory)?.required === false;
+
+  function handleClearSelection() {
+    setSelections((prev) => {
+      const next = { ...prev };
+      delete next[activeCategory];
+      return next;
+    });
+    setResolvedSourceUrls((prev) => {
+      const next = { ...prev };
+      delete next[activeCategory];
+      return next;
+    });
+    setResolvedColors((prev) => {
+      const next = { ...prev };
+      delete next[activeCategory];
+      return next;
+    });
+    setActiveItemId(null);
+  }
+
   const errorMessage =
     (createMutation.error as Error | null)?.message ??
     (editMutation.error as Error | null)?.message ?? null;
 
-  // Build ordered layer list for the live preview from resolved sourceUrls
-  const previewLayers: AvatarLayer[] = AVATAR_PART_RENDER_ORDER.flatMap((key) => {
+  // Build ordered layer list for the live preview from resolved sourceUrls and colors
+  const previewLayers: AvatarLayer[] = AVATAR_PART_RENDER_ORDER.flatMap((key): AvatarLayer[] => {
     const url = resolvedSourceUrls[key as AvatarPartKey];
-    return url ? [{ key, sourceUrl: url }] : [];
+    if (url) return [{ key, sourceUrl: url }];
+    const color = resolvedColors[key as AvatarPartKey];
+    if (color) return [{ key, color }];
+    return [];
   });
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: insets.bottom }]}>
       {/* ── Preview ── */}
       <View style={styles.preview}>
         <Text style={styles.previewLabel}>Preview</Text>
@@ -195,6 +273,17 @@ export default function AvatarEditorScreen({ mode, avatarId, initialSelections, 
           keyExtractor={(item) => item._id}
           numColumns={3}
           contentContainerStyle={styles.grid}
+          ListHeaderComponent={isOptionalCategory ? (
+            <View style={styles.noneRow}>
+              <Pressable
+                style={[styles.gridItem, styles.noneItem, !selections[activeCategory] && styles.gridItemChosen]}
+                onPress={handleClearSelection}
+              >
+                <View style={[styles.gridItemSwatch, styles.noneItemSwatch]} />
+                <Text style={styles.gridItemName}>None</Text>
+              </Pressable>
+            </View>
+          ) : null}
           renderItem={({ item }) => {
             const isChosen = selections[activeCategory]?.itemId === item._id;
             const source = resolveAvatarSource(item.variants[0]?.sourceUrl ?? '');
@@ -361,6 +450,20 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 40,
     fontSize: 14,
+  },
+  noneRow: {
+    flexDirection: 'row',
+    paddingBottom: 4,
+  },
+  noneItem: {
+    flex: 0,
+    width: '30%',
+  },
+  noneItemSwatch: {
+    backgroundColor: theme.colors.border,
+    borderWidth: 1,
+    borderColor: theme.colors.textMuted,
+    borderStyle: 'dashed',
   },
   variantRow: {
     borderTopWidth: 1,

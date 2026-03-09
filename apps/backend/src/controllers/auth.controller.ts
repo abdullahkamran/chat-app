@@ -116,7 +116,13 @@ const authController = {
             await User.findByIdAndUpdate(user._id, { $pull: { refreshTokens: refreshToken } });
             await User.findByIdAndUpdate(user._id, { $addToSet: { refreshTokens: newRefreshToken } });
 
-            res.send({ accessToken: newAccessToken, refreshToken: newRefreshToken });
+            let selectedAvatar = null;
+            if (user.selectedAvatar) {
+                const avatarDoc = await AvatarModel.findById(user.selectedAvatar);
+                if (avatarDoc) selectedAvatar = await populateAvatar(avatarDoc);
+            }
+
+            res.send({ accessToken: newAccessToken, refreshToken: newRefreshToken, selectedAvatar });
         } catch (e) {
             console.error(e);
             res.sendStatus(500);

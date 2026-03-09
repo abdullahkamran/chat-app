@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import Room from '../models/room.model';
 import User from '../models/user.model';
+import { resolveRoomDefaults } from '../services/room-defaults.service';
 
 const controller = {
     getAll: async (_req: Request, res: Response): Promise<void> => {
@@ -25,14 +26,15 @@ const controller = {
     },
 
     createRoom: async (req: Request, res: Response): Promise<void> => {
-        const { name, members, ...rest } = req.body;
+        const { name, members, personLimit, ...rest } = req.body;
         if (!name || typeof name !== 'string' || !name.trim()) {
             res.status(400).send({ error: 'name is required' });
             return;
         }
         const creatorId = req.user!.userId;
-        const room = new Room({ ...rest, name: name.trim(), members: members ?? [], ownerId: creatorId });
         try {
+            const roomDefaults = await resolveRoomDefaults({ personLimit });
+            const room = new Room({ ...rest, ...roomDefaults, name: name.trim(), members: members ?? [], ownerId: creatorId });
             const addedRoom = await Room.createRoom(room);
             await User.findByIdAndUpdate(
                 new mongoose.Types.ObjectId(creatorId),
@@ -92,6 +94,41 @@ const controller = {
             }
 
             res.send(room);
+        } catch (e) {
+            console.log(`Error: ${e}`);
+            res.sendStatus(500);
+        }
+    },
+
+    updateItems: async (req: Request, res: Response): Promise<void> => {
+        const { roomId } = req.params;
+        const userId = req.user!.userId;
+        const { items } = req.body;
+
+        if (!Array.isArray(items)) {
+            res.status(400).send({ error: 'items must be an array' });
+            return;
+        }
+
+        try {
+            const room = await Room.findById(new mongoose.Types.ObjectId(roomId));
+            if (!room) {
+                res.status(404).send({ error: 'Room not found' });
+                return;
+            }
+            if (room.ownerId.toString() !== userId) {
+                res.status(403).send({ error: 'Only the room owner can edit items' });
+                return;
+            }
+
+            room.items = items.map((i: { itemId: string; position: { x: number; y: number; z: number }; orientation: string; state: string }) => ({
+                itemId: new mongoose.Types.ObjectId(i.itemId),
+                position: i.position,
+                orientation: i.orientation,
+                state: i.state,
+            }));
+            await room.save();
+            res.sendStatus(204);
         } catch (e) {
             console.log(`Error: ${e}`);
             res.sendStatus(500);

@@ -100,7 +100,7 @@ export default function RoomListScreen(): React.JSX.Element {
             </Text>
             <Pressable
               style={styles.dialogButton}
-              onPress={() => router.push('/(avatar)/create')}
+              onPress={() => { setShowAvatarDialog(false); router.push('/(avatar)/create'); }}
             >
               <Text style={styles.dialogButtonText}>Create Avatar</Text>
             </Pressable>

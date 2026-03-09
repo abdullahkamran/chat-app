@@ -27,9 +27,10 @@ interface ItemDetailModalProps {
     onClose: () => void;
     onBuy?: (itemId: string) => void;
     isBuying?: boolean;
+    ownedCount?: number;
 }
 
-export default function ItemDetailModal({ item, visible, onClose, onBuy, isBuying }: ItemDetailModalProps) {
+export default function ItemDetailModal({ item, visible, onClose, onBuy, isBuying, ownedCount = 0 }: ItemDetailModalProps) {
     const source = item ? resolveItemSource(item.assetUrl) : null;
 
     return (
@@ -82,6 +83,13 @@ export default function ItemDetailModal({ item, visible, onClose, onBuy, isBuyin
 
                             {/* Price */}
                             <Text style={styles.price}>{formatPrice(item.price)}</Text>
+
+                            {/* Already-owned notice for canOwnMultiple items */}
+                            {onBuy && item.canOwnMultiple && ownedCount > 0 && (
+                                <Text style={styles.ownedNotice}>
+                                    You already own {ownedCount} — buying another adds a new copy to your inventory.
+                                </Text>
+                            )}
 
                             {/* Buy button — only in shop context */}
                             {onBuy && (
@@ -185,6 +193,15 @@ const styles = StyleSheet.create({
         color: theme.colors.primary,
         fontSize: 16,
         fontWeight: '700',
+    },
+    ownedNotice: {
+        color: theme.colors.textSecondary,
+        fontSize: 13,
+        textAlign: 'center',
+        backgroundColor: theme.colors.surface,
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
     },
     buyButton: {
         backgroundColor: theme.colors.primary,

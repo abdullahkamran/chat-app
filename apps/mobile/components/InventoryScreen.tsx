@@ -45,6 +45,17 @@ export default function InventoryScreen(): React.JSX.Element {
         enabled: !!userId && inventoryTab === 'animations',
     });
 
+    // Group duplicate items (canOwnMultiple) into { item, count } entries
+    const groupedItems = items.reduce<Array<{ item: Item; count: number }>>((acc, item) => {
+        const existing = acc.find((e) => e.item._id === item._id);
+        if (existing) {
+            existing.count++;
+        } else {
+            acc.push({ item, count: 1 });
+        }
+        return acc;
+    }, []);
+
     const [selectedItem, setSelectedItem] = useState<Item | null>(null);
     const [modalVisible, setModalVisible] = useState(false);
 
@@ -108,9 +119,9 @@ export default function InventoryScreen(): React.JSX.Element {
                     <ActivityIndicator style={styles.loader} size="large" color={theme.colors.primary} />
                 ) : (
                     <FlatList
-                        data={items}
-                        keyExtractor={(item) => item._id}
-                        renderItem={({ item }) => {
+                        data={groupedItems}
+                        keyExtractor={({ item }) => item._id}
+                        renderItem={({ item: { item, count } }) => {
                             const source = resolveItemSource(item.assetUrl);
                             return (
                                 <TouchableOpacity
@@ -118,10 +129,17 @@ export default function InventoryScreen(): React.JSX.Element {
                                     onPress={() => { setSelectedItem(item); setModalVisible(true); }}
                                     activeOpacity={0.7}
                                 >
-                                    {source
-                                        ? <Image source={source} style={styles.itemThumb} contentFit="contain" />
-                                        : <View style={[styles.itemThumb, styles.thumbPlaceholder]} />
-                                    }
+                                    <View style={styles.thumbWrapper}>
+                                        {source
+                                            ? <Image source={source} style={styles.itemThumb} contentFit="contain" />
+                                            : <View style={[styles.itemThumb, styles.thumbPlaceholder]} />
+                                        }
+                                        {count > 1 && (
+                                            <View style={styles.countBadge}>
+                                                <Text style={styles.countBadgeText}>{count}</Text>
+                                            </View>
+                                        )}
+                                    </View>
                                     <View style={styles.itemInfo}>
                                         <Text style={styles.name}>{item.name}</Text>
                                         <Text style={styles.category}>{item.category}</Text>
@@ -209,8 +227,27 @@ const styles = StyleSheet.create({
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: theme.colors.border,
     },
+    thumbWrapper: { position: 'relative' },
     itemThumb: { width: 48, height: 48, borderRadius: 8 },
     thumbPlaceholder: { backgroundColor: theme.colors.border },
+    countBadge: {
+        position: 'absolute',
+        top: -4,
+        right: -4,
+        minWidth: 18,
+        height: 18,
+        borderRadius: 9,
+        backgroundColor: theme.colors.primary,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 4,
+    },
+    countBadgeText: {
+        color: theme.colors.primaryText,
+        fontSize: 11,
+        fontWeight: '700',
+        lineHeight: 14,
+    },
     itemInfo: { flex: 1, gap: 2 },
     outfitLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
     swatch: { width: 36, height: 36, borderRadius: 18 },

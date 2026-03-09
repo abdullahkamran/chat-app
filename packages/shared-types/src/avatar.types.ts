@@ -43,7 +43,7 @@ export interface AvatarItem {
 export interface AvatarItemVariant {
     _id: string;
     name: string;
-    sourceUrl: string;
+    sourceUrl?: string;
     price: Amount;
     color?: string;
 }

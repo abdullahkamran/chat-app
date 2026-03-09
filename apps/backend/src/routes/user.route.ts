@@ -12,6 +12,10 @@ userRouter.get('/all', (req, res) => {
     userController.getAll(req, res);
 });
 
+userRouter.get('/:id/avatar', requireAuth, (req, res) => {
+    userController.getSelectedAvatar(req, res, req.params.id);
+});
+
 userRouter.get('/:id', (req, res) => {
     userController.getByID(req, res, req.params.id);
 });

@@ -74,7 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     await saveRefreshToken(tokens.refreshToken);
                     // Refresh endpoint doesn't return userId — parse it from the token payload
                     const payload = JSON.parse(atob(tokens.accessToken.split('.')[1]));
-                    applyTokens({ ...tokens, userId: payload.userId });
+                    applyTokens({ ...tokens, userId: payload.userId, selectedAvatar: tokens.selectedAvatar ?? null });
                 }
             } catch {
                 await clearRefreshToken();

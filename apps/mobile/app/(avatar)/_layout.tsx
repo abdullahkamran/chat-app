@@ -1,13 +1,15 @@
 import { Stack } from 'expo-router';
 
+import { theme } from '@/constants/theme';
+
 export default function AvatarLayout() {
   return (
     <Stack
       screenOptions={{
-        headerStyle: { backgroundColor: '#000' },
-        headerTintColor: '#FFFC00',
-        headerTitleStyle: { color: '#fff', fontWeight: '700' },
-        contentStyle: { backgroundColor: '#000' },
+        headerStyle: { backgroundColor: theme.colors.background },
+        headerTintColor: theme.colors.primary,
+        headerTitleStyle: { color: theme.colors.text, fontWeight: '700' },
+        contentStyle: { backgroundColor: theme.colors.background },
       }}
     />
   );

@@ -64,7 +64,7 @@ shopRouter.post('/buy', requireAuth, async (req: Request, res: Response): Promis
         }
 
         const alreadyOwned = user.inventory.some((id) => id.toString() === itemId);
-        if (alreadyOwned) {
+        if (alreadyOwned && !item.canOwnMultiple) {
             res.status(409).send({ error: 'Item already owned' });
             return;
         }
@@ -91,12 +91,14 @@ shopRouter.post('/buy', requireAuth, async (req: Request, res: Response): Promis
 
         const balanceBefore = { ...user.amount };
 
+        // canOwnMultiple items use $push to allow duplicates; others use $addToSet
+        const inventoryUpdate = item.canOwnMultiple
+            ? { $push: { inventory: new mongoose.Types.ObjectId(itemId) } }
+            : { $addToSet: { inventory: new mongoose.Types.ObjectId(itemId) } };
+
         const updated = await User.findByIdAndUpdate(
             new mongoose.Types.ObjectId(userId),
-            {
-                $inc: inc,
-                $addToSet: { inventory: new mongoose.Types.ObjectId(itemId) },
-            },
+            { $inc: inc, ...inventoryUpdate },
             { new: true }
         );
 

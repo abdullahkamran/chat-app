@@ -43,6 +43,18 @@ export default function ShopScreen(): React.JSX.Element {
     const [selectedAnimationCategory, setSelectedAnimationCategory] = useState<string>(ALL_CATEGORY);
     const [buyingAnimationId, setBuyingAnimationId] = useState<string | null>(null);
 
+    // ── Items tab: inventory (to show owned-count warning) ──────────────────
+    const { data: ownedItems = [] } = useQuery<Item[]>({
+        queryKey: ['inventory'],
+        queryFn: () => api.get<Item[]>('/api/v1/inventory'),
+        enabled: !!userId && shopTab === 'items',
+    });
+
+    const ownedItemCounts = ownedItems.reduce<Record<string, number>>((acc, item) => {
+        acc[item._id] = (acc[item._id] ?? 0) + 1;
+        return acc;
+    }, {});
+
     // ── Items tab queries ────────────────────────────────────────────────────
     const { data: categories = [] } = useQuery<string[]>({
         queryKey: ['shop', 'categories'],
@@ -367,6 +379,7 @@ export default function ShopScreen(): React.JSX.Element {
                 onClose={() => setModalVisible(false)}
                 onBuy={(itemId) => buyItem(itemId)}
                 isBuying={selectedItem ? buyingItemId === selectedItem._id : false}
+                ownedCount={selectedItem ? (ownedItemCounts[selectedItem._id] ?? 0) : 0}
             />
         </View>
     );

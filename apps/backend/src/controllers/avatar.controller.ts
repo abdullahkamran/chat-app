@@ -3,6 +3,7 @@ import { Avatar, AvatarItem } from '@chat-app/shared-types';
 import AvatarModel, { IAvatar } from '../models/avatar.model';
 import AvatarItemModel from '../models/avatar-item.model';
 import User from '../models/user.model';
+import { AVATAR_DEFAULTS_CATALOG } from '../catalog/avatar-defaults.catalog';
 
 const REQUIRED_PARTS = ['eye', 'face', 'nose', 'skin', 'mouth', 'tops', 'bottoms'] as const;
 const OPTIONAL_PARTS = ['hair', 'facialHair', 'headwear', 'facewear', 'wristwear', 'footwear'] as const;
@@ -37,6 +38,28 @@ export async function populateAvatar(avatar: IAvatar): Promise<Avatar> {
 }
 
 const avatarController = {
+    // GET /avatar/defaults — resolve default item+variant ids for each required part
+    getDefaults: async (_req: Request, res: Response): Promise<void> => {
+        try {
+            const result: Record<string, { itemId: string; variantId: string; sourceUrl: string | null; color: string | null }> = {};
+            for (const [category, name] of Object.entries(AVATAR_DEFAULTS_CATALOG)) {
+                const item = await AvatarItemModel.findOne({ name });
+                if (!item) continue;
+                const variant = item.variants[0] as unknown as { _id: { toString(): string }; sourceUrl?: string; color?: string };
+                result[category] = {
+                    itemId:    item._id.toString(),
+                    variantId: variant._id.toString(),
+                    sourceUrl: variant.sourceUrl ?? null,
+                    color:     variant.color ?? null,
+                };
+            }
+            res.send(result);
+        } catch (e) {
+            console.error(e);
+            res.sendStatus(500);
+        }
+    },
+
     // GET /avatar/items?category=eye
     getCatalogItems: async (req: Request, res: Response): Promise<void> => {
         try {

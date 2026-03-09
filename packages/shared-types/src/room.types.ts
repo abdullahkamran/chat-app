@@ -17,7 +17,7 @@ export interface RoomDetails extends Room {
     users: Array<User>;
     dimensions: Dimensions;
     items: Array<RoomItem>;
-    door: Array<Door>;
+    doors: Array<Door>;
     theme: RoomTheme;
 }
 

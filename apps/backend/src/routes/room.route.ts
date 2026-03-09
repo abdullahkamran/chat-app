@@ -24,6 +24,10 @@ roomRouter.post('/', requireAuth, (req, res) => {
     roomController.createRoom(req, res);
 });
 
+roomRouter.patch('/:roomId/items', requireAuth, (req, res) => {
+    roomController.updateItems(req, res);
+});
+
 roomRouter.delete('/delete', (req, res) => {
     roomController.deleteRoom(req, res);
 });

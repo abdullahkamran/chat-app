@@ -21,9 +21,9 @@ const ItemSchema = new Schema<IItem, IItemModel>(
             required: true,
         },
         dimensions: {
-            length: { type: Number, default: 0 },
-            width: { type: Number, default: 0 },
-            height: { type: Number, default: 0 },
+            x: { type: Number, default: 0 },
+            y: { type: Number, default: 0 },
+            z: { type: Number, default: 0 },
         },
         price: {
             coins: { type: Number, default: 0 },
@@ -42,6 +42,7 @@ const ItemSchema = new Schema<IItem, IItemModel>(
         states: { type: String, enum: Object.values(ItemState), default: ItemState.NONE },
         isOverlappable: { type: Boolean, default: false },
         assetUrl: { type: String, default: '' },
+        canOwnMultiple: { type: Boolean, default: false },
     },
     { timestamps: true, collection: 'items' }
 );

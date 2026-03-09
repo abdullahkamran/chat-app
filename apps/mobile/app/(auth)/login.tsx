@@ -43,7 +43,7 @@ export default function LoginScreen() {
                 <TextInput
                     style={styles.input}
                     placeholder="Username"
-                    placeholderTextColor="#888"
+                    placeholderTextColor={theme.colors.placeholder}
                     autoCapitalize="none"
                     value={username}
                     onChangeText={setUsername}
@@ -52,7 +52,7 @@ export default function LoginScreen() {
                     <TextInput
                         style={styles.passwordInput}
                         placeholder="Password"
-                        placeholderTextColor="#888"
+                        placeholderTextColor={theme.colors.placeholder}
                         secureTextEntry={!showPassword}
                         value={password}
                         onChangeText={setPassword}
@@ -77,7 +77,7 @@ export default function LoginScreen() {
                     disabled={isPending}
                 >
                     {isPending ? (
-                        <ActivityIndicator color="#fff" />
+                        <ActivityIndicator color={theme.colors.primaryText} />
                     ) : (
                         <Text style={styles.buttonText}>Log in</Text>
                     )}
@@ -90,7 +90,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
+        backgroundColor: theme.colors.background,
         justifyContent: 'center',
     },
     form: {
@@ -101,42 +101,45 @@ const styles = StyleSheet.create({
         fontSize: 28,
         fontWeight: '700',
         marginBottom: 8,
+        color: theme.colors.text,
     },
     input: {
         borderWidth: 1,
-        borderColor: '#ddd',
+        borderColor: theme.colors.border,
         borderRadius: 10,
         padding: 14,
         fontSize: 16,
+        color: theme.colors.text,
     },
     passwordContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#ddd',
+        borderColor: theme.colors.border,
         borderRadius: 10,
     },
     passwordInput: {
         flex: 1,
         padding: 14,
         fontSize: 16,
+        color: theme.colors.text,
     },
     eyeIcon: {
         paddingHorizontal: 14,
     },
     error: {
-        color: '#e53e3e',
+        color: theme.colors.error,
         fontSize: 14,
     },
     button: {
-        backgroundColor: '#000',
+        backgroundColor: theme.colors.primary,
         borderRadius: 10,
         padding: 16,
         alignItems: 'center',
         marginTop: 8,
     },
     buttonText: {
-        color: '#fff',
+        color: theme.colors.primaryText,
         fontSize: 16,
         fontWeight: '600',
     },

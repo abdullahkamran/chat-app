@@ -81,7 +81,7 @@ export default function CreateRoom() {
 
       {step === 1 ? (
         /* ── Step 1: Room name ── */
-        <View style={styles.stepContainer}>
+        <View style={[styles.stepContainer, { paddingBottom: insets.bottom }]}>
           <Text style={styles.stepLabel}>Room name</Text>
           <TextInput
             style={styles.nameInput}
@@ -106,7 +106,7 @@ export default function CreateRoom() {
         </View>
       ) : (
         /* ── Step 2: Add members ── */
-        <View style={styles.stepContainer}>
+        <View style={[styles.stepContainer, { paddingBottom: insets.bottom }]}>
           <Text style={styles.stepLabel}>Add members by user ID</Text>
 
           <View style={styles.inputRow}>
