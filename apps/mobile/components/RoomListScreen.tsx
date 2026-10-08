@@ -18,11 +18,6 @@ export default function RoomListScreen(): React.JSX.Element {
   const router = useRouter();
   const [showAvatarDialog, setShowAvatarDialog] = useState(!selectedAvatar);
 
-  // Close dialog automatically once an avatar exists (e.g. after creation)
-  useEffect(() => {
-    if (selectedAvatar) setShowAvatarDialog(false);
-  }, [selectedAvatar]);
-
   const {
     data,
     fetchNextPage,
@@ -91,7 +86,7 @@ export default function RoomListScreen(): React.JSX.Element {
         <Text style={styles.fabIcon}>+</Text>
       </Pressable>
 
-      <Modal visible={showAvatarDialog} transparent animationType="fade">
+      <Modal visible={showAvatarDialog && !selectedAvatar} transparent animationType="fade">
         <View style={styles.overlay}>
           <View style={styles.dialog}>
             <Text style={styles.dialogTitle}>Set up your avatar</Text>
