@@ -95,3 +95,4 @@ Do **not** skip straight to adding a hex code in a component stylesheet.
 - Shared TypeScript types live in `packages/shared-types` — use them instead of redefining locally.
 - Backend is TypeScript (`apps/backend/src`).
 - Keep components in `apps/mobile/components/`, screens in `apps/mobile/app/`.
+- After completing every task, ask the user whether to commit and push the changes. Do not commit or push without their confirmation.

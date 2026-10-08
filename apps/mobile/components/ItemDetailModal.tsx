@@ -75,7 +75,7 @@ export default function ItemDetailModal({ item, visible, onClose, onBuy, isBuyin
                                     <View style={styles.metaCell}>
                                         <Text style={styles.metaLabel}>Dimensions</Text>
                                         <Text style={styles.metaValue}>
-                                            {item.dimensions.length} × {item.dimensions.width} × {item.dimensions.height}
+                                            {item.dimensions.x} × {item.dimensions.y} × {item.dimensions.z}
                                         </Text>
                                     </View>
                                 </View>

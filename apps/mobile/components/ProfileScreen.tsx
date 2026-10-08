@@ -281,7 +281,7 @@ export default function ProfileScreen() {
             <Pressable style={styles.modalOverlay} onPress={() => setLogoutModalVisible(false)}>
                 <Pressable style={styles.modalBox} onPress={() => {}}>
                     <Text style={styles.modalTitle}>Log out?</Text>
-                    <Text style={styles.modalSubtitle}>You'll need to sign in again to access your account.</Text>
+                    <Text style={styles.modalSubtitle}>You&apos;ll need to sign in again to access your account.</Text>
                     <View style={styles.modalActions}>
                         <Pressable
                             style={[styles.modalBtn, styles.modalBtnCancel]}

@@ -64,7 +64,7 @@ const ITEM_ASSET_MAP: Record<string, ImageSource> = {
  *   return { uri: sourceUrl };                          // if DB stores full CDN URLs
  *   return { uri: `${CDN_BASE}/${sourceUrl}` };        // if DB stores relative keys
  */
-export function resolveAvatarSource(sourceUrl: string): ImageSource | null {
+export function resolveAvatarSource(sourceUrl?: string): ImageSource | null {
     if (!sourceUrl) return null;
     return AVATAR_ASSET_MAP[sourceUrl] ?? null;
 }
