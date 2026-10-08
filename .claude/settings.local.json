@@ -8,7 +8,10 @@
       "WebFetch(domain:localhost)",
       "Bash(npx expo install react-native-svg)",
       "Bash(pnpm add react-native-svg)",
-      "Bash(xargs grep -l \"SafeAreaView\")"
+      "Bash(xargs grep -l \"SafeAreaView\")",
+      "Bash(pnpm dev *)",
+      "Skill(update-config)",
+      "Skill(update-config:*)"
     ]
   }
 }
