@@ -3,6 +3,10 @@
 > **Authoritative reference for all room engine behaviour, visual dimensions, and architecture.**
 > Scale constants live in `apps/mobile/constants/grid.ts`.
 > When this doc changes, update `grid.ts` to match (and vice-versa).
+>
+> **Roadmap and progress:** the Skia skeletal engine plan, phase status and "resume here" checklist live in the
+> [Room Engine Plan doc](https://claude.ai/code/artifact/cdf82cb3-27c4-48cb-a835-0e85e0fb48d1).
+> Read its *Status and how to resume* section before starting room-engine work, and update it when you finish.
 
 ---
 
