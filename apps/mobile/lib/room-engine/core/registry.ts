@@ -1,8 +1,10 @@
 import { legacyEngine } from '../engines/legacy';
+import { skiaEngine } from '../engines/skia';
 import type { RoomEngine } from './contract';
 
 const ENGINES = {
   legacy: legacyEngine,
+  skia: skiaEngine,
 } satisfies Record<string, RoomEngine>;
 
 export type RoomEngineId = keyof typeof ENGINES;

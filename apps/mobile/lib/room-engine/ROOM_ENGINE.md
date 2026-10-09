@@ -263,6 +263,7 @@ core/usePathfinding.ts        A* (not wired into movement yet)
 session/useRoomSession.ts     socket events, actors, chat, edit mode, intents
 session/RoomShell.tsx         header / edit toolbar, chat input / inventory drawer, loading + error
 engines/legacy/               View-based renderer (this document's projection + avatar layout)
+engines/skia/                 Skia + Reanimated renderer (Phase 1: placeholder capsule avatars)
 ```
 
 Contract rules:
@@ -277,6 +278,7 @@ Contract rules:
 ```bash
 # apps/mobile/.env.local
 EXPO_PUBLIC_ROOM_ENGINE=legacy   # default when unset or unknown
+EXPO_PUBLIC_ROOM_ENGINE=skia     # Skia engine (iOS and Android; web is not set up)
 ```
 
 Restart Metro with a cleared cache (`pnpm expo start -c`) after changing it.
@@ -301,3 +303,15 @@ Restart Metro with a cleared cache (`pnpm expo start -c`) after changing it.
 | `apps/mobile/lib/room-engine/engines/legacy/RoomBackdrop.tsx` | Wall + floor tile rendering |
 | `apps/mobile/lib/room-engine/engines/legacy/Character.tsx` | Character positioning via `gridToScreen` |
 | `apps/mobile/lib/room-engine/engines/legacy/RoomItemView.tsx` | Item positioning via `gridToScreen` |
+| `apps/mobile/lib/room-engine/engines/skia/SkiaRoomRenderer.tsx` | Skia canvas, depth sort, tap routing, bubble overlay |
+| `apps/mobile/lib/room-engine/engines/skia/useCamera.ts` | Pan/pinch camera (0.5x–1.5x) as shared values; taps mapped to content coords |
+| `apps/mobile/lib/room-engine/engines/skia/actorMotion.ts` | Per-actor shared positions; walks animated on the UI thread |
+
+### Skia engine notes
+
+- `gridToScreen` and `screenToGrid` are worklets, so actor positions are projected on the UI thread.
+- Same anchoring as legacy: items sit bottom-centre on their grid position; edit-mode cells are centred on grid vertices (taps round, not floor).
+- The backdrop (walls, floor, doors) is recorded into one `SkPicture` and re-recorded only when the theme, doors or canvas origin change.
+- Chat bubbles are RN views over the canvas, positioned from the actor's shared values through the camera; they don't scale with zoom.
+- Depth sort runs in React on logical positions (as legacy). A per-frame sort on the UI thread arrives with the skeletal rig.
+- `GestureHandlerRootView` wraps the app in `app/_layout.tsx` for the camera gestures.

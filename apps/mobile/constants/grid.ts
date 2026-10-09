@@ -28,6 +28,7 @@ export interface GridOrigin {
  * Grid origin (0,0) is the back-left corner where both walls meet.
  * x-axis goes right-forward, y-axis goes left-forward (standard 2:1 isometric).
  * gz shifts the point upward (for wall-mounted items).
+ * A worklet, so engines can project on the UI thread.
  */
 export function gridToScreen(
   gx: number,
@@ -35,6 +36,7 @@ export function gridToScreen(
   gz: number,
   origin: GridOrigin,
 ): ScreenPoint {
+  'worklet';
   return {
     x: origin.x + (gx - gy) * (TILE_W / 2),
     y: origin.y + (gx + gy) * (TILE_H / 2) - gz * TILE_H,
@@ -50,6 +52,7 @@ export function screenToGrid(
   sy: number,
   origin: GridOrigin,
 ): GridPoint {
+  'worklet';
   const dx = sx - origin.x;
   const dy = sy - origin.y;
   return {

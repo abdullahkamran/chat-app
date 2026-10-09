@@ -3,6 +3,7 @@ packages:
   - 'packages/*'
 allowBuilds:
   '@firebase/util': true
+  '@shopify/react-native-skia': true
   protobufjs: true
   react-native-elements: true
   unrs-resolver: true
