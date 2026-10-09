@@ -18,22 +18,19 @@ interface Props {
  */
 export function EditGrid({ dimensions, origin }: Props) {
   const path = useMemo(() => {
-    const p = Skia.Path.Make();
+    const builder = Skia.PathBuilder.Make();
     for (let gx = 0; gx < dimensions.x; gx++) {
       for (let gy = 0; gy < dimensions.y; gy++) {
-        const top = gridToScreen(gx - 0.5, gy - 0.5, 0, origin);
-        const right = gridToScreen(gx + 0.5, gy - 0.5, 0, origin);
-        const bottom = gridToScreen(gx + 0.5, gy + 0.5, 0, origin);
-        const left = gridToScreen(gx - 0.5, gy + 0.5, 0, origin);
-        p.moveTo(top.x, top.y);
-        p.lineTo(right.x, right.y);
-        p.lineTo(bottom.x, bottom.y);
-        p.lineTo(left.x, left.y);
-        p.close();
+        builder.addPoly([
+          gridToScreen(gx - 0.5, gy - 0.5, 0, origin),
+          gridToScreen(gx + 0.5, gy - 0.5, 0, origin),
+          gridToScreen(gx + 0.5, gy + 0.5, 0, origin),
+          gridToScreen(gx - 0.5, gy + 0.5, 0, origin),
+        ], true);
       }
     }
-    return p;
-  }, [dimensions.x, dimensions.y, origin.x, origin.y]);
+    return builder.build();
+  }, [dimensions.x, dimensions.y, origin]);
 
   return (
     <Group>

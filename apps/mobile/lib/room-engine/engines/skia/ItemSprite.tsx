@@ -1,10 +1,10 @@
-import { Group, Image, Rect, useImage, type DataSourceParam } from '@shopify/react-native-skia';
+import { Group, Image, Rect } from '@shopify/react-native-skia';
 
-import { resolveItemSource } from '@/constants/avatarAssets';
 import type { GridOrigin } from '@/constants/grid';
 import { theme } from '@/constants/theme';
 import type { RoomItem } from '@chat-app/shared-types';
 import { itemRect } from './geometry';
+import { useSkImage } from './imageCache';
 
 const SELECTED_SCALE = 1.08;
 const SELECTED_OPACITY = 0.7;
@@ -18,7 +18,7 @@ interface Props {
 
 /** One placed item, fitted into its isometric footprint rectangle. Selected items are enlarged and tinted. */
 export function ItemSprite({ roomItem, origin, selected }: Props) {
-  const image = useImage(resolveItemSource(roomItem.itemId.assetUrl) as DataSourceParam);
+  const image = useSkImage(roomItem.itemId.assetUrl);
   const rect = itemRect(roomItem, origin);
 
   if (!selected) {

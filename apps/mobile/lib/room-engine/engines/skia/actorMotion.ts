@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useEffectEvent, useState } from 'react';
 import {
   Easing,
   cancelAnimation,
@@ -22,32 +22,31 @@ export interface ActorMotion {
   gy: SharedValue<number>;
 }
 
+type Actors = Readonly<Record<string, ActorState>>;
+
+/** Keep motions for actors still present, create them for newcomers. Returns `prev` when nothing changed. */
+function syncMotions(prev: ReadonlyMap<string, ActorMotion>, actors: Actors): ReadonlyMap<string, ActorMotion> {
+  const list = Object.values(actors);
+  if (list.length === prev.size && list.every(a => prev.has(a.id))) return prev;
+  return new Map(list.map(a => [
+    a.id,
+    prev.get(a.id) ?? { gx: makeMutable(a.position.x), gy: makeMutable(a.position.y) },
+  ]));
+}
+
 /**
  * Shared values per actor id, so the canvas (capsules) and the RN overlay (bubbles)
- * read the same animated position. Entries for actors that left are dropped.
+ * read the same animated position. Synced during render (React's "adjust state when
+ * a prop changes" pattern) so a new actor has a motion on its first frame.
  */
-export function useActorMotions(actors: Readonly<Record<string, ActorState>>) {
-  const store = useRef(new Map<string, ActorMotion>()).current;
-
-  for (const actor of Object.values(actors)) {
-    if (!store.has(actor.id)) {
-      store.set(actor.id, {
-        gx: makeMutable(actor.position.x),
-        gy: makeMutable(actor.position.y),
-      });
-    }
+export function useActorMotions(actors: Actors): ReadonlyMap<string, ActorMotion> {
+  const [state, setState] = useState(() => ({ actors, motions: syncMotions(new Map(), actors) }));
+  if (state.actors !== actors) {
+    const motions = syncMotions(state.motions, actors);
+    setState({ actors, motions });
+    return motions;
   }
-
-  useEffect(() => {
-    for (const [id, motion] of store) {
-      if (actors[id]) continue;
-      cancelAnimation(motion.gx);
-      cancelAnimation(motion.gy);
-      store.delete(id);
-    }
-  }, [actors, store]);
-
-  return store;
+  return state.motions;
 }
 
 /**
@@ -60,21 +59,21 @@ export function useActorWalk(
   motion: ActorMotion,
   onActionComplete: (actorId: string, action: ActorActionKind) => void,
 ) {
-  const onCompleteRef = useRef(onActionComplete);
-  onCompleteRef.current = onActionComplete;
+  const onWalkDone = useEffectEvent((actorId: string) => onActionComplete(actorId, 'walk'));
 
   const { id, action, position } = actor;
   const msPerCell = actor.user?.attributes?.speed ?? DEFAULT_MS_PER_CELL;
 
   useEffect(() => {
-    const complete = (actorId: string) => onCompleteRef.current(actorId, 'walk');
+    const { gx, gy } = motion;
+    const complete = (actorId: string) => onWalkDone(actorId);
 
     if (action.kind !== 'walk') {
-      if (motion.gx.value !== position.x || motion.gy.value !== position.y) {
-        cancelAnimation(motion.gx);
-        cancelAnimation(motion.gy);
-        motion.gx.value = position.x;
-        motion.gy.value = position.y;
+      if (gx.get() !== position.x || gy.get() !== position.y) {
+        cancelAnimation(gx);
+        cancelAnimation(gy);
+        gx.set(position.x);
+        gy.set(position.y);
       }
       return;
     }
@@ -85,21 +84,28 @@ export function useActorWalk(
     }
 
     // Start from where the actor is drawn now, so a new destination mid-walk doesn't jump.
-    let from = { x: motion.gx.value, y: motion.gy.value };
-    const xs = [];
-    const ys = [];
-    for (const [i, point] of action.path.entries()) {
-      const duration = Math.max(MIN_SEGMENT_MS, Math.hypot(point.x - from.x, point.y - from.y) * msPerCell);
-      const config = { duration, easing: Easing.linear };
-      const isLast = i === action.path.length - 1;
-      xs.push(withTiming(point.x, config, finished => {
+    const starts = [{ x: gx.get(), y: gy.get() }, ...action.path];
+    const segments = action.path.map((point, i) => ({
+      point,
+      config: {
+        duration: Math.max(MIN_SEGMENT_MS, Math.hypot(point.x - starts[i].x, point.y - starts[i].y) * msPerCell),
+        easing: Easing.linear,
+      },
+    }));
+    const last = segments.length - 1;
+
+    gx.set(withSequence(...segments.map(({ point, config }, i) =>
+      withTiming(point.x, config, finished => {
         // Interrupted walks (a new destination arrived) don't complete.
-        if (isLast && finished) scheduleOnRN(complete, id);
-      }));
-      ys.push(withTiming(point.y, config));
-      from = point;
-    }
-    motion.gx.value = withSequence(...xs);
-    motion.gy.value = withSequence(...ys);
+        if (i === last && finished) scheduleOnRN(complete, id);
+      }),
+    )));
+    gy.set(withSequence(...segments.map(({ point, config }) => withTiming(point.y, config))));
   }, [id, action, position.x, position.y, msPerCell, motion]);
+
+  // Stop any running walk when the actor leaves.
+  useEffect(() => () => {
+    cancelAnimation(motion.gx);
+    cancelAnimation(motion.gy);
+  }, [motion]);
 }

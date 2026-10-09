@@ -45,7 +45,7 @@ export function ActorCapsule({ actor, motion, origin, isLocal }: Props) {
   const facing = FACING_OFFSET[actor.facing];
 
   const transform = useDerivedValue(() => {
-    const feet = gridToScreen(motion.gx.value, motion.gy.value, 0, origin);
+    const feet = gridToScreen(motion.gx.get(), motion.gy.get(), 0, origin);
     return [{ translateX: feet.x }, { translateY: feet.y }];
   });
 

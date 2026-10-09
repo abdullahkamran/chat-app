@@ -3,27 +3,21 @@ import {
   Picture,
   Skia,
   createPicture,
-  useImage,
-  type DataSourceParam,
   type SkCanvas,
   type SkImage,
   type SkRect,
 } from '@shopify/react-native-skia';
 import { useMemo } from 'react';
 
-import { resolveItemSource } from '@/constants/avatarAssets';
 import { TILE_H, TILE_W, WALL_HEIGHT, gridToScreen, type GridOrigin } from '@/constants/grid';
 import { theme } from '@/constants/theme';
 import type { RoomScene } from '../../core/contract';
+import { useSkImage } from './imageCache';
 
 /** Shear that makes a flat wall image follow an isometric grid axis (tan of the axis angle). */
 const WALL_SLOPE = TILE_H / TILE_W;
 
 const DOOR_FILL_ALPHA = { entry: 0.25, other: 0.15 };
-
-function useAsset(assetUrl: string | undefined): SkImage | null {
-  return useImage(resolveItemSource(assetUrl ?? '') as DataSourceParam);
-}
 
 /** Source rectangle that crops an image to fill (w, h) without distortion — CSS `cover`. */
 function coverSource(image: SkImage, w: number, h: number): SkRect {
@@ -48,10 +42,7 @@ function drawDoors(canvas: SkCanvas, doors: RoomScene['doors'], origin: GridOrig
       gridToScreen(gx + 1, gy + 1, 0, origin),
       gridToScreen(gx, gy + 1, 0, origin),
     ];
-    const path = Skia.Path.Make();
-    path.moveTo(corners[0].x, corners[0].y);
-    for (const c of corners.slice(1)) path.lineTo(c.x, c.y);
-    path.close();
+    const path = Skia.PathBuilder.Make().addPoly(corners, true).build();
 
     const fill = Skia.Paint();
     fill.setColor(Skia.Color(door.isEntry ? theme.colors.primary : theme.colors.text));
@@ -76,9 +67,9 @@ interface Props {
  * Re-recorded only when the room, its theme images or the canvas origin change.
  */
 export function Backdrop({ scene, origin }: Props) {
-  const leftWall = useAsset(scene.theme?.leftWall?.assetUrl);
-  const rightWall = useAsset(scene.theme?.rightWall?.assetUrl);
-  const floor = useAsset(scene.theme?.floor?.assetUrl);
+  const leftWall = useSkImage(scene.theme?.leftWall?.assetUrl);
+  const rightWall = useSkImage(scene.theme?.rightWall?.assetUrl);
+  const floor = useSkImage(scene.theme?.floor?.assetUrl);
 
   const roomX = scene.dimensions?.x || 8;
   const roomY = scene.dimensions?.y || 6;
@@ -115,7 +106,7 @@ export function Backdrop({ scene, origin }: Props) {
     }
 
     drawDoors(canvas, scene.doors ?? [], origin);
-  }), [leftWall, rightWall, floor, roomX, roomY, origin.x, origin.y, scene.doors]);
+  }), [leftWall, rightWall, floor, roomX, roomY, origin, scene.doors]);
 
   return <Picture picture={picture} />;
 }

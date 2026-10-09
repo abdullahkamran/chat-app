@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
@@ -14,11 +14,6 @@ const DEFAULT_BUBBLE_MS = 3500;
 /** Wide enough for the widest bubble, so the column can centre over the actor. */
 const COLUMN_W = 200;
 const HEAD_GAP = 8;
-
-interface QueuedBubble {
-  key: string;
-  text: string;
-}
 
 interface Props {
   actor: ActorState;
@@ -39,9 +34,10 @@ export function ActorOverlay({ actor, motion, camera, origin, canvasHeight, onAc
   const bubbles = useBubbleQueue(actor.bubbles);
 
   const style = useAnimatedStyle(() => {
-    const feet = gridToScreen(motion.gx.value, motion.gy.value, 0, origin);
-    const x = feet.x * camera.scale.value + camera.tx.value;
-    const headY = (feet.y - CAPSULE_H) * camera.scale.value + camera.ty.value;
+    const feet = gridToScreen(motion.gx.get(), motion.gy.get(), 0, origin);
+    const scale = camera.scale.get();
+    const x = feet.x * scale + camera.tx.get();
+    const headY = (feet.y - CAPSULE_H) * scale + camera.ty.get();
     return { left: x - COLUMN_W / 2, bottom: canvasHeight - headY + HEAD_GAP };
   });
 
@@ -52,28 +48,26 @@ export function ActorOverlay({ actor, motion, camera, origin, canvasHeight, onAc
     <Animated.View pointerEvents="none" style={[styles.column, style]}>
       {actor.isTyping && <Bubble isTyping />}
       {bubbles.items.map(b => (
-        <Bubble key={b.key} message={b.text} duration={duration} close={bubbles.closeOldest} />
+        <Bubble key={b.id} message={b.text} duration={duration} close={bubbles.closeOldest} />
       ))}
     </Animated.View>
   );
 }
 
-let bubbleKey = 0;
-
 /** Turns the actor's append-only message list into a queue of visible bubbles. */
 function useBubbleQueue(messages: ChatBubble[]) {
-  const [items, setItems] = useState<QueuedBubble[]>([]);
-  const seen = useRef(messages.length);
+  // Messages already present on mount are history, not new bubbles.
+  const [state, setState] = useState(() => ({ seen: messages.length, items: [] as ChatBubble[] }));
+  let current = state;
+  if (messages.length !== state.seen) {
+    // Shorter means the list was reset; only show what arrived since.
+    const fresh = messages.length > state.seen ? messages.slice(state.seen) : [];
+    current = { seen: messages.length, items: [...state.items, ...fresh] };
+    setState(current);
+  }
 
-  useEffect(() => {
-    const fresh = messages.slice(seen.current);
-    seen.current = messages.length;
-    if (fresh.length === 0) return;
-    setItems(current => [...current, ...fresh.map(m => ({ key: `${bubbleKey++}`, text: m.text }))]);
-  }, [messages]);
-
-  const closeOldest = useRef(() => setItems(current => current.slice(1))).current;
-  return { items, closeOldest };
+  const closeOldest = useCallback(() => setState(s => ({ ...s, items: s.items.slice(1) })), []);
+  return { items: current.items, closeOldest };
 }
 
 const styles = StyleSheet.create({

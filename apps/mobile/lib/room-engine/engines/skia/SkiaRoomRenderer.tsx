@@ -1,5 +1,5 @@
 import { Canvas, Group } from '@shopify/react-native-skia';
-import { useCallback, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { type LayoutChangeEvent, StyleSheet, View } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 
@@ -12,6 +12,7 @@ import { EditGrid } from './EditGrid';
 import { ItemSprite } from './ItemSprite';
 import { useActorMotions } from './actorMotion';
 import { actorDepth, cellAt, hitTestItems, itemDepth } from './geometry';
+import { preloadSkImages } from './imageCache';
 import { useCamera } from './useCamera';
 
 /**
@@ -23,6 +24,17 @@ import { useCamera } from './useCamera';
  */
 export function SkiaRoomRenderer(props: RoomRendererProps) {
   const [size, setSize] = useState({ width: 0, height: 0 });
+  const { theme, items } = props.scene;
+
+  // Start decoding before the first layout pass so the backdrop is ready sooner.
+  useEffect(() => {
+    preloadSkImages([
+      theme?.floor?.assetUrl,
+      theme?.leftWall?.assetUrl,
+      theme?.rightWall?.assetUrl,
+      ...items.map(ri => ri.itemId.assetUrl),
+    ]);
+  }, [theme, items]);
 
   const onLayout = (e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
@@ -49,15 +61,11 @@ function Room({
   width,
   height,
 }: RoomRendererProps & { width: number; height: number }) {
-  const origin = computeOrigin(width, scene.dimensions);
+  const origin = useMemo(() => computeOrigin(width, scene.dimensions), [width, scene.dimensions]);
   const isEditMode = mode === 'edit';
 
-  // Tap handling reads the latest props through a ref so the gesture isn't rebuilt every render.
-  const latest = useRef({ scene, origin, isEditMode, onFloorTap, onItemTap, onCellTap });
-  latest.current = { scene, origin, isEditMode, onFloorTap, onItemTap, onCellTap };
-
-  const handleTap = useCallback((x: number, y: number) => {
-    const { scene, origin, isEditMode, onFloorTap, onItemTap, onCellTap } = latest.current;
+  // Taps arrive in content coordinates (the camera is already undone).
+  const handleTap = (x: number, y: number) => {
     const point = screenToGrid(x, y, origin);
 
     if (isEditMode) {
@@ -69,7 +77,7 @@ function Room({
     const item = hitTestItems(scene.items, { x, y }, origin);
     if (item) onItemTap(item);
     else onFloorTap(point);
-  }, []);
+  };
 
   const { camera, transform, gesture } = useCamera(width, height, handleTap);
   const motions = useActorMotions(actors);

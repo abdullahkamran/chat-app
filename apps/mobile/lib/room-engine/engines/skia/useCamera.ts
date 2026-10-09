@@ -46,41 +46,41 @@ export function useCamera(
   const start = useSharedValue({ scale: 1, tx: 0, ty: 0, focalX: 0, focalY: 0 });
 
   const transform = useDerivedValue(() => [
-    { translateX: tx.value },
-    { translateY: ty.value },
-    { scale: scale.value },
+    { translateX: tx.get() },
+    { translateY: ty.get() },
+    { scale: scale.get() },
   ]);
 
   const gesture = useMemo(() => {
     const pan = Gesture.Pan()
       .maxPointers(1)
       .onStart(() => {
-        start.value = { ...start.value, tx: tx.value, ty: ty.value };
+        start.set({ ...start.get(), tx: tx.get(), ty: ty.get() });
       })
       .onUpdate(e => {
-        tx.value = clampOffset(start.value.tx + e.translationX, scale.value, width);
-        ty.value = clampOffset(start.value.ty + e.translationY, scale.value, height);
+        tx.set(clampOffset(start.get().tx + e.translationX, scale.get(), width));
+        ty.set(clampOffset(start.get().ty + e.translationY, scale.get(), height));
       });
 
     // Zooms around the focal point and follows it, so two fingers also pan.
     const pinch = Gesture.Pinch()
       .onStart(e => {
-        start.value = { scale: scale.value, tx: tx.value, ty: ty.value, focalX: e.focalX, focalY: e.focalY };
+        start.set({ scale: scale.get(), tx: tx.get(), ty: ty.get(), focalX: e.focalX, focalY: e.focalY });
       })
       .onUpdate(e => {
-        const s0 = start.value;
+        const s0 = start.get();
         const next = clampZoom(s0.scale * e.scale);
         const ratio = next / s0.scale;
-        scale.value = next;
-        tx.value = clampOffset(e.focalX - (s0.focalX - s0.tx) * ratio, next, width);
-        ty.value = clampOffset(e.focalY - (s0.focalY - s0.ty) * ratio, next, height);
+        scale.set(next);
+        tx.set(clampOffset(e.focalX - (s0.focalX - s0.tx) * ratio, next, width));
+        ty.set(clampOffset(e.focalY - (s0.focalY - s0.ty) * ratio, next, height));
       });
 
     const tap = Gesture.Tap()
       .maxDuration(250)
       .onEnd((e, success) => {
         if (!success) return;
-        scheduleOnRN(onTap, (e.x - tx.value) / scale.value, (e.y - ty.value) / scale.value);
+        scheduleOnRN(onTap, (e.x - tx.get()) / scale.get(), (e.y - ty.get()) / scale.get());
       });
 
     return Gesture.Race(Gesture.Simultaneous(pan, pinch), tap);
