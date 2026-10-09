@@ -1,7 +1,6 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { QueryClientProvider } from '@tanstack/react-query';
 // import * as Notifications from 'expo-notifications';
-import { Stack, useRouter } from 'expo-router';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import 'react-native-reanimated';
@@ -69,17 +68,16 @@ function AppNavigator() {
         <QueryClientProvider client={queryClient}>
           <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
             <Stack>
-              {isAuthenticated ? (
-                <>
-                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                  <Stack.Screen name="(avatar)" options={{ headerShown: false }} />
-                  <Stack.Screen name="room" options={{ headerShown: false }} />
-                  <Stack.Screen name="create-room" options={{ headerShown: false, presentation: 'modal' }} />
-                  <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-                </>
-              ) : (
+              <Stack.Protected guard={isAuthenticated}>
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen name="(avatar)" options={{ headerShown: false }} />
+                <Stack.Screen name="room" options={{ headerShown: false }} />
+                <Stack.Screen name="create-room" options={{ headerShown: false, presentation: 'modal' }} />
+                <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+              </Stack.Protected>
+              <Stack.Protected guard={!isAuthenticated}>
                 <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-              )}
+              </Stack.Protected>
             </Stack>
             <StatusBar style="auto" />
           </ThemeProvider>
