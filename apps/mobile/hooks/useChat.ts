@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { SocketEvent } from '@chat-app/socket-constants';
 import { socketUtils } from '@/utils/socketUtils';
@@ -21,43 +21,58 @@ interface UseChatParams {
 
 export function useChat({ roomId, userId, handlers, getMyPosition, onEnterMe }: UseChatParams) {
 
+  // Callers pass fresh closures every render. Keep the latest ones in refs so the
+  // socket subscription below only resets when the room or user changes — otherwise
+  // every re-render would emit SEND_EXIT + SEND_ENTER and re-register listeners.
+  const handlersRef = useRef(handlers);
+  const getMyPositionRef = useRef(getMyPosition);
+  const onEnterMeRef = useRef(onEnterMe);
+  useEffect(() => {
+    handlersRef.current = handlers;
+    getMyPositionRef.current = getMyPosition;
+    onEnterMeRef.current = onEnterMe;
+  });
+
   const pointMe = () => {
     if (!socketUtils.socket) return;
-    const { x, y } = getMyPosition();
+    const { x, y } = getMyPositionRef.current();
     socketUtils.socket.emit(SocketEvent.SEND_POINT, { roomId, x, y });
   };
 
   useEffect(() => {
-    if (!socketUtils.socket) return;
-    const { onEnter, onExit, onPoint, onMessage, onTyping } = handlers;
+    const socket = socketUtils.socket;
+    if (!socket) return;
+
     const handleEnter = (p: { userId: string }) => {
-      onEnter(p);
-      pointMe();
+      handlersRef.current.onEnter(p);
+      const { x, y } = getMyPositionRef.current();
+      socket.emit(SocketEvent.SEND_POINT, { roomId, x, y });
     };
-    socketUtils.socket.on(SocketEvent.RECEIVE_ENTER, handleEnter);
-    socketUtils.socket.on(SocketEvent.RECEIVE_EXIT, onExit);
-    socketUtils.socket.on(SocketEvent.RECEIVE_POINT, onPoint);
-    socketUtils.socket.on(SocketEvent.RECEIVE_MESSAGE, onMessage);
-    if (onTyping) {
-      socketUtils.socket.on(SocketEvent.RECEIVE_TYPING, onTyping);
-    }
+    const handleExit = (p: { userId: string }) => handlersRef.current.onExit(p);
+    const handlePoint = (p: { userId: string; x: number; y: number }) => handlersRef.current.onPoint(p);
+    const handleMessage = (p: { userId: string; message: string }) => handlersRef.current.onMessage(p);
+    const handleTyping = (p: { userId: string }) => handlersRef.current.onTyping?.(p);
+
+    socket.on(SocketEvent.RECEIVE_ENTER, handleEnter);
+    socket.on(SocketEvent.RECEIVE_EXIT, handleExit);
+    socket.on(SocketEvent.RECEIVE_POINT, handlePoint);
+    socket.on(SocketEvent.RECEIVE_MESSAGE, handleMessage);
+    socket.on(SocketEvent.RECEIVE_TYPING, handleTyping);
 
     if (userId) {
-      socketUtils.socket.emit(SocketEvent.SEND_ENTER, { roomId });
-      onEnterMe?.();
+      socket.emit(SocketEvent.SEND_ENTER, { roomId });
+      onEnterMeRef.current?.();
     }
 
     return () => {
-      socketUtils.socket?.emit(SocketEvent.SEND_EXIT, { roomId });
-      socketUtils.socket?.off(SocketEvent.RECEIVE_ENTER, handleEnter);
-      socketUtils.socket?.off(SocketEvent.RECEIVE_EXIT, onExit);
-      socketUtils.socket?.off(SocketEvent.RECEIVE_POINT, onPoint);
-      socketUtils.socket?.off(SocketEvent.RECEIVE_MESSAGE, onMessage);
-      if (onTyping) {
-        socketUtils.socket?.off(SocketEvent.RECEIVE_TYPING, onTyping);
-      }
+      socket.emit(SocketEvent.SEND_EXIT, { roomId });
+      socket.off(SocketEvent.RECEIVE_ENTER, handleEnter);
+      socket.off(SocketEvent.RECEIVE_EXIT, handleExit);
+      socket.off(SocketEvent.RECEIVE_POINT, handlePoint);
+      socket.off(SocketEvent.RECEIVE_MESSAGE, handleMessage);
+      socket.off(SocketEvent.RECEIVE_TYPING, handleTyping);
     };
-  }, [roomId, userId, handlers.onEnter, handlers.onExit, handlers.onPoint, handlers.onMessage, handlers.onTyping, getMyPosition, onEnterMe]);
+  }, [roomId, userId]);
 
   return {
     moveMe: (x: number, y: number) => {
