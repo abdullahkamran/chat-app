@@ -73,7 +73,13 @@ export function useRoomSession(roomId: string) {
       return actor ? { x: actor.position.x, y: actor.position.y } : { x: 0, y: 0 };
     },
     onEnterMe: () => enterCharacter(userId ?? ''),
+    onReconnect: dropRemoteActors,
   });
+
+  function dropRemoteActors() {
+    setActors(current => (current[userId] ? { [userId]: current[userId] } : {}));
+    setTypingUserIds(new Set());
+  }
 
   function receiveEnter({ userId }: { userId: string }) {
     enterCharacter(userId);

@@ -17,9 +17,18 @@ interface UseChatParams {
   handlers: ReceiveHandlers;
   getMyPosition: () => { x: number; y: number };
   onEnterMe?: () => void;
+  /**
+   * The socket reconnected after a drop. Events during the gap were lost, so drop
+   * remote characters; everyone present re-announces their position in reply to
+   * our re-enter.
+   */
+  onReconnect?: () => void;
 }
 
-export function useChat({ roomId, userId, handlers, getMyPosition, onEnterMe }: UseChatParams) {
+/** Every room event the server relays carries the room it came from. */
+type RoomPayload<T> = T & { roomId: string };
+
+export function useChat({ roomId, userId, handlers, getMyPosition, onEnterMe, onReconnect }: UseChatParams) {
 
   // Callers pass fresh closures every render. Keep the latest ones in refs so the
   // socket subscription below only resets when the room or user changes — otherwise
@@ -27,10 +36,12 @@ export function useChat({ roomId, userId, handlers, getMyPosition, onEnterMe }: 
   const handlersRef = useRef(handlers);
   const getMyPositionRef = useRef(getMyPosition);
   const onEnterMeRef = useRef(onEnterMe);
+  const onReconnectRef = useRef(onReconnect);
   useEffect(() => {
     handlersRef.current = handlers;
     getMyPositionRef.current = getMyPosition;
     onEnterMeRef.current = onEnterMe;
+    onReconnectRef.current = onReconnect;
   });
 
   const pointMe = () => {
@@ -43,21 +54,43 @@ export function useChat({ roomId, userId, handlers, getMyPosition, onEnterMe }: 
     const socket = socketUtils.socket;
     if (!socket) return;
 
-    const handleEnter = (p: { userId: string }) => {
+    // The socket is joined to every room the user belongs to, so it also receives
+    // events from rooms other than the one on screen. Ignore those.
+    const handleEnter = (p: RoomPayload<{ userId: string }>) => {
+      if (p.roomId !== roomId) return;
       handlersRef.current.onEnter(p);
       const { x, y } = getMyPositionRef.current();
       socket.emit(SocketEvent.SEND_POINT, { roomId, x, y });
     };
-    const handleExit = (p: { userId: string }) => handlersRef.current.onExit(p);
-    const handlePoint = (p: { userId: string; x: number; y: number }) => handlersRef.current.onPoint(p);
-    const handleMessage = (p: { userId: string; message: string }) => handlersRef.current.onMessage(p);
-    const handleTyping = (p: { userId: string }) => handlersRef.current.onTyping?.(p);
+    const handleExit = (p: RoomPayload<{ userId: string }>) => {
+      if (p.roomId === roomId) handlersRef.current.onExit(p);
+    };
+    const handlePoint = (p: RoomPayload<{ userId: string; x: number; y: number }>) => {
+      if (p.roomId === roomId) handlersRef.current.onPoint(p);
+    };
+    const handleMessage = (p: RoomPayload<{ userId: string; message: string }>) => {
+      if (p.roomId === roomId) handlersRef.current.onMessage(p);
+    };
+    const handleTyping = (p: RoomPayload<{ userId: string }>) => {
+      if (p.roomId === roomId) handlersRef.current.onTyping?.(p);
+    };
+
+    // Fires only on reconnection, not the first connect. Emits made before the
+    // socket is connected again are buffered and sent in order once it is.
+    const handleReconnect = () => {
+      if (!userId) return;
+      onReconnectRef.current?.();
+      socket.emit(SocketEvent.SEND_ENTER, { roomId });
+      const { x, y } = getMyPositionRef.current();
+      socket.emit(SocketEvent.SEND_POINT, { roomId, x, y });
+    };
 
     socket.on(SocketEvent.RECEIVE_ENTER, handleEnter);
     socket.on(SocketEvent.RECEIVE_EXIT, handleExit);
     socket.on(SocketEvent.RECEIVE_POINT, handlePoint);
     socket.on(SocketEvent.RECEIVE_MESSAGE, handleMessage);
     socket.on(SocketEvent.RECEIVE_TYPING, handleTyping);
+    socket.io.on('reconnect', handleReconnect);
 
     if (userId) {
       socket.emit(SocketEvent.SEND_ENTER, { roomId });
@@ -71,6 +104,7 @@ export function useChat({ roomId, userId, handlers, getMyPosition, onEnterMe }: 
       socket.off(SocketEvent.RECEIVE_POINT, handlePoint);
       socket.off(SocketEvent.RECEIVE_MESSAGE, handleMessage);
       socket.off(SocketEvent.RECEIVE_TYPING, handleTyping);
+      socket.io.off('reconnect', handleReconnect);
     };
   }, [roomId, userId]);
 
