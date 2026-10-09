@@ -50,6 +50,7 @@ const io = new Server(server, {
     // ...
 });
 
+io.use(socketHandler.authenticate);
 io.on('connection', socketHandler.clientConnected);
 
 async function main() {
