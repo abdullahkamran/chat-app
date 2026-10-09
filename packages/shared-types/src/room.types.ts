@@ -1,3 +1,4 @@
+import { Animation } from "./animation.types";
 import { CharacterDirection, Dimensions, Orientiation, Position } from "./dimensions.types";
 import { Item, ItemState } from "./item.types";
 import { User } from "./user.types";
@@ -27,6 +28,25 @@ export interface RoomItem {
     orientation: Orientiation;
     state: ItemState; 
 }
+
+/** Isometric facing. S = toward the viewer, E = toward screen right. */
+export const Facing = {
+    NE: 'NE',
+    NW: 'NW',
+    SE: 'SE',
+    SW: 'SW',
+} as const;
+
+export type Facing = (typeof Facing)[keyof typeof Facing];
+
+/** What a character in a room is currently doing. Engines animate these; the room session owns them. */
+export type ActorAction =
+    | { kind: 'idle' }
+    | { kind: 'walk'; path: Position[] }
+    | { kind: 'sit'; itemId: Item['_id']; seatIndex: number }
+    | { kind: 'emote'; animation: Animation['name'] };
+
+export type ActorActionKind = ActorAction['kind'];
 
 export interface RoomCharacter {
     user: User;

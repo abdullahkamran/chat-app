@@ -15,7 +15,7 @@ import { theme } from '@/constants/theme';
 import type { Door, RoomDetails } from '@chat-app/shared-types';
 
 type Props = {
-  roomDetails?: RoomDetails | null;
+  roomDetails?: Pick<RoomDetails, 'theme' | 'dimensions' | 'doors'> | null;
   canvasWidth: number;
   canvasHeight: number;
 };

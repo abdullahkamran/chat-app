@@ -64,7 +64,7 @@ gy = dy / TILE_H - dx / TILE_W
 
 ## Cell dimensions at different zoom levels
 
-The `ReactNativeZoomableView` in `Room.tsx` zooms the canvas.
+The `ReactNativeZoomableView` in `engines/legacy/LegacyRoomRenderer.tsx` zooms the canvas.
 
 | Zoom level | Cell appears as (px) | TILE_W step (px) | TILE_H step (px) |
 |------------|----------------------|------------------|------------------|
@@ -72,7 +72,7 @@ The `ReactNativeZoomableView` in `Room.tsx` zooms the canvas.
 | `1.0×`     | 80 × 40              | 40               | 20               |
 | `1.5×`     | 120 × 60             | 60               | 30               |
 
-Zoom range: `minZoom = 0.5`, `maxZoom = 1.5`, `initialZoom = 1.0` (set in `Room.tsx`).
+Zoom range: `minZoom = 0.5`, `maxZoom = 1.5`, `initialZoom = 1.0` (set in `LegacyRoomRenderer.tsx`).
 
 ---
 
@@ -129,7 +129,7 @@ For a 390 px wide canvas: `origin.x = 195 - 20 = 175`, `origin.y = 200`.
 
 ## Wall area
 
-The walls are rendered in `RoomBackdrop.tsx` above the floor as **skewed parallelograms**.
+The walls are rendered in `engines/legacy/RoomBackdrop.tsx` above the floor as **skewed parallelograms**.
 
 | Wall         | Width formula               | Value (8×6 room) | Height              |
 |--------------|-----------------------------|------------------|---------------------|
@@ -178,7 +178,7 @@ When changing `WALL_HEIGHT`, verify that `WALL_HEIGHT + (roomX + roomY) * TILE_H
 
 | Constant      | Value    | File                                        |
 |---------------|----------|---------------------------------------------|
-| `CHAR_HEIGHT` | `80` dp  | `lib/room-engine/components/Character.tsx`  |
+| `CHAR_HEIGHT` | `80` dp  | `lib/room-engine/engines/legacy/Character.tsx`  |
 | `CHAR_WIDTH`  | `53` dp  | derived: `Math.round(CHAR_HEIGHT * 2/3)`    |
 
 `CHAR_HEIGHT = 2 × TILE_H` gives the correct YoWorld proportion (character ≈ 2 tile-heights tall).
@@ -245,13 +245,55 @@ To tune feature positions, edit `FACE_FEATURE_LAYOUT` in [UserCharacter.tsx](../
 
 ---
 
+## Engine architecture
+
+Rendering is pluggable. Everything that is not drawing lives in a shared session; engines only draw and report taps.
+
+```
+Room.tsx                      glue: session + shell + selected engine
+core/contract.ts              RoomEngine, RoomRendererProps, RoomScene, ActorState
+core/registry.ts              getRoomEngine() — reads EXPO_PUBLIC_ROOM_ENGINE
+core/facing.ts                facingFromDelta, facingToDirection
+core/useWalkabilityGrid.ts    blocked cells from placed items
+core/usePathfinding.ts        A* (not wired into movement yet)
+session/useRoomSession.ts     socket events, actors, chat, edit mode, intents
+session/RoomShell.tsx         header / edit toolbar, chat input / inventory drawer, loading + error
+engines/legacy/               View-based renderer (this document's projection + avatar layout)
+```
+
+Contract rules:
+
+- Engines receive `scene`, `actors`, `mode` and `edit` as props and report `onFloorTap`, `onItemTap`, `onCellTap`, `onActionComplete`, always in **grid coordinates**.
+- Engines never touch the socket, REST API or React Query.
+- The session owns logical state (`position`, `facing`, `action`); engines own projection, camera, interpolation and hit-testing.
+- Facings are isometric (`NE`, `NW`, `SE`, `SW`, from `@chat-app/shared-types`). The legacy engine collapses them to a mirrored left/right sprite.
+
+### Selecting an engine
+
+```bash
+# apps/mobile/.env.local
+EXPO_PUBLIC_ROOM_ENGINE=legacy   # default when unset or unknown
+```
+
+Restart Metro with a cleared cache (`pnpm expo start -c`) after changing it.
+
+### Adding an engine
+
+1. Create `engines/<id>/index.ts` exporting a `RoomEngine` (`id`, `capabilities`, `Renderer`).
+2. Register it in `ENGINES` in `core/registry.ts`.
+3. Set `EXPO_PUBLIC_ROOM_ENGINE=<id>`.
+
+---
+
 ## Key files
 
 | File | Role |
 |------|------|
 | `apps/mobile/constants/grid.ts` | All scale constants + projection math |
-| `apps/mobile/lib/room-engine/Room.tsx` | Zoom config (`minZoom`, `maxZoom`, `initialZoom`) |
-| `apps/mobile/lib/room-engine/EditMode/GridOverlay.tsx` | Cell hit-targets (uses `TILE_W`, `TILE_H`) |
-| `apps/mobile/components/RoomBackdrop.tsx` | Wall + floor tile rendering |
-| `apps/mobile/lib/room-engine/components/Character.tsx` | Character positioning via `gridToScreen` |
-| `apps/mobile/lib/room-engine/components/RoomItemView.tsx` | Item positioning via `gridToScreen` |
+| `apps/mobile/lib/room-engine/core/contract.ts` | Engine contract |
+| `apps/mobile/lib/room-engine/session/useRoomSession.ts` | Engine-agnostic room state and intents |
+| `apps/mobile/lib/room-engine/engines/legacy/LegacyRoomRenderer.tsx` | Zoom config (`minZoom`, `maxZoom`, `initialZoom`), tap-to-grid, depth sort |
+| `apps/mobile/lib/room-engine/engines/legacy/GridOverlay.tsx` | Cell hit-targets (uses `TILE_W`, `TILE_H`) |
+| `apps/mobile/lib/room-engine/engines/legacy/RoomBackdrop.tsx` | Wall + floor tile rendering |
+| `apps/mobile/lib/room-engine/engines/legacy/Character.tsx` | Character positioning via `gridToScreen` |
+| `apps/mobile/lib/room-engine/engines/legacy/RoomItemView.tsx` | Item positioning via `gridToScreen` |
