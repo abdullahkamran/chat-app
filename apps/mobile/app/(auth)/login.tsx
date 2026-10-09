@@ -10,7 +10,7 @@ import {
     View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useLoginMutation } from '@/lib/auth';
+import { useLoginMutation } from '@/hooks/useAuthMutations';
 import { theme } from '@/constants/theme';
 
 export default function LoginScreen() {

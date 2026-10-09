@@ -1,7 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
-import { useMutation } from '@tanstack/react-query';
 import { Avatar } from '@chat-app/shared-types';
-import { useAuth } from '@/context/auth.context';
 import { api } from './api';
 
 const REFRESH_TOKEN_KEY = 'refreshToken';
@@ -95,31 +93,4 @@ export interface SignupPayload {
 
 export async function signupRequest(payload: SignupPayload): Promise<void> {
     await api.post('/api/v1/auth/signup', payload);
-}
-
-// ── React Query mutation hooks ────────────────────────────────────────────────
-
-export function useLoginMutation() {
-    const { login } = useAuth();
-    return useMutation({
-        mutationFn: ({ username, password }: { username: string; password: string }) =>
-            login(username, password),
-    });
-}
-
-export function useSignupMutation() {
-    const { login } = useAuth();
-    return useMutation({
-        mutationFn: async (payload: SignupPayload) => {
-            await signupRequest(payload);
-            await login(payload.username, payload.password);
-        },
-    });
-}
-
-export function useLogoutMutation() {
-    const { logout } = useAuth();
-    return useMutation({
-        mutationFn: logout,
-    });
 }
