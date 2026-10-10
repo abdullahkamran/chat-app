@@ -1,5 +1,5 @@
 import { Skia, type SkImage } from '@shopify/react-native-skia';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Image as RNImage } from 'react-native';
 
 import { resolveItemSource } from '@/constants/avatarAssets';
@@ -13,6 +13,8 @@ import { resolveItemSource } from '@/constants/avatarAssets';
  */
 const decoded = new Map<string, SkImage>();
 const pending = new Map<string, Promise<SkImage | null>>();
+/** Assets that failed to load or decode; not retried this session. */
+const failed = new Set<string>();
 
 function uriFor(assetUrl: string): string | null {
   const source = resolveItemSource(assetUrl);
@@ -27,18 +29,24 @@ export function loadSkImage(assetUrl: string): Promise<SkImage | null> {
   if (hit) return Promise.resolve(hit);
   const inFlight = pending.get(assetUrl);
   if (inFlight) return inFlight;
+  if (failed.has(assetUrl)) return Promise.resolve(null);
 
   const uri = uriFor(assetUrl);
-  if (!uri) return Promise.resolve(null);
+  if (!uri) {
+    failed.add(assetUrl);
+    return Promise.resolve(null);
+  }
 
   const promise = Skia.Data.fromURI(uri)
     .then(data => Skia.Image.MakeImageFromEncoded(data))
     .then(image => {
       if (image) decoded.set(assetUrl, image);
+      else failed.add(assetUrl);
       return image;
     })
     .catch(err => {
       console.warn(`[skia engine] could not load ${assetUrl}`, err);
+      failed.add(assetUrl);
       return null;
     })
     .finally(() => pending.delete(assetUrl));
@@ -49,6 +57,38 @@ export function loadSkImage(assetUrl: string): Promise<SkImage | null> {
 /** Start loading assets before anything draws them. */
 export function preloadSkImages(assetUrls: Iterable<string | undefined>) {
   for (const url of assetUrls) if (url) void loadSkImage(url);
+}
+
+/**
+ * Decoded images for several catalog assets, keyed by URL (null until loaded).
+ * Re-renders once per batch of newly decoded images.
+ */
+export function useSkImages(assetUrls: readonly string[]): Readonly<Record<string, SkImage | null>> {
+  const [version, setVersion] = useState(0);
+  const key = [...new Set(assetUrls)].sort().join('\n');
+
+  const images = useMemo(() => {
+    const map: Record<string, SkImage | null> = {};
+    for (const url of key.split('\n')) if (url) map[url] = decoded.get(url) ?? null;
+    return map;
+    // `version` marks newly decoded images; the cache itself lives outside React.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, version]);
+
+  useEffect(() => {
+    // Anything this render lacked, including images decoded since; failed assets aren't retried.
+    const missing = Object.keys(images).filter(url => images[url] === null && !failed.has(url));
+    if (missing.length === 0) return;
+    let live = true;
+    Promise.all(missing.map(loadSkImage)).then(() => {
+      if (live) setVersion(v => v + 1);
+    });
+    return () => {
+      live = false;
+    };
+  }, [images]);
+
+  return images;
 }
 
 /** The decoded image for a catalog asset; available on the first render once cached. */

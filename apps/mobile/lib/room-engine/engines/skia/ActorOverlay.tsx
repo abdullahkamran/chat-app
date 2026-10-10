@@ -6,7 +6,7 @@ import { gridToScreen, type GridOrigin } from '@/constants/grid';
 import type { ActorActionKind } from '@chat-app/shared-types';
 import type { ActorState, ChatBubble } from '../../core/contract';
 import Bubble from '../legacy/Bubble';
-import { CAPSULE_H } from './ActorCapsule';
+import { AVATAR_HEIGHT } from './skeleton/humanoidV1';
 import { useActorWalk, type ActorMotion } from './actorMotion';
 import type { Camera } from './useCamera';
 
@@ -37,7 +37,7 @@ export function ActorOverlay({ actor, motion, camera, origin, canvasHeight, onAc
     const feet = gridToScreen(motion.gx.get(), motion.gy.get(), 0, origin);
     const scale = camera.scale.get();
     const x = feet.x * scale + camera.tx.get();
-    const headY = (feet.y - CAPSULE_H) * scale + camera.ty.get();
+    const headY = (feet.y - AVATAR_HEIGHT) * scale + camera.ty.get();
     return { left: x - COLUMN_W / 2, bottom: canvasHeight - headY + HEAD_GAP };
   });
 

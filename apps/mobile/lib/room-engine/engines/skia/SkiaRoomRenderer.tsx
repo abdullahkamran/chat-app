@@ -1,26 +1,27 @@
-import { Canvas, Group } from '@shopify/react-native-skia';
+import { Canvas, Group, Picture } from '@shopify/react-native-skia';
 import { useEffect, useMemo, useState } from 'react';
 import { type LayoutChangeEvent, StyleSheet, View } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 
 import { computeOrigin, screenToGrid } from '@/constants/grid';
 import type { RoomRendererProps } from '../../core/contract';
-import { ActorCapsule } from './ActorCapsule';
 import { ActorOverlay } from './ActorOverlay';
 import { Backdrop } from './Backdrop';
 import { EditGrid } from './EditGrid';
-import { ItemSprite } from './ItemSprite';
 import { useActorMotions } from './actorMotion';
-import { actorDepth, cellAt, hitTestItems, itemDepth } from './geometry';
-import { preloadSkImages } from './imageCache';
+import { cellAt, hitTestItems } from './geometry';
+import { preloadSkImages, useSkImages } from './imageCache';
 import { useCamera } from './useCamera';
+import { useStressActors } from './useStressActors';
+import { useWorldPicture } from './useWorldPicture';
 
 /**
  * Skia renderer. Layers, back to front:
- *   backdrop (SkPicture) → items and actors, depth-sorted → edit grid   [inside the canvas]
- *   chat bubbles                                                        [RN views over the canvas]
- * The camera is a shared-value transform on the root group; taps are mapped back
- * through it to grid coordinates.
+ *   backdrop (SkPicture, static) → world (SkPicture, every frame) → edit grid   [inside the canvas]
+ *   chat bubbles                                                               [RN views over the canvas]
+ * The world is items and skeletal avatars, depth-sorted on the UI thread. The camera
+ * is a shared-value transform on the root group; taps are mapped back through it to
+ * grid coordinates.
  */
 export function SkiaRoomRenderer(props: RoomRendererProps) {
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -50,19 +51,20 @@ export function SkiaRoomRenderer(props: RoomRendererProps) {
 
 function Room({
   scene,
-  actors,
+  actors: sessionActors,
   localActorId,
   mode,
   edit,
   onFloorTap,
   onItemTap,
   onCellTap,
-  onActionComplete,
+  onActionComplete: sessionOnActionComplete,
   width,
   height,
 }: RoomRendererProps & { width: number; height: number }) {
   const origin = useMemo(() => computeOrigin(width, scene.dimensions), [width, scene.dimensions]);
   const isEditMode = mode === 'edit';
+  const { actors, onActionComplete } = useStressActors(sessionActors, scene.dimensions, sessionOnActionComplete);
 
   // Taps arrive in content coordinates (the camera is already undone).
   const handleTap = (x: number, y: number) => {
@@ -81,12 +83,16 @@ function Room({
 
   const { camera, transform, gesture } = useCamera(width, height, handleTap);
   const motions = useActorMotions(actors);
-
-  const actorList = Object.values(actors);
-  const renderables = [
-    ...actorList.map(a => ({ kind: 'actor' as const, data: a, depth: actorDepth(a) })),
-    ...scene.items.map(ri => ({ kind: 'item' as const, data: ri, depth: itemDepth(ri) })),
-  ].sort((a, b) => a.depth - b.depth);
+  const itemImages = useSkImages(scene.items.map(ri => ri.itemId.assetUrl));
+  const world = useWorldPicture({
+    actors,
+    motions,
+    localActorId,
+    items: scene.items,
+    itemImages,
+    selectedPlaced: isEditMode ? edit.selectedPlaced : null,
+    origin,
+  });
 
   return (
     <View style={styles.fill}>
@@ -94,41 +100,27 @@ function Room({
         <Canvas style={{ width, height }}>
           <Group transform={transform}>
             <Backdrop scene={scene} origin={origin} />
-            {renderables.map(r =>
-              r.kind === 'actor' ? (
-                <ActorCapsule
-                  key={`actor-${r.data.id}`}
-                  actor={r.data}
-                  motion={motions.get(r.data.id)!}
-                  origin={origin}
-                  isLocal={r.data.id === localActorId}
-                />
-              ) : (
-                <ItemSprite
-                  key={`item-${r.data.itemId._id}-${r.data.position.x}-${r.data.position.y}`}
-                  roomItem={r.data}
-                  origin={origin}
-                  selected={isEditMode && edit.selectedPlaced === r.data}
-                />
-              ),
-            )}
+            <Picture picture={world} />
             {isEditMode && <EditGrid dimensions={scene.dimensions} origin={origin} />}
           </Group>
         </Canvas>
       </GestureDetector>
 
       <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-        {actorList.map(a => (
-          <ActorOverlay
-            key={a.id}
-            actor={a}
-            motion={motions.get(a.id)!}
-            camera={camera}
-            origin={origin}
-            canvasHeight={height}
-            onActionComplete={onActionComplete}
-          />
-        ))}
+        {Object.values(actors).map(a => {
+          const motion = motions.get(a.id);
+          return motion && (
+            <ActorOverlay
+              key={a.id}
+              actor={a}
+              motion={motion}
+              camera={camera}
+              origin={origin}
+              canvasHeight={height}
+              onActionComplete={onActionComplete}
+            />
+          );
+        })}
       </View>
     </View>
   );

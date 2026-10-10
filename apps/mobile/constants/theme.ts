@@ -37,6 +37,10 @@ export const palette = {
   avatarYellow: '#FFEAA7',
   avatarPlum: '#DDA0DD',
   avatarMint: '#98D8C8',
+
+  // Placeholder avatar (Skia engine programmer art, until real wearables exist)
+  avatarSkin: '#E0AC69',
+  avatarHair: '#3B2A20',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -72,6 +76,10 @@ export const theme = {
     tabBar: palette.black,
     tabIconDefault: palette.neutral600,
     tabIconSelected: palette.yellow,
+
+    // Placeholder avatar parts (Skia room engine programmer art)
+    avatarPlaceholderSkin: palette.avatarSkin,
+    avatarPlaceholderHair: palette.avatarHair,
   },
 
   // Avatar accent palette exposed as an ordered array for easy indexing

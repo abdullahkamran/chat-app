@@ -12,11 +12,13 @@ import {
   Orientiation,
   type ActorActionKind,
   type Item,
+  type Position,
   type RoomItem,
   type User,
 } from '@chat-app/shared-types';
 import type { ActorState, EditState, RoomMode, RoomScene } from '../core/contract';
 import { facingFromDelta } from '../core/facing';
+import { findPath, isLineClear, smoothPath } from '../core/usePathfinding';
 import { useWalkabilityGrid } from '../core/useWalkabilityGrid';
 import { useRoomDetails } from '../hooks/useRoomDetails';
 
@@ -149,19 +151,45 @@ export function useRoomSession(roomId: string) {
     });
   }
 
-  /** Point an actor at a new floor position (no grid snapping, no pathfinding yet). */
+  /** The grid cell a floor position belongs to. Cells are centred on grid vertices, like items and edit cells. */
+  function cellOf(x: number, y: number): GridPoint {
+    return {
+      gx: Math.max(0, Math.min(roomDimensions.x - 1, Math.round(x))),
+      gy: Math.max(0, Math.min(roomDimensions.y - 1, Math.round(y))),
+    };
+  }
+
+  /**
+   * Waypoints from `from` to (x, y), ending exactly at (x, y). Routes around furniture
+   * with A* and string-pulls the result. Falls back to a straight line when the target
+   * cell is blocked or unreachable, as movement worked before pathfinding.
+   */
+  function planPath(from: Position, x: number, y: number): Position[] {
+    const destination = { x, y, z: 0 };
+    const start = cellOf(from.x, from.y);
+    const goal = cellOf(x, y);
+    if (isLineClear(start, goal, isWalkable)) return [destination];
+
+    const cells = findPath(start, goal, isWalkable);
+    if (cells.length === 0) return [destination];
+    const turns = smoothPath(start, cells, isWalkable).slice(0, -1);
+    return [...turns.map(c => ({ x: c.gx, y: c.gy, z: 0 })), destination];
+  }
+
+  /** Point an actor at a new floor position, routing around furniture. */
   function setActorDestination(uid: string, x: number, y: number) {
     setActors(current => {
       const actor = current[uid];
       if (!actor) return current;
-      const destination = { x, y, z: 0 };
+      const path = planPath(actor.position, x, y);
       return {
         ...current,
         [uid]: {
           ...actor,
-          position: destination,
-          facing: facingFromDelta(x - actor.position.x, y - actor.position.y),
-          action: { kind: 'walk', path: [destination] },
+          position: path[path.length - 1],
+          // Engines that animate per segment re-derive facing from travel; this is the first leg's.
+          facing: facingFromDelta(path[0].x - actor.position.x, path[0].y - actor.position.y),
+          action: { kind: 'walk', path },
         },
       };
     });

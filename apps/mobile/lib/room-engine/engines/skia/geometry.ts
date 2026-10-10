@@ -7,7 +7,6 @@ import {
   type ScreenPoint,
 } from '@/constants/grid';
 import { ItemAction, type RoomItem } from '@chat-app/shared-types';
-import type { ActorState } from '../../core/contract';
 
 export interface ScreenRect {
   x: number;
@@ -33,11 +32,6 @@ export function itemRect(roomItem: RoomItem, origin: GridOrigin): ScreenRect {
 export function itemDepth(roomItem: RoomItem): number {
   const { position, itemId } = roomItem;
   return position.x + position.y + itemId.dimensions.x / 2 + itemId.dimensions.y / 2;
-}
-
-/** Painter's-algorithm key for an actor. +0.5 keeps actors in front of floor items on the same tile. */
-export function actorDepth(actor: ActorState): number {
-  return actor.position.x + actor.position.y + 0.5;
 }
 
 function contains(rect: ScreenRect, p: ScreenPoint): boolean {

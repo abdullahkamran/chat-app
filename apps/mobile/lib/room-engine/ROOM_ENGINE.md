@@ -257,13 +257,14 @@ Rendering is pluggable. Everything that is not drawing lives in a shared session
 Room.tsx                      glue: session + shell + selected engine
 core/contract.ts              RoomEngine, RoomRendererProps, RoomScene, ActorState
 core/registry.ts              getRoomEngine() — reads EXPO_PUBLIC_ROOM_ENGINE
-core/facing.ts                facingFromDelta, facingToDirection
+core/facing.ts                facingFromDelta, facingToDirection, facingToView (rig view + mirror)
 core/useWalkabilityGrid.ts    blocked cells from placed items
-core/usePathfinding.ts        A* (not wired into movement yet)
+core/usePathfinding.ts        A* + string-pulling; the session routes every walk through it
 session/useRoomSession.ts     socket events, actors, chat, edit mode, intents
 session/RoomShell.tsx         header / edit toolbar, chat input / inventory drawer, loading + error
 engines/legacy/               View-based renderer (this document's projection + avatar layout)
-engines/skia/                 Skia + Reanimated renderer (Phase 1: placeholder capsule avatars)
+engines/skia/                 Skia + Reanimated renderer, skeletal avatars (programmer art until Phase 3)
+engines/skia/skeleton/        humanoid-v1 rig, hand-written clips, sampler/solver worklets, programmer-art atlas
 ```
 
 Contract rules:
@@ -282,6 +283,8 @@ EXPO_PUBLIC_ROOM_ENGINE=skia     # Skia engine (iOS and Android; web is not set 
 ```
 
 Restart Metro with a cleared cache (`pnpm expo start -c`) after changing it.
+
+For performance checks, `EXPO_PUBLIC_ROOM_STRESS_ACTORS=30` adds 30 wandering avatars to the Skia engine in dev builds. They are engine-local and never reach the session or socket.
 
 ### Adding an engine
 
@@ -303,7 +306,9 @@ Restart Metro with a cleared cache (`pnpm expo start -c`) after changing it.
 | `apps/mobile/lib/room-engine/engines/legacy/RoomBackdrop.tsx` | Wall + floor tile rendering |
 | `apps/mobile/lib/room-engine/engines/legacy/Character.tsx` | Character positioning via `gridToScreen` |
 | `apps/mobile/lib/room-engine/engines/legacy/RoomItemView.tsx` | Item positioning via `gridToScreen` |
-| `apps/mobile/lib/room-engine/engines/skia/SkiaRoomRenderer.tsx` | Skia canvas, depth sort, tap routing, bubble overlay |
+| `apps/mobile/lib/room-engine/engines/skia/SkiaRoomRenderer.tsx` | Skia canvas layers, tap routing, bubble overlay |
+| `apps/mobile/lib/room-engine/engines/skia/useWorldPicture.ts` | Per-frame UI-thread loop: clip playback, crossfade, facing, depth sort, world picture |
+| `apps/mobile/lib/room-engine/engines/skia/skeleton/` | `humanoidV1.ts` (rig), `clips.ts` (idle, walk), `sampler.ts` (worklets), `programmerArt.ts` (test atlas) |
 | `apps/mobile/lib/room-engine/engines/skia/useCamera.ts` | Pan/pinch camera (0.5x–1.5x) as shared values; taps mapped to content coords |
 | `apps/mobile/lib/room-engine/engines/skia/actorMotion.ts` | Per-actor shared positions; walks animated on the UI thread |
 
@@ -313,5 +318,8 @@ Restart Metro with a cleared cache (`pnpm expo start -c`) after changing it.
 - Same anchoring as legacy: items sit bottom-centre on their grid position; edit-mode cells are centred on grid vertices (taps round, not floor).
 - The backdrop (walls, floor, doors) is recorded into one `SkPicture` and re-recorded only when the theme, doors or canvas origin change.
 - Chat bubbles are RN views over the canvas, positioned from the actor's shared values through the camera; they don't scale with zoom.
-- Depth sort runs in React on logical positions (as legacy). A per-frame sort on the UI thread arrives with the skeletal rig.
+- Items and avatars are drawn into one world `SkPicture` every frame on the UI thread, depth-sorted by live position (`gx + gy`, +0.5 for avatars), so walking past furniture sorts correctly mid-walk.
+- Avatars use the shared `humanoid-v1` rig (types in `packages/shared-types/src/rig.types.ts`). Each frame: advance the clip (walk rate scales with the user's speed), crossfade 150 ms on clip changes, sample, solve bones, then one `drawAtlas` per avatar.
+- Facing comes from the direction of travel each frame while moving, otherwise from the session. SE/SW draw the `front` view, NE/NW `back`; the west pair is mirrored with pre-flipped atlas sprites, because RSXform can't reflect.
+- Clip angles are clockwise degrees and both views face screen right before mirroring, so a forward swing is negative. The back view mirrors the bind x offsets (left/right sides swap), not the rotations.
 - `GestureHandlerRootView` wraps the app in `app/_layout.tsx` for the camera gestures.

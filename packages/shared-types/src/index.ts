@@ -1,5 +1,6 @@
 export * from './animation.types';
 export * from './room.types';
+export * from './rig.types';
 export * from './user.types';
 export * from './item.types';
 export * from './avatar.types';
