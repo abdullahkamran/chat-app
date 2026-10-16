@@ -10,12 +10,18 @@ import {
   type SkImage,
   type SkPicture,
 } from '@shopify/react-native-skia';
-import { useMemo, useState } from 'react';
-import { makeMutable, useFrameCallback, useSharedValue, type SharedValue } from 'react-native-reanimated';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  makeMutable,
+  useFrameCallback,
+  useSharedValue,
+  type FrameInfo,
+  type SharedValue,
+} from 'react-native-reanimated';
 
 import { gridToScreen, type GridOrigin } from '@/constants/grid';
 import { theme } from '@/constants/theme';
-import type { Facing, RigView, RoomItem } from '@chat-app/shared-types';
+import type { Facing, RoomItem } from '@chat-app/shared-types';
 import type { ActorState } from '../../core/contract';
 import { facingFromDelta, facingToView } from '../../core/facing';
 import type { ActorMotion } from './actorMotion';
@@ -44,7 +50,8 @@ interface ActorDraw {
   facing: Facing;
   msPerCell: number;
   isLocal: boolean;
-  colors: Record<RigView, SkColor[]>;
+  /** Five colours, not one per sprite: the frame loop expands them, which keeps hand-offs small. */
+  tints: Record<TintGroup, SkColor>;
 }
 
 interface ItemDraw {
@@ -78,21 +85,24 @@ function hashId(id: string): number {
   return Math.abs(h);
 }
 
-/** Placeholder outfit colours, stable per user. */
-function actorColors(id: string, art: AvatarArt): Record<RigView, SkColor[]> {
-  const n = theme.avatarPalette.length;
-  const h = hashId(id);
-  const tints: Record<TintGroup, SkColor> = {
-    skin: Skia.Color(theme.colors.avatarPlaceholderSkin),
-    tops: Skia.Color(theme.avatarPalette[h % n]),
-    bottoms: Skia.Color(theme.avatarPalette[(h + 3) % n]),
-    footwear: Skia.Color(theme.colors.avatarPlaceholderHair),
-    hair: Skia.Color(theme.colors.avatarPlaceholderHair),
-  };
-  return {
-    front: art.views.front.tint.map(g => tints[g]),
-    back: art.views.back.tint.map(g => tints[g]),
-  };
+const tintCache = new Map<string, Record<TintGroup, SkColor>>();
+
+/** Placeholder outfit colours, stable per user and cached so re-renders don't reallocate them. */
+function actorTints(id: string): Record<TintGroup, SkColor> {
+  let tints = tintCache.get(id);
+  if (!tints) {
+    const n = theme.avatarPalette.length;
+    const h = hashId(id);
+    tints = {
+      skin: Skia.Color(theme.colors.avatarPlaceholderSkin),
+      tops: Skia.Color(theme.avatarPalette[h % n]),
+      bottoms: Skia.Color(theme.avatarPalette[(h + 3) % n]),
+      footwear: Skia.Color(theme.colors.avatarPlaceholderHair),
+      hair: Skia.Color(theme.colors.avatarPlaceholderHair),
+    };
+    tintCache.set(id, tints);
+  }
+  return tints;
 }
 
 /** Fit an image inside a rect, centred, keeping its aspect ratio (CSS `contain`). */
@@ -101,6 +111,16 @@ function containDst(image: SkImage, rect: { x: number; y: number; width: number;
   const w = image.width() * scale;
   const h = image.height() * scale;
   return [rect.x + (rect.width - w) / 2, rect.y + (rect.height - h) / 2, w, h];
+}
+
+/**
+ * Painter's-algorithm order. A named worklet on purpose: the React Compiler hoists
+ * capture-free inline lambdas out of hooks into plain module functions, which the
+ * frame-callback worklet can then no longer call on the UI thread.
+ */
+function byDepth(p: { depth: number }, q: { depth: number }): number {
+  'worklet';
+  return p.depth - q.depth;
 }
 
 function advance(prev: AnimRuntime | undefined, a: ActorDraw, gx: number, gy: number, dt: number): AnimRuntime {
@@ -146,7 +166,7 @@ function drawAvatar(
   canvas: SkCanvas,
   art: AvatarArt,
   st: AnimRuntime,
-  colors: Record<RigView, SkColor[]>,
+  tints: Record<TintGroup, SkColor>,
   feetX: number,
   feetY: number,
 ) {
@@ -161,7 +181,9 @@ function drawAvatar(
   // RSXform can't reflect, so the west pair uses pre-flipped sprites with x and angle negated.
   const list = art.views[view];
   const xforms = [];
+  const colors: SkColor[] = [];
   for (let i = 0; i < list.bone.length; i++) {
+    colors.push(tints[list.tint[i]]);
     const b = list.bone[i];
     const x = mirror ? -bones.x[b] : bones.x[b];
     const angle = mirror ? -bones.angle[b] : bones.angle[b];
@@ -174,7 +196,7 @@ function drawAvatar(
     xforms,
     Skia.Paint(),
     BlendMode.Modulate,
-    colors[view],
+    colors,
     ATLAS_SAMPLING,
   );
 }
@@ -193,6 +215,11 @@ interface Params {
  * The world layer: items and avatars, depth-sorted together and redrawn every frame
  * on the UI thread into one SkPicture. React only rebuilds the inputs when actors or
  * items change; motion, animation and sorting never touch the JS thread.
+ *
+ * The frame callback is registered once. Its inputs reach it through shared values,
+ * because useFrameCallback re-registers (and re-copies everything the worklet
+ * captures to the UI runtime) whenever the callback changes. With 30 wandering
+ * avatars that happened several times a second.
  */
 export function useWorldPicture({
   actors, motions, localActorId, items, itemImages, selectedPlaced, origin,
@@ -211,9 +238,9 @@ export function useWorldPicture({
       facing: a.facing,
       msPerCell: a.user?.attributes?.speed ?? DEFAULT_MS_PER_CELL,
       isLocal: a.id === localActorId,
-      colors: actorColors(a.id, art),
+      tints: actorTints(a.id),
     }];
-  }), [actors, motions, localActorId, art]);
+  }), [actors, motions, localActorId]);
 
   const itemDraws = useMemo<ItemDraw[]>(() => items.flatMap(ri => {
     const image = itemImages[ri.itemId.assetUrl];
@@ -235,9 +262,19 @@ export function useWorldPicture({
     tint: Skia.Color(theme.colors.primary),
   }), []);
 
-  useFrameCallback(frame => {
+  const actorsInput = useSharedValue<ActorDraw[]>([]);
+  const itemsInput = useSharedValue<ItemDraw[]>([]);
+  const originInput = useSharedValue(origin);
+  useEffect(() => actorsInput.set(actorDraws), [actorsInput, actorDraws]);
+  useEffect(() => itemsInput.set(itemDraws), [itemsInput, itemDraws]);
+  useEffect(() => originInput.set(origin), [originInput, origin]);
+
+  const onFrame = useCallback((frame: FrameInfo) => {
     'worklet';
     const dt = (frame.timeSincePreviousFrame ?? 0) / 1000;
+    const actorDraws = actorsInput.get();
+    const itemDraws = itemsInput.get();
+    const origin = originInput.get();
     const prev = anim.get();
     const next: Record<string, AnimRuntime> = {};
 
@@ -254,7 +291,7 @@ export function useWorldPicture({
     for (let i = 0; i < itemDraws.length; i++) {
       entries.push({ depth: itemDraws[i].depth, actor: -1, item: i });
     }
-    entries.sort((p, q) => p.depth - q.depth);
+    entries.sort(byDepth);
     anim.set(next);
 
     picture.set(createPicture(canvas => {
@@ -298,11 +335,13 @@ export function useWorldPicture({
           const oval = Skia.XYWHRect(x - SHADOW_W / 2, y - SHADOW_H / 2, SHADOW_W, SHADOW_H);
           canvas.drawOval(oval, shadow);
           if (a.isLocal) canvas.drawOval(oval, ring);
-          drawAvatar(canvas, art, next[a.id], a.colors, x, y);
+          drawAvatar(canvas, art, next[a.id], a.tints, x, y);
         }
       }
     }));
-  });
+  }, [actorsInput, itemsInput, originInput, anim, picture, art, colors]);
+
+  useFrameCallback(onFrame);
 
   return picture;
 }
