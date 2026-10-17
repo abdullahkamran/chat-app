@@ -7,7 +7,7 @@ import type { WearableAsset } from '@chat-app/shared-types';
 /**
  * Wearable atlases: downloaded once per atlasVersion into the app's cache directory,
  * then decoded once per app session. A re-pack changes atlasVersion, so a new file is
- * fetched and the old one is simply never read again (the OS may purge the cache dir).
+ * fetched and that item's older versions are deleted.
  */
 const dir = new Directory(Paths.cache, 'wearables');
 const decoded = new Map<string, SkImage>();
@@ -17,9 +17,29 @@ function cacheKey(asset: WearableAsset): string {
   return `${asset.atlasUrl}@${asset.atlasVersion}`;
 }
 
+function atlasName(asset: WearableAsset): string {
+  return asset.atlasUrl.split('/').pop()?.replace(/\.png$/, '') ?? 'atlas';
+}
+
 function cacheFile(asset: WearableAsset): File {
-  const name = asset.atlasUrl.split('/').pop()?.replace(/\.png$/, '') ?? 'atlas';
-  return new File(dir, `${name}-${asset.atlasVersion}.png`);
+  return new File(dir, `${atlasName(asset)}-${asset.atlasVersion}.png`);
+}
+
+/** Deletes cached versions of this atlas other than the current one. */
+function pruneOldVersions(asset: WearableAsset) {
+  const current = cacheFile(asset).name;
+  // The exact name plus a numeric version, so `hair-center` never matches `hair-center-parted-…`.
+  const escaped = atlasName(asset).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const sameItem = new RegExp(`^${escaped}-\\d+\\.png$`);
+  for (const entry of dir.list()) {
+    if (entry instanceof File && entry.name !== current && sameItem.test(entry.name)) {
+      try {
+        entry.delete();
+      } catch (err) {
+        console.warn(`[skia engine] could not delete old atlas ${entry.name}`, err);
+      }
+    }
+  }
 }
 
 async function download(asset: WearableAsset): Promise<SkImage | null> {
@@ -28,6 +48,7 @@ async function download(asset: WearableAsset): Promise<SkImage | null> {
     dir.create({ idempotent: true, intermediates: true });
     const url = `${SERVER_ORIGIN}${asset.atlasUrl}?v=${asset.atlasVersion}`;
     await File.downloadFileAsync(url, file, { idempotent: true });
+    pruneOldVersions(asset);
   }
   const image = Skia.Image.MakeImageFromEncoded(await Skia.Data.fromURI(file.uri));
   if (!image) {
