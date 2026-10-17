@@ -308,7 +308,9 @@ For performance checks, `EXPO_PUBLIC_ROOM_STRESS_ACTORS=30` adds 30 wandering av
 | `apps/mobile/lib/room-engine/engines/legacy/RoomItemView.tsx` | Item positioning via `gridToScreen` |
 | `apps/mobile/lib/room-engine/engines/skia/SkiaRoomRenderer.tsx` | Skia canvas layers, tap routing, bubble overlay |
 | `apps/mobile/lib/room-engine/engines/skia/useWorldPicture.ts` | Per-frame UI-thread loop: clip playback, crossfade, facing, depth sort, world picture |
-| `apps/mobile/lib/room-engine/engines/skia/skeleton/` | `humanoidV1.ts` (rig), `clips.ts` (idle, walk), `sampler.ts` (worklets), `programmerArt.ts` (test atlas) |
+| `apps/mobile/lib/room-engine/engines/skia/skeleton/` | `humanoidV1.ts` (solver arrays; the rig itself is `packages/shared-types/src/humanoid-v1.ts`), `clips.ts` (idle, walk), `sampler.ts` (worklets), `avatarArt.ts` (draw-list format), `programmerArt.ts` (fallback atlas) |
+| `apps/mobile/lib/room-engine/engines/skia/wearables/` | `useAvatarArts.ts` (each actor's avatar, fetched by id when needed), `atlasCache.ts` (download + disk cache by `atlasVersion`), `composeAvatar.ts` (bakes an outfit into one tinted atlas) |
+| `apps/backend/art/` | Wearable source art, rig template and the art workflow (`art/README.md`); `scripts/pack-wearables.ts` packs it |
 | `apps/mobile/lib/room-engine/engines/skia/useCamera.ts` | Pan/pinch camera (0.5x–1.5x) as shared values; taps mapped to content coords |
 | `apps/mobile/lib/room-engine/engines/skia/actorMotion.ts` | Per-actor shared positions; walks animated on the UI thread |
 
@@ -323,4 +325,6 @@ For performance checks, `EXPO_PUBLIC_ROOM_STRESS_ACTORS=30` adds 30 wandering av
 - Facing comes from the direction of travel each frame while moving, otherwise from the session. SE/SW draw the `front` view, NE/NW `back`; the west pair is mirrored with pre-flipped atlas sprites, because RSXform can't reflect.
 - Clip angles are clockwise degrees and both views face screen right before mirroring, so a forward swing is negative. The back view mirrors the bind x offsets (left/right sides swap), not the rotations.
 - `GestureHandlerRootView` wraps the app in `app/_layout.tsx` for the camera gestures.
+- **Dressed avatars (Phase 3):** catalog variants carry a `rigAsset` (`WearableAsset`: atlas URL, version, per-view attachments with east and west sprites). `useAvatarArts` takes the actor's `avatar`, or fetches `GET /api/v1/users/:id/avatar` for remote actors, downloads each atlas once per `atlasVersion` and bakes the outfit into one tinted atlas, cached by outfit. Each avatar is still one `drawAtlas` per frame. Until its outfit is ready an actor draws the tinted programmer-art placeholder; stress avatars always do.
+- Art reaches the frame loop through its own shared value, keyed by outfit, and only changes when an outfit finishes composing. Actors carry just the key, so movement never re-copies sprite data to the UI runtime.
 - **React Compiler vs worklets:** the compiler (on in `app.json`) hoists capture-free inline lambdas out of components and hooks into plain module functions (`_temp`, `_temp2`, …). If such a lambda sits inside a worklet, for example a `sort` comparator, the UI thread then fails with *"Tried to synchronously call a remote function _tempN on the UI runtime"*. Give any function a worklet calls a name and a `'worklet'` directive at module scope (see `byDepth` in `useWorldPicture.ts`).

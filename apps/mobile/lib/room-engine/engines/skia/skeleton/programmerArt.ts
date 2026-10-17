@@ -1,13 +1,15 @@
-import { PaintStyle, Skia, type SkCanvas, type SkImage, type SkRect } from '@shopify/react-native-skia';
+import { PaintStyle, Skia, type SkCanvas } from '@shopify/react-native-skia';
 
 import { palette } from '@/constants/theme';
 import type { RigView, SlotName } from '@chat-app/shared-types';
+import type { AvatarArt, TintGroup, ViewDrawList } from './avatarArt';
 import { BONE_INDEX, HUMANOID_V1 } from './humanoidV1';
 
 /**
  * Programmer art for the Phase 2 test avatar: one simple shape per bone, drawn white
  * with a grey outline into a small atlas, then tinted per avatar by drawAtlas colours.
- * Phase 3 replaces this with packed wearable atlases in the same draw format.
+ * Dressed avatars use packed wearable atlases in the same draw format (wearables/);
+ * this stays as the fallback while those load, and for the dev stress avatars.
  */
 
 /** Atlas pixels per content pixel. 3x stays sharp at 1.5x zoom on a 2x screen. */
@@ -15,9 +17,6 @@ export const ART_SCALE = 3;
 const PAD = 2;
 const OUTLINE = 0.6;
 
-/** Which avatar colour tints a piece. */
-export type TintGroup = 'skin' | 'tops' | 'bottoms' | 'footwear' | 'hair';
-export const TINT_GROUPS: TintGroup[] = ['skin', 'tops', 'bottoms', 'footwear', 'hair'];
 
 interface Piece {
   /** Bounds in bone-local content pixels; the bone origin is (0, 0). */
@@ -134,25 +133,6 @@ const PIECES: Record<RigView, Partial<Record<SlotName, Piece>>> = {
   back: { ...LIMBS, 'head/skin': HEAD_BACK, 'head/hair': HAIR_BACK },
 };
 
-/**
- * What the UI thread needs to draw one view, in draw order. `mirror` holds the
- * horizontally flipped sprites for the west-facing pair (RSXform can't flip).
- */
-export interface ViewDrawList {
-  bone: number[];
-  tint: TintGroup[];
-  src: SkRect[];
-  srcMirror: SkRect[];
-  pivotX: number[];
-  pivotXMirror: number[];
-  pivotY: number[];
-}
-
-export interface AvatarArt {
-  image: SkImage;
-  views: Record<RigView, ViewDrawList>;
-}
-
 function cellSize(piece: Piece) {
   const [minX, minY, maxX, maxY] = piece.bounds;
   return {
@@ -185,7 +165,7 @@ function buildArt(): AvatarArt {
   stroke.setStrokeWidth(OUTLINE);
   stroke.setColor(Skia.Color(palette.neutral600));
 
-  const empty = (): ViewDrawList => ({ bone: [], tint: [], src: [], srcMirror: [], pivotX: [], pivotXMirror: [], pivotY: [] });
+  const empty = (): ViewDrawList => ({ bone: [], tint: [], src: [], srcMirror: [], pivotX: [], pivotXMirror: [], pivotY: [], pivotYMirror: [] });
   const views: Record<RigView, ViewDrawList> = { front: empty(), back: empty() };
 
   let top = 0;
@@ -217,13 +197,14 @@ function buildArt(): AvatarArt {
     list.pivotX.push(pivotX);
     list.pivotXMirror.push(pivotXMirror);
     list.pivotY.push(pivotY);
+    list.pivotYMirror.push(pivotY);
     top += h;
   });
 
   const snapshot = surface.makeImageSnapshot();
   // A CPU-backed copy can be drawn from the UI thread's canvas.
   const image = snapshot.makeNonTextureImage() ?? snapshot;
-  return { image, views };
+  return { image, scale: ART_SCALE, tinted: true, views };
 }
 
 let art: AvatarArt | null = null;

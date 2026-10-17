@@ -14,6 +14,7 @@ import { preloadSkImages, useSkImages } from './imageCache';
 import { useCamera } from './useCamera';
 import { useStressActors } from './useStressActors';
 import { useWorldPicture } from './useWorldPicture';
+import { useAvatarArts } from './wearables/useAvatarArts';
 
 /**
  * Skia renderer. Layers, back to front:
@@ -84,11 +85,14 @@ function Room({
   const { camera, transform, gesture } = useCamera(width, height, handleTap);
   const motions = useActorMotions(actors);
   const itemImages = useSkImages(scene.items.map(ri => ri.itemId.assetUrl));
+  const { arts, artKeys } = useAvatarArts(actors);
   const world = useWorldPicture({
     actors,
     motions,
     localActorId,
     items: scene.items,
+    arts,
+    artKeys,
     itemImages,
     selectedPlaced: isEditMode ? edit.selectedPlaced : null,
     origin,

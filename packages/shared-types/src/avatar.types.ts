@@ -1,4 +1,5 @@
 import { Amount } from "./currency.types";
+import { WearableAsset } from "./rig.types";
 
 export interface AvatarInventoryEntry {
     item: AvatarItem['_id'];
@@ -46,6 +47,8 @@ export interface AvatarItemVariant {
     sourceUrl?: string;
     price: Amount;
     color?: string;
+    /** Packed rig art for the Skia room engine; the legacy engine keeps using sourceUrl. */
+    rigAsset?: WearableAsset;
 }
 
 export interface AvatarEye extends AvatarItem {}

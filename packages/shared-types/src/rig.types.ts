@@ -100,3 +100,47 @@ export interface AnimationClip {
   tracks: Partial<Record<BoneName, BoneTrack>>;
   events?: Array<{ t: number; name: 'footstep' | 'complete' }>;
 }
+
+/** Atlas pixels per content pixel for wearable art: sharp at the 1.5x max zoom on a 2x screen. */
+export const WEARABLE_ART_SCALE = 3;
+
+/** A rect in an atlas, in atlas pixels. */
+export interface AtlasRegion {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** One sprite in an atlas and the bone origin inside it, in atlas pixels. */
+export interface AtlasSprite {
+  region: AtlasRegion;
+  pivot: { x: number; y: number };
+}
+
+/**
+ * One piece of a wearable, attached to a slot. Views face screen right; `west` is
+ * what the mirrored facings (SW, NW) draw, because a drawAtlas transform can't flip.
+ * The packer makes it a flipped copy of `east`, or the item's own west art when the
+ * item isn't mirrorable (one-sided logos, side-parted hair).
+ */
+export interface Attachment {
+  slot: SlotName;
+  east: AtlasSprite;
+  west: AtlasSprite;
+  /** Drawn in white and tinted at runtime: skin and face layers by skin tone, others by the variant colour. */
+  tintable?: boolean;
+}
+
+/** A packed wearable: one atlas per item variant, written by the backend pack script. */
+export interface WearableAsset {
+  rig: RigId;
+  /** Server path of the atlas PNG (e.g. `/wearables/jeans-blue.png`), resolved against the API origin. */
+  atlasUrl: string;
+  /** Changes whenever the atlas does; clients cache by it. */
+  atlasVersion: number;
+  /** Atlas pixels per content pixel (WEARABLE_ART_SCALE when packed). */
+  scale: number;
+  /** Attachments per view, in no particular order: the rig's draw order decides stacking. */
+  views: Record<RigView, Attachment[]>;
+}

@@ -1,6 +1,7 @@
 export * from './animation.types';
 export * from './room.types';
 export * from './rig.types';
+export * from './humanoid-v1';
 export * from './user.types';
 export * from './item.types';
 export * from './avatar.types';

@@ -31,6 +31,8 @@ const AvatarItemVariantSchema = new Schema<AvatarItemVariant>(
             realMoney: { type: Number, default: 0 },
         },
         color: { type: String },
+        // WearableAsset written by scripts/pack-wearables.ts; attached on catalog sync.
+        rigAsset: { type: Schema.Types.Mixed },
     },
     { _id: true }
 );

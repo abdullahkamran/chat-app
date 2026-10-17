@@ -1,7 +1,10 @@
 import { AvatarItem, AvatarItemVariant } from '@chat-app/shared-types';
 
+/** `wearable` names the packed rig art (an id in wearables.generated.json); catalog sync attaches it as rigAsset. */
+type CatalogAvatarItemVariant = Omit<AvatarItemVariant, '_id' | 'rigAsset'> & { wearable?: string };
+
 type CatalogAvatarItem = Omit<AvatarItem, '_id' | 'variants'> & {
-    variants: Omit<AvatarItemVariant, '_id'>[];
+    variants: CatalogAvatarItemVariant[];
 };
 
 /**
@@ -19,7 +22,7 @@ export const AVATAR_ITEMS_CATALOG: CatalogAvatarItem[] = [
         category: 'skin',
         isOverlappable: false,
         variants: [
-            { name: 'Default', color: '#FFDBB8', price: { coins: 0, cash: 0, realMoney: 0 } },
+            { name: 'Default', color: '#FFDBB8', wearable: 'body', price: { coins: 0, cash: 0, realMoney: 0 } },
         ],
     },
 
@@ -31,7 +34,7 @@ export const AVATAR_ITEMS_CATALOG: CatalogAvatarItem[] = [
         category: 'face',
         isOverlappable: false,
         variants: [
-            { name: 'Default', sourceUrl: 'avatar/face/normal-face.svg', price: { coins: 0, cash: 0, realMoney: 0 } },
+            { name: 'Default', sourceUrl: 'avatar/face/normal-face.svg', wearable: 'face-normal', price: { coins: 0, cash: 0, realMoney: 0 } },
         ],
     },
     {
@@ -41,7 +44,7 @@ export const AVATAR_ITEMS_CATALOG: CatalogAvatarItem[] = [
         category: 'face',
         isOverlappable: false,
         variants: [
-            { name: 'Default', sourceUrl: 'avatar/face/round-face.svg', price: { coins: 50, cash: 0, realMoney: 0 } },
+            { name: 'Default', sourceUrl: 'avatar/face/round-face.svg', wearable: 'face-round', price: { coins: 50, cash: 0, realMoney: 0 } },
         ],
     },
 
@@ -53,7 +56,7 @@ export const AVATAR_ITEMS_CATALOG: CatalogAvatarItem[] = [
         category: 'eye',
         isOverlappable: false,
         variants: [
-            { name: 'Default', sourceUrl: 'avatar/eye/test-eyes-1.svg', price: { coins: 0, cash: 0, realMoney: 0 } },
+            { name: 'Default', sourceUrl: 'avatar/eye/test-eyes-1.svg', wearable: 'eyes-1', price: { coins: 0, cash: 0, realMoney: 0 } },
         ],
     },
     {
@@ -63,7 +66,7 @@ export const AVATAR_ITEMS_CATALOG: CatalogAvatarItem[] = [
         category: 'eye',
         isOverlappable: false,
         variants: [
-            { name: 'Default', sourceUrl: 'avatar/eye/test-eyes-2.svg', price: { coins: 50, cash: 0, realMoney: 0 } },
+            { name: 'Default', sourceUrl: 'avatar/eye/test-eyes-2.svg', wearable: 'eyes-2', price: { coins: 50, cash: 0, realMoney: 0 } },
         ],
     },
 
@@ -75,7 +78,7 @@ export const AVATAR_ITEMS_CATALOG: CatalogAvatarItem[] = [
         category: 'nose',
         isOverlappable: false,
         variants: [
-            { name: 'Default', sourceUrl: 'avatar/nose/nose-normal.svg', price: { coins: 0, cash: 0, realMoney: 0 } },
+            { name: 'Default', sourceUrl: 'avatar/nose/nose-normal.svg', wearable: 'nose-normal', price: { coins: 0, cash: 0, realMoney: 0 } },
         ],
     },
     {
@@ -85,7 +88,7 @@ export const AVATAR_ITEMS_CATALOG: CatalogAvatarItem[] = [
         category: 'nose',
         isOverlappable: false,
         variants: [
-            { name: 'Default', sourceUrl: 'avatar/nose/nose-round.svg', price: { coins: 50, cash: 0, realMoney: 0 } },
+            { name: 'Default', sourceUrl: 'avatar/nose/nose-round.svg', wearable: 'nose-round', price: { coins: 50, cash: 0, realMoney: 0 } },
         ],
     },
 
@@ -97,7 +100,7 @@ export const AVATAR_ITEMS_CATALOG: CatalogAvatarItem[] = [
         category: 'mouth',
         isOverlappable: false,
         variants: [
-            { name: 'Default', sourceUrl: 'avatar/mouth/mouth-happy.svg', price: { coins: 0, cash: 0, realMoney: 0 } },
+            { name: 'Default', sourceUrl: 'avatar/mouth/mouth-happy.svg', wearable: 'mouth-happy', price: { coins: 0, cash: 0, realMoney: 0 } },
         ],
     },
     {
@@ -107,7 +110,7 @@ export const AVATAR_ITEMS_CATALOG: CatalogAvatarItem[] = [
         category: 'mouth',
         isOverlappable: false,
         variants: [
-            { name: 'Default', sourceUrl: 'avatar/mouth/mouth-angry.svg', price: { coins: 50, cash: 0, realMoney: 0 } },
+            { name: 'Default', sourceUrl: 'avatar/mouth/mouth-angry.svg', wearable: 'mouth-angry', price: { coins: 50, cash: 0, realMoney: 0 } },
         ],
     },
 
@@ -119,7 +122,7 @@ export const AVATAR_ITEMS_CATALOG: CatalogAvatarItem[] = [
         category: 'hair',
         isOverlappable: false,
         variants: [
-            { name: 'Default', sourceUrl: 'avatar/hair/female-center-parted.svg', price: { coins: 0, cash: 0, realMoney: 0 } },
+            { name: 'Default', sourceUrl: 'avatar/hair/female-center-parted.svg', wearable: 'hair-center-parted', price: { coins: 0, cash: 0, realMoney: 0 } },
         ],
     },
     {
@@ -129,7 +132,7 @@ export const AVATAR_ITEMS_CATALOG: CatalogAvatarItem[] = [
         category: 'hair',
         isOverlappable: false,
         variants: [
-            { name: 'Default', sourceUrl: 'avatar/hair/male-puffed.svg', price: { coins: 50, cash: 0, realMoney: 0 } },
+            { name: 'Default', sourceUrl: 'avatar/hair/male-puffed.svg', wearable: 'hair-puffed', price: { coins: 50, cash: 0, realMoney: 0 } },
         ],
     },
     {
@@ -139,7 +142,7 @@ export const AVATAR_ITEMS_CATALOG: CatalogAvatarItem[] = [
         category: 'hair',
         isOverlappable: false,
         variants: [
-            { name: 'Default', sourceUrl: 'avatar/hair/male-spiked.svg', price: { coins: 50, cash: 0, realMoney: 0 } },
+            { name: 'Default', sourceUrl: 'avatar/hair/male-spiked.svg', wearable: 'hair-spiked', price: { coins: 50, cash: 0, realMoney: 0 } },
         ],
     },
 
@@ -151,7 +154,7 @@ export const AVATAR_ITEMS_CATALOG: CatalogAvatarItem[] = [
         category: 'tops',
         isOverlappable: false,
         variants: [
-            { name: 'Default', sourceUrl: 'avatar/tops/t-shirt.svg', price: { coins: 0, cash: 0, realMoney: 0 } },
+            { name: 'Default', sourceUrl: 'avatar/tops/t-shirt.svg', wearable: 't-shirt', price: { coins: 0, cash: 0, realMoney: 0 } },
         ],
     },
     {
@@ -161,7 +164,7 @@ export const AVATAR_ITEMS_CATALOG: CatalogAvatarItem[] = [
         category: 'tops',
         isOverlappable: false,
         variants: [
-            { name: 'Default', sourceUrl: 'avatar/tops/denim-jacket.svg', price: { coins: 75, cash: 0, realMoney: 0 } },
+            { name: 'Default', sourceUrl: 'avatar/tops/denim-jacket.svg', wearable: 'denim-jacket', price: { coins: 75, cash: 0, realMoney: 0 } },
         ],
     },
 
@@ -173,7 +176,7 @@ export const AVATAR_ITEMS_CATALOG: CatalogAvatarItem[] = [
         category: 'bottoms',
         isOverlappable: false,
         variants: [
-            { name: 'Default', sourceUrl: 'avatar/bottoms/jeans.svg', price: { coins: 0, cash: 0, realMoney: 0 } },
+            { name: 'Default', sourceUrl: 'avatar/bottoms/jeans.svg', wearable: 'jeans', price: { coins: 0, cash: 0, realMoney: 0 } },
         ],
     },
     {
@@ -183,7 +186,7 @@ export const AVATAR_ITEMS_CATALOG: CatalogAvatarItem[] = [
         category: 'bottoms',
         isOverlappable: false,
         variants: [
-            { name: 'Default', sourceUrl: 'avatar/bottoms/cargo.svg', price: { coins: 75, cash: 0, realMoney: 0 } },
+            { name: 'Default', sourceUrl: 'avatar/bottoms/cargo.svg', wearable: 'cargo', price: { coins: 75, cash: 0, realMoney: 0 } },
         ],
     },
 ];

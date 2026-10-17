@@ -11,6 +11,11 @@ export const STRESS_ACTOR_COUNT = __DEV__ && Number.isFinite(requested) ? Math.m
 
 const ID_PREFIX = 'stress-';
 
+/** Stress avatars have no user behind them, so they keep the programmer-art look. */
+export function isStressActor(id: string): boolean {
+  return id.startsWith(ID_PREFIX);
+}
+
 function randomPoint(dims: Pick<Dimensions, 'x' | 'y'>) {
   return { x: Math.random() * dims.x, y: Math.random() * dims.y, z: 0 };
 }
@@ -57,7 +62,7 @@ export function useStressActors(
   if (STRESS_ACTOR_COUNT === 0) return { actors, onActionComplete };
 
   const handleComplete = (actorId: string, action: ActorActionKind) => {
-    if (!actorId.startsWith(ID_PREFIX)) {
+    if (!isStressActor(actorId)) {
       onActionComplete(actorId, action);
       return;
     }

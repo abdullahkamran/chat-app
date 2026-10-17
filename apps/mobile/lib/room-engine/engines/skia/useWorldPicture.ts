@@ -27,8 +27,9 @@ import { facingFromDelta, facingToView } from '../../core/facing';
 import type { ActorMotion } from './actorMotion';
 import { itemDepth, itemRect } from './geometry';
 import { WALK_AUTHORED_MS_PER_CELL, type ClipId } from './skeleton/clips';
-import { ART_SCALE, getAvatarArt, type AvatarArt, type TintGroup } from './skeleton/programmerArt';
+import type { AvatarArt, TintGroup } from './skeleton/avatarArt';
 import { COMPILED_CLIPS, blendPose, samplePose, solveWorld } from './skeleton/sampler';
+import { PLACEHOLDER_ART } from './wearables/useAvatarArts';
 
 const CROSSFADE_S = 0.15;
 const DEFAULT_MS_PER_CELL = 500;
@@ -50,7 +51,9 @@ interface ActorDraw {
   facing: Facing;
   msPerCell: number;
   isLocal: boolean;
-  /** Five colours, not one per sprite: the frame loop expands them, which keeps hand-offs small. */
+  /** Key into the arts input; art travels separately so moving actors don't re-copy it. */
+  artKey: string;
+  /** Programmer-art colours: five, not one per sprite, which keeps hand-offs small. */
   tints: Record<TintGroup, SkColor>;
 }
 
@@ -183,12 +186,13 @@ function drawAvatar(
   const xforms = [];
   const colors: SkColor[] = [];
   for (let i = 0; i < list.bone.length; i++) {
-    colors.push(tints[list.tint[i]]);
+    if (art.tinted) colors.push(tints[list.tint[i]]);
     const b = list.bone[i];
     const x = mirror ? -bones.x[b] : bones.x[b];
     const angle = mirror ? -bones.angle[b] : bones.angle[b];
     const px = mirror ? list.pivotXMirror[i] : list.pivotX[i];
-    xforms.push(Skia.RSXformFromRadians(1 / ART_SCALE, angle, feetX + x, feetY + bones.y[b], px, list.pivotY[i]));
+    const py = mirror ? list.pivotYMirror[i] : list.pivotY[i];
+    xforms.push(Skia.RSXformFromRadians(1 / art.scale, angle, feetX + x, feetY + bones.y[b], px, py));
   }
   canvas.drawAtlas(
     art.image,
@@ -196,7 +200,7 @@ function drawAvatar(
     xforms,
     Skia.Paint(),
     BlendMode.Modulate,
-    colors,
+    art.tinted ? colors : undefined,
     ATLAS_SAMPLING,
   );
 }
@@ -206,6 +210,9 @@ interface Params {
   motions: ReadonlyMap<string, ActorMotion>;
   localActorId: string;
   items: RoomItem[];
+  /** Avatar art by key, and each actor's key (see useAvatarArts). */
+  arts: Readonly<Record<string, AvatarArt>>;
+  artKeys: Readonly<Record<string, string>>;
   itemImages: Readonly<Record<string, SkImage | null>>;
   selectedPlaced: RoomItem | null;
   origin: GridOrigin;
@@ -222,11 +229,10 @@ interface Params {
  * avatars that happened several times a second.
  */
 export function useWorldPicture({
-  actors, motions, localActorId, items, itemImages, selectedPlaced, origin,
+  actors, motions, localActorId, items, arts, artKeys, itemImages, selectedPlaced, origin,
 }: Params): SharedValue<SkPicture> {
   const [picture] = useState(() => makeMutable(createPicture(() => {})));
   const anim = useSharedValue<Record<string, AnimRuntime>>({});
-  const art = getAvatarArt();
 
   const actorDraws = useMemo<ActorDraw[]>(() => Object.values(actors).flatMap(a => {
     const motion = motions.get(a.id);
@@ -238,9 +244,10 @@ export function useWorldPicture({
       facing: a.facing,
       msPerCell: a.user?.attributes?.speed ?? DEFAULT_MS_PER_CELL,
       isLocal: a.id === localActorId,
+      artKey: artKeys[a.id],
       tints: actorTints(a.id),
     }];
-  }), [actors, motions, localActorId]);
+  }), [actors, motions, localActorId, artKeys]);
 
   const itemDraws = useMemo<ItemDraw[]>(() => items.flatMap(ri => {
     const image = itemImages[ri.itemId.assetUrl];
@@ -265,9 +272,11 @@ export function useWorldPicture({
   const actorsInput = useSharedValue<ActorDraw[]>([]);
   const itemsInput = useSharedValue<ItemDraw[]>([]);
   const originInput = useSharedValue(origin);
+  const artsInput = useSharedValue(arts);
   useEffect(() => actorsInput.set(actorDraws), [actorsInput, actorDraws]);
   useEffect(() => itemsInput.set(itemDraws), [itemsInput, itemDraws]);
   useEffect(() => originInput.set(origin), [originInput, origin]);
+  useEffect(() => artsInput.set(arts), [artsInput, arts]);
 
   const onFrame = useCallback((frame: FrameInfo) => {
     'worklet';
@@ -275,6 +284,7 @@ export function useWorldPicture({
     const actorDraws = actorsInput.get();
     const itemDraws = itemsInput.get();
     const origin = originInput.get();
+    const arts = artsInput.get();
     const prev = anim.get();
     const next: Record<string, AnimRuntime> = {};
 
@@ -335,11 +345,12 @@ export function useWorldPicture({
           const oval = Skia.XYWHRect(x - SHADOW_W / 2, y - SHADOW_H / 2, SHADOW_W, SHADOW_H);
           canvas.drawOval(oval, shadow);
           if (a.isLocal) canvas.drawOval(oval, ring);
-          drawAvatar(canvas, art, next[a.id], a.tints, x, y);
+          const art = arts[a.artKey] ?? arts[PLACEHOLDER_ART];
+          if (art) drawAvatar(canvas, art, next[a.id], a.tints, x, y);
         }
       }
     }));
-  }, [actorsInput, itemsInput, originInput, anim, picture, art, colors]);
+  }, [actorsInput, itemsInput, originInput, artsInput, anim, picture, colors]);
 
   useFrameCallback(onFrame);
 
