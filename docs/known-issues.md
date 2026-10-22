@@ -12,7 +12,7 @@ the renderer. Two earlier entries (owners never hearing their own room, and room
 staying silent until a reconnect) were fixed on 2026-10-22 by joining a room's channel on `SEND_ENTER`
 after a membership check. A third (people already in a room appearing at the door and walking to their spot,
 replies broadcast to the whole room, emotes in progress not sent, two users taking one seat) was fixed on
-2026-10-23 by server-side presence: the server sends a newcomer a snapshot and arbitrates seats
+2026-10-23 in `df4f4c8` by server-side presence: the server sends a newcomer a snapshot and arbitrates seats
 (`apps/backend/src/sockets/roomPresence.ts`).
 
 ### 1. One user on two devices in the same room shows as one character
