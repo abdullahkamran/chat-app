@@ -1,4 +1,4 @@
-import { Item, ItemAction, ItemPlacement, ItemState, ItemVariant } from '@chat-app/shared-types';
+import { Facing, Item, ItemAction, ItemPlacement, ItemState, ItemVariant } from '@chat-app/shared-types';
 
 type CatalogItem = Omit<Item, '_id' | 'variant'> & {
     variant: Omit<ItemVariant, '_id'>;
@@ -8,7 +8,8 @@ type CatalogItem = Omit<Item, '_id' | 'variant'> & {
  * Source of truth for all room/shop items.
  * On startup, new entries here are inserted into the DB automatically.
  * Existing DB entries are never overwritten — to update a record in dev,
- * drop the `items` collection and restart.
+ * drop the `items` collection and restart. The exception is layout data
+ * (`seats`, `frontAssetUrl`), which is rewritten on every startup.
  */
 export const ITEMS_CATALOG: CatalogItem[] = [
     {
@@ -23,6 +24,8 @@ export const ITEMS_CATALOG: CatalogItem[] = [
         states: ItemState.NONE,
         isOverlappable: false,
         assetUrl: 'items/furniture/test-chair.png',
+        // Seat offsets are eyeballed from the art; tune them on a device.
+        seats: [{ cell: { x: 0, y: 0 }, facing: Facing.SW, offset: { x: 0, y: 0, z: 0.4 } }],
         canOwnMultiple: true,
     },
     {
@@ -37,6 +40,10 @@ export const ITEMS_CATALOG: CatalogItem[] = [
         states: ItemState.NONE,
         isOverlappable: false,
         assetUrl: 'items/furniture/test-couch.png',
+        seats: [
+            { cell: { x: 0, y: 0 }, facing: Facing.SW, offset: { x: -0.95, y: -0.45, z: 0.1 } },
+            { cell: { x: 1, y: 0 }, facing: Facing.SW, offset: { x: -0.25, y: -0.45, z: 0.1 } },
+        ],
         canOwnMultiple: true,
     },
     {

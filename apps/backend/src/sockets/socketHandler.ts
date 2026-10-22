@@ -1,8 +1,19 @@
 import { Socket } from 'socket.io';
 import mongoose from 'mongoose';
 import { SocketEvent } from '@chat-app/socket-constants';
+import type { ActorAction } from '@chat-app/shared-types';
 import User from '../models/user.model';
 import { sendPushToRoom } from '../services/notification.service';
+
+/** Actions clients may broadcast. Walks are sent as points, and emotes arrive in Phase 5. */
+function isRelayedAction(action: unknown): action is ActorAction {
+    const a = action as Partial<Extract<ActorAction, { kind: 'sit' }>> | null;
+    return a?.kind === 'sit'
+        && typeof a.itemId === 'string'
+        && Number.isInteger(a.seatIndex)
+        && Number.isFinite(a.at?.x)
+        && Number.isFinite(a.at?.y);
+}
 
 interface ClientSocketData {
     userId: string;
@@ -88,6 +99,13 @@ const handler = {
         socket.on(SocketEvent.SEND_TYPING, ({ roomId, isTyping }: { roomId: string; isTyping: boolean }) => {
             console.log(SocketEvent.SEND_TYPING, { userId, roomId, isTyping });
             socket.to(roomId).emit(SocketEvent.RECEIVE_TYPING, { roomId, userId, isTyping });
+        });
+
+        // A room action other than walking (sitting, later emotes). Walks still travel as SEND_POINT.
+        socket.on(SocketEvent.SEND_ACTION, ({ roomId, action }: { roomId: string; action: ActorAction }) => {
+            if (!isRelayedAction(action)) return;
+            console.log(SocketEvent.SEND_ACTION, { userId, roomId, action });
+            socket.to(roomId).emit(SocketEvent.RECEIVE_ACTION, { roomId, userId, action });
         });
 
         // The user saved or switched avatars. Everyone sharing a room with them refetches it.

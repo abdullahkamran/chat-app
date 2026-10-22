@@ -15,11 +15,15 @@ import type { ActorState } from '../../core/contract';
 /** Default walking pace in ms per grid cell, when the user has no speed attribute. */
 const DEFAULT_MS_PER_CELL = 500;
 const MIN_SEGMENT_MS = 50;
+/** Sliding onto a seat from the cell in front of it, and lifting off it when walking away. */
+const SETTLE_MS = 350;
 
 /** An actor's on-screen grid position, animated on the UI thread. Lags the logical position while walking. */
 export interface ActorMotion {
   gx: SharedValue<number>;
   gy: SharedValue<number>;
+  /** Height above the floor in grid units; non-zero only on a seat. */
+  gz: SharedValue<number>;
 }
 
 type Actors = Readonly<Record<string, ActorState>>;
@@ -30,7 +34,11 @@ function syncMotions(prev: ReadonlyMap<string, ActorMotion>, actors: Actors): Re
   if (list.length === prev.size && list.every(a => prev.has(a.id))) return prev;
   return new Map(list.map(a => [
     a.id,
-    prev.get(a.id) ?? { gx: makeMutable(a.position.x), gy: makeMutable(a.position.y) },
+    prev.get(a.id) ?? {
+      gx: makeMutable(a.position.x),
+      gy: makeMutable(a.position.y),
+      gz: makeMutable(a.position.z ?? 0),
+    },
   ]));
 }
 
@@ -52,7 +60,8 @@ export function useActorMotions(actors: Actors): ReadonlyMap<string, ActorMotion
 /**
  * Plays the actor's current action on its motion values.
  * A walk runs through every path point at constant speed, then reports completion.
- * Any other action snaps to the logical position if the two have drifted.
+ * Sitting slides onto the seat; any other action snaps to the logical position if the
+ * two have drifted.
  */
 export function useActorWalk(
   actor: ActorState,
@@ -62,21 +71,35 @@ export function useActorWalk(
   const onWalkDone = useEffectEvent((actorId: string) => onActionComplete(actorId, 'walk'));
 
   const { id, action, position } = actor;
+  const gzTarget = position.z ?? 0;
   const msPerCell = actor.user?.attributes?.speed ?? DEFAULT_MS_PER_CELL;
 
   useEffect(() => {
-    const { gx, gy } = motion;
+    const { gx, gy, gz } = motion;
     const complete = (actorId: string) => onWalkDone(actorId);
 
+    if (action.kind === 'sit') {
+      const settle = { duration: SETTLE_MS, easing: Easing.out(Easing.quad) };
+      gx.set(withTiming(position.x, settle));
+      gy.set(withTiming(position.y, settle));
+      gz.set(withTiming(gzTarget, settle));
+      return;
+    }
+
     if (action.kind !== 'walk') {
-      if (gx.get() !== position.x || gy.get() !== position.y) {
+      if (gx.get() !== position.x || gy.get() !== position.y || gz.get() !== gzTarget) {
         cancelAnimation(gx);
         cancelAnimation(gy);
+        cancelAnimation(gz);
         gx.set(position.x);
         gy.set(position.y);
+        gz.set(gzTarget);
       }
       return;
     }
+
+    // Walking off a seat comes down from the cushion while taking the first step.
+    if (gz.get() !== 0) gz.set(withTiming(0, { duration: SETTLE_MS }));
 
     if (action.path.length === 0) {
       complete(id);
@@ -101,11 +124,12 @@ export function useActorWalk(
       }),
     )));
     gy.set(withSequence(...segments.map(({ point, config }) => withTiming(point.y, config))));
-  }, [id, action, position.x, position.y, msPerCell, motion]);
+  }, [id, action, position.x, position.y, gzTarget, msPerCell, motion]);
 
   // Stop any running walk when the actor leaves.
   useEffect(() => () => {
     cancelAnimation(motion.gx);
     cancelAnimation(motion.gy);
+    cancelAnimation(motion.gz);
   }, [motion]);
 }

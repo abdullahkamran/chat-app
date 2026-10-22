@@ -34,7 +34,7 @@ export function ActorOverlay({ actor, motion, camera, origin, canvasHeight, onAc
   const bubbles = useBubbleQueue(actor.bubbles);
 
   const style = useAnimatedStyle(() => {
-    const feet = gridToScreen(motion.gx.get(), motion.gy.get(), 0, origin);
+    const feet = gridToScreen(motion.gx.get(), motion.gy.get(), motion.gz.get(), origin);
     const scale = camera.scale.get();
     const x = feet.x * scale + camera.tx.get();
     const headY = (feet.y - AVATAR_HEIGHT) * scale + camera.ty.get();

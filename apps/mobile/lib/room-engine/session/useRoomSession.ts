@@ -8,17 +8,21 @@ import { api } from '@/lib/api';
 import type { GridPoint } from '@/constants/grid';
 import {
   Facing,
+  ItemAction,
   ItemState,
   Orientiation,
+  type ActorAction,
   type ActorActionKind,
   type Avatar,
   type Item,
+  type ItemSeat,
   type Position,
   type RoomItem,
   type User,
 } from '@chat-app/shared-types';
 import type { ActorState, EditState, RoomMode, RoomScene } from '../core/contract';
 import { facingFromDelta } from '../core/facing';
+import { findSeat, sameSeat, seatApproach, seatPosition, type SitAction } from '../core/seats';
 import { findPath, isLineClear, smoothPath } from '../core/usePathfinding';
 import { useWalkabilityGrid } from '../core/useWalkabilityGrid';
 import { useRoomDetails } from '../hooks/useRoomDetails';
@@ -35,6 +39,8 @@ export function useRoomSession(roomId: string) {
   const [avatars, setAvatars] = useState<Record<User['_id'], Avatar>>({});
   // Latest avatar request per user; a response to an older one is dropped.
   const avatarRequestRef = useRef<Record<User['_id'], number>>({});
+  // Seats actors are walking to; each becomes a `sit` action when its walk completes.
+  const pendingSitRef = useRef<Record<User['_id'], SitAction>>({});
 
   const { user } = useUserInfo();
   const { selectedAvatar } = useAuth();
@@ -65,7 +71,7 @@ export function useRoomSession(roomId: string) {
     roomDetails?.items ?? [],
   );
 
-  const { moveMe, sendMessage, sendTyping } = useChat({
+  const { moveMe, sendMessage, sendTyping, sendAction } = useChat({
     roomId,
     userId,
     handlers: {
@@ -75,10 +81,15 @@ export function useRoomSession(roomId: string) {
       onMessage: receiveMessage,
       onTyping: receiveTyping,
       onAvatarChanged: receiveAvatarChanged,
+      onAction: receiveAction,
     },
     getMyPosition: () => {
       const actor = actors[userId ?? ''];
       return actor ? { x: actor.position.x, y: actor.position.y } : { x: 0, y: 0 };
+    },
+    getMyAction: () => {
+      const action = actors[userId]?.action;
+      return pendingSitRef.current[userId] ?? (action?.kind === 'sit' ? action : null);
     },
     onEnterMe: () => enterCharacter(userId ?? ''),
     onReconnect: dropRemoteActors,
@@ -88,6 +99,7 @@ export function useRoomSession(roomId: string) {
     setActors(current => (current[userId] ? { [userId]: current[userId] } : {}));
     setTypingUserIds(new Set());
     for (const uid of Object.keys(avatarRequestRef.current)) forgetAvatar(uid);
+    pendingSitRef.current = pendingSitRef.current[userId] ? { [userId]: pendingSitRef.current[userId] } : {};
   }
 
   function receiveEnter({ userId }: { userId: string }) {
@@ -132,6 +144,12 @@ export function useRoomSession(roomId: string) {
     setActorDestination(userId, x, y);
   }
 
+  function receiveAction({ userId, action }: { userId: string; action: ActorAction }) {
+    if (action.kind !== 'sit') return;
+    enterCharacter(userId);
+    walkToSeat(userId, action);
+  }
+
   function receiveMessage({ userId, message }: { userId: string; message: string }) {
     enterCharacter(userId);
     pushChatMessage(userId, message);
@@ -174,6 +192,7 @@ export function useRoomSession(roomId: string) {
 
   function exitCharacter(uid: string) {
     forgetAvatar(uid);
+    delete pendingSitRef.current[uid];
     setActors(current => {
       const { [uid]: _, ...rest } = current;
       return rest;
@@ -214,12 +233,18 @@ export function useRoomSession(roomId: string) {
     return [...turns.map(c => ({ x: c.gx, y: c.gy, z: 0 })), destination];
   }
 
-  /** Point an actor at a new floor position, routing around furniture. */
+  /** Point an actor at a new floor position, routing around furniture. Leaves any seat. */
   function setActorDestination(uid: string, x: number, y: number) {
+    delete pendingSitRef.current[uid];
     setActors(current => {
       const actor = current[uid];
       if (!actor) return current;
-      const path = planPath(actor.position, x, y);
+      // Standing up steps forward off the seat first, so nobody walks back through the furniture.
+      const seat = actor.action.kind === 'sit' ? findSeat(roomDetails?.items ?? [], actor.action) : null;
+      const spot = seat && standingSpot(seat.item, seat.seat);
+      const path = spot
+        ? [{ x: spot.gx, y: spot.gy, z: 0 }, ...planPath({ x: spot.gx, y: spot.gy, z: 0 }, x, y)]
+        : planPath(actor.position, x, y);
       return {
         ...current,
         [uid]: {
@@ -239,11 +264,75 @@ export function useRoomSession(roomId: string) {
     setActorDestination(userId, destGx, destGy);
   }
 
+  /**
+   * Walk an actor to the floor in front of a seat. The walk's completion seats it (see
+   * onActionComplete). Ignored when the item or seat is no longer in the room.
+   */
+  function walkToSeat(uid: string, action: SitAction) {
+    const found = findSeat(roomDetails?.items ?? [], action);
+    if (!found) return;
+    const spot = standingSpot(found.item, found.seat);
+    setActorDestination(uid, spot.gx, spot.gy);
+    pendingSitRef.current[uid] = action;
+  }
+
+  /** The cell in front of a seat, else any free cell beside it, else the seat's own cell. */
+  function standingSpot(item: RoomItem, seat: ItemSeat): GridPoint {
+    const front = seatApproach(item, seat);
+    if (isWalkable(front.gx, front.gy)) return front;
+    const gx = item.position.x + seat.cell.x;
+    const gy = item.position.y + seat.cell.y;
+    const beside = [
+      { gx: gx - 1, gy },
+      { gx: gx + 1, gy },
+      { gx, gy: gy - 1 },
+      { gx, gy: gy + 1 },
+    ].find(c => isWalkable(c.gx, c.gy));
+    return beside ?? { gx, gy };
+  }
+
+  /** A seat someone is sitting on or walking to. */
+  function seatOf(actor: ActorState): SitAction | null {
+    return pendingSitRef.current[actor.id] ?? (actor.action.kind === 'sit' ? actor.action : null);
+  }
+
+  /** The free seat on an item nearest the actor. Null when all are taken or it already sits there. */
+  function pickSeat(roomItem: RoomItem, me: ActorState): SitAction | null {
+    const mine = seatOf(me);
+    const at = { x: roomItem.position.x, y: roomItem.position.y };
+    if (mine && mine.itemId === roomItem.itemId._id && mine.at.x === at.x && mine.at.y === at.y) return null;
+
+    const taken = Object.values(actors).flatMap(a => {
+      const seat = a.id === me.id ? null : seatOf(a);
+      return seat ? [seat] : [];
+    });
+    let best: SitAction | null = null;
+    let bestDistance = Infinity;
+    (roomItem.itemId.seats ?? []).forEach((seat, seatIndex) => {
+      const action: SitAction = { kind: 'sit', itemId: roomItem.itemId._id, at, seatIndex };
+      if (taken.some(t => sameSeat(t, action))) return;
+      const p = seatPosition(roomItem, seat);
+      const distance = Math.hypot(p.x - me.position.x, p.y - me.position.y);
+      if (distance < bestDistance) {
+        best = action;
+        bestDistance = distance;
+      }
+    });
+    return best;
+  }
+
   function onActionComplete(actorId: string, action: ActorActionKind) {
+    if (action !== 'walk') return;
+    const sit = pendingSitRef.current[actorId];
+    delete pendingSitRef.current[actorId];
+    const found = sit ? findSeat(roomDetails?.items ?? [], sit) : null;
     setActors(current => {
       const actor = current[actorId];
-      if (!actor || actor.action.kind !== action || action !== 'walk') return current;
-      return { ...current, [actorId]: { ...actor, action: { kind: 'idle' } } };
+      if (!actor || actor.action.kind !== 'walk') return current;
+      const next: ActorState = sit && found
+        ? { ...actor, position: seatPosition(found.item, found.seat), facing: found.seat.facing, action: sit }
+        : { ...actor, action: { kind: 'idle' } };
+      return { ...current, [actorId]: next };
     });
   }
 
@@ -258,12 +347,22 @@ export function useRoomSession(roomId: string) {
   }
 
   /**
-   * When an item with an action is tapped: walk to the nearest adjacent walkable cell.
+   * When an item with an action is tapped: sit on its nearest free seat if it has seats,
+   * otherwise walk to the nearest adjacent walkable cell.
    */
   function interactWith(roomItem: RoomItem) {
     if (isEditMode) return;
     const me = actors[userId];
     if (!me) return;
+
+    if (roomItem.itemId.action === ItemAction.SIT && roomItem.itemId.seats?.length) {
+      const seat = pickSeat(roomItem, me);
+      if (!seat) return;
+      // Others walk the actor to the seat themselves, so no point is sent.
+      sendAction(seat);
+      walkToSeat(userId, seat);
+      return;
+    }
 
     const { x: ix, y: iy } = roomItem.position;
     // Try the 4 adjacent cells and pick the closest walkable one

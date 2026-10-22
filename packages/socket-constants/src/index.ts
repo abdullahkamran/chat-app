@@ -13,6 +13,8 @@ export const SocketEvent = {
   RECEIVE_TYPING: "receive_typing",
   SEND_AVATAR_CHANGED: "send_avatar_changed",
   RECEIVE_AVATAR_CHANGED: "receive_avatar_changed",
+  SEND_ACTION: "send_action",
+  RECEIVE_ACTION: "receive_action",
 } as const;
 
 export type SocketEvent = typeof SocketEvent[keyof typeof SocketEvent];

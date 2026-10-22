@@ -9,7 +9,7 @@ export const skiaEngine: RoomEngine = {
   id: 'skia',
   capabilities: {
     facings: 4,
-    actions: ['idle', 'walk'],
+    actions: ['idle', 'walk', 'sit'],
     editMode: true,
   },
   Renderer: SkiaRoomRenderer,

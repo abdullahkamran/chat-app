@@ -43,7 +43,8 @@ export type Facing = (typeof Facing)[keyof typeof Facing];
 export type ActorAction =
     | { kind: 'idle' }
     | { kind: 'walk'; path: Position[] }
-    | { kind: 'sit'; itemId: Item['_id']; seatIndex: number }
+    /** `at` is the placed item's grid position, which tells apart copies of the same item. */
+    | { kind: 'sit'; itemId: Item['_id']; at: { x: number; y: number }; seatIndex: number }
     | { kind: 'emote'; animation: Animation['name'] };
 
 export type ActorActionKind = ActorAction['kind'];

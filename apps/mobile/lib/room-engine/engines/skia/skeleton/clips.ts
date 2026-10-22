@@ -159,6 +159,44 @@ const IDLE_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
   'foreArm.R': { rotate: [{ t: 0, v: -8 }] },
 };
 
+/**
+ * Seated, breathing slowly. Thighs swing forward 80 degrees (knees end 3 px below the
+ * hip) and shins hang straight down, so dropping the hip 14 px puts the feet back on
+ * the anchor's floor line, 21 px ahead of it, with the hip right above the anchor. The
+ * seat lifts the anchor to the cushion (ItemSeat.offset.z); the hands rest on the thighs.
+ */
+const SIT_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
+  hip: {
+    translate: [
+      { t: 0, v: [0, 14], ease: 'inOut' },
+      { t: 1.4, v: [0, 14.5], ease: 'inOut' },
+      { t: 2.8, v: [0, 14] },
+    ],
+  },
+  chest: {
+    rotate: [
+      { t: 0, v: -3, ease: 'inOut' },
+      { t: 1.4, v: -4.5, ease: 'inOut' },
+      { t: 2.8, v: -3 },
+    ],
+  },
+  head: {
+    rotate: [
+      { t: 0, v: 2, ease: 'inOut' },
+      { t: 1.4, v: 3.5, ease: 'inOut' },
+      { t: 2.8, v: 2 },
+    ],
+  },
+  'thigh.L': { rotate: [{ t: 0, v: -80 }] },
+  'shin.L': { rotate: [{ t: 0, v: 80 }] },
+  'thigh.R': { rotate: [{ t: 0, v: -80 }] },
+  'shin.R': { rotate: [{ t: 0, v: 80 }] },
+  'upperArm.L': { rotate: [{ t: 0, v: -30 }] },
+  'foreArm.L': { rotate: [{ t: 0, v: -45 }] },
+  'upperArm.R': { rotate: [{ t: 0, v: -30 }] },
+  'foreArm.R': { rotate: [{ t: 0, v: -45 }] },
+};
+
 function bothViews(base: Omit<AnimationClip, 'view'>): Record<RigView, AnimationClip> {
   return { front: { ...base, view: 'front' }, back: { ...base, view: 'back' } };
 }
@@ -172,6 +210,7 @@ export const CLIPS = {
     tracks: WALK_TRACKS,
     events: [{ t: 0, name: 'footstep' }, { t: 0.4, name: 'footstep' }],
   }),
+  sit: bothViews({ name: 'sit', duration: 2.8, loop: true, tracks: SIT_TRACKS }),
 } satisfies Record<string, Record<RigView, AnimationClip>>;
 
 export type ClipId = keyof typeof CLIPS;

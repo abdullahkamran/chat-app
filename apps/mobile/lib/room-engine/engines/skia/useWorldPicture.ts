@@ -24,6 +24,7 @@ import { theme } from '@/constants/theme';
 import type { Facing, RoomItem } from '@chat-app/shared-types';
 import type { ActorState } from '../../core/contract';
 import { facingFromDelta, facingToView } from '../../core/facing';
+import { findSeat } from '../../core/seats';
 import type { ActorMotion } from './actorMotion';
 import { itemDepth, itemRect } from './geometry';
 import { WALK_AUTHORED_MS_PER_CELL, type ClipId } from './skeleton/clips';
@@ -42,12 +43,23 @@ const SELECTED_SCALE = 1.08;
 const SELECTED_ALPHA = 0.7;
 const SELECTED_TINT_ALPHA = 0.25;
 const ATLAS_SAMPLING = { filter: FilterMode.Linear, mipmap: MipmapMode.None };
+/**
+ * A seated actor draws just in front of its seat item, and the item's front layer just
+ * in front of the actor. Both stay below anything standing in front of the item.
+ */
+const SEATED_DEPTH = 0.01;
+const FRONT_LAYER_DEPTH = 0.02;
+/** Longest an actor walking off a seat keeps the seated depth, until it clears the item. */
+const STAND_HOLD_S = 1.5;
 
 /** Everything the UI thread needs about one actor; rebuilt when actors change. */
 interface ActorDraw {
   id: string;
   motion: ActorMotion;
   walking: boolean;
+  sitting: boolean;
+  /** Depth of the item the actor sits on, or -1. */
+  seatDepth: number;
   facing: Facing;
   msPerCell: number;
   isLocal: boolean;
@@ -59,9 +71,12 @@ interface ActorDraw {
 
 interface ItemDraw {
   image: SkImage;
+  /** Drawn over seated actors; same framing as `image`, so it shares `dst`. */
+  front: SkImage | null;
   depth: number;
   /** [x, y, w, h] */
   src: number[];
+  frontSrc: number[];
   dst: number[];
   rect: number[];
   selected: boolean;
@@ -80,6 +95,9 @@ interface AnimRuntime {
   propFacing: Facing;
   lastGx: number;
   lastGy: number;
+  /** Seat item depth held while sitting and briefly while standing up, or -1. */
+  seatDepth: number;
+  standHold: number;
 }
 
 function hashId(id: string): number {
@@ -128,19 +146,31 @@ function byDepth(p: { depth: number }, q: { depth: number }): number {
 
 function advance(prev: AnimRuntime | undefined, a: ActorDraw, gx: number, gy: number, dt: number): AnimRuntime {
   'worklet';
-  const want: ClipId = a.walking ? 'walk' : 'idle';
+  const want: ClipId = a.walking ? 'walk' : a.sitting ? 'sit' : 'idle';
   if (!prev) {
     return {
       clip: want, time: 0, prevClip: '', prevTime: 0, fade: 1,
       facing: a.facing, propFacing: a.facing, lastGx: gx, lastGy: gy,
+      seatDepth: a.seatDepth, standHold: 0,
     };
   }
   const st = { ...prev };
 
-  // Face the direction of travel while moving; otherwise follow the session.
+  // Keep drawing in front of the seat while getting up, so the actor doesn't pop behind it.
+  if (a.sitting) {
+    st.seatDepth = a.seatDepth;
+    st.standHold = STAND_HOLD_S;
+  } else if (st.seatDepth >= 0) {
+    st.standHold -= dt;
+    if (st.standHold <= 0 || gx + gy + 0.5 >= st.seatDepth) st.seatDepth = -1;
+  }
+
+  // Face the direction of travel while moving; otherwise follow the session. Sitting
+  // takes the seat's facing even while sliding back onto the cushion.
   const dgx = gx - st.lastGx;
   const dgy = gy - st.lastGy;
-  if (Math.abs(dgx) + Math.abs(dgy) > MOVE_EPSILON) st.facing = facingFromDelta(dgx, dgy);
+  if (a.sitting) st.facing = a.facing;
+  else if (Math.abs(dgx) + Math.abs(dgy) > MOVE_EPSILON) st.facing = facingFromDelta(dgx, dgy);
   else if (a.facing !== st.propFacing) st.facing = a.facing;
   st.propFacing = a.facing;
   st.lastGx = gx;
@@ -237,26 +267,32 @@ export function useWorldPicture({
   const actorDraws = useMemo<ActorDraw[]>(() => Object.values(actors).flatMap(a => {
     const motion = motions.get(a.id);
     if (!motion) return [];
+    const seat = a.action.kind === 'sit' ? findSeat(items, a.action) : null;
     return [{
       id: a.id,
       motion,
       walking: a.action.kind === 'walk',
+      sitting: a.action.kind === 'sit',
+      seatDepth: seat ? itemDepth(seat.item) + SEATED_DEPTH : -1,
       facing: a.facing,
       msPerCell: a.user?.attributes?.speed ?? DEFAULT_MS_PER_CELL,
       isLocal: a.id === localActorId,
       artKey: artKeys[a.id],
       tints: actorTints(a.id),
     }];
-  }), [actors, motions, localActorId, artKeys]);
+  }), [actors, motions, localActorId, artKeys, items]);
 
   const itemDraws = useMemo<ItemDraw[]>(() => items.flatMap(ri => {
     const image = itemImages[ri.itemId.assetUrl];
     if (!image) return [];
     const rect = itemRect(ri, origin);
+    const front = ri.itemId.frontAssetUrl ? itemImages[ri.itemId.frontAssetUrl] ?? null : null;
     return [{
       image,
+      front,
       depth: itemDepth(ri),
       src: [0, 0, image.width(), image.height()],
+      frontSrc: front ? [0, 0, front.width(), front.height()] : [],
       dst: containDst(image, rect),
       rect: [rect.x, rect.y, rect.width, rect.height],
       selected: ri === selectedPlaced,
@@ -288,18 +324,22 @@ export function useWorldPicture({
     const prev = anim.get();
     const next: Record<string, AnimRuntime> = {};
 
-    const entries: { depth: number; actor: number; item: number }[] = [];
+    const entries: { depth: number; actor: number; item: number; front: boolean }[] = [];
     const feet: { x: number; y: number }[] = [];
     for (let i = 0; i < actorDraws.length; i++) {
       const a = actorDraws[i];
       const gx = a.motion.gx.get();
       const gy = a.motion.gy.get();
-      next[a.id] = advance(prev[a.id], a, gx, gy, dt);
-      feet.push(gridToScreen(gx, gy, 0, origin));
-      entries.push({ depth: gx + gy + 0.5, actor: i, item: -1 });
+      const st = advance(prev[a.id], a, gx, gy, dt);
+      next[a.id] = st;
+      feet.push(gridToScreen(gx, gy, a.motion.gz.get(), origin));
+      const depth = gx + gy + 0.5;
+      entries.push({ depth: st.seatDepth >= 0 ? Math.max(depth, st.seatDepth) : depth, actor: i, item: -1, front: false });
     }
     for (let i = 0; i < itemDraws.length; i++) {
-      entries.push({ depth: itemDraws[i].depth, actor: -1, item: i });
+      const it = itemDraws[i];
+      entries.push({ depth: it.depth, actor: -1, item: i, front: false });
+      if (it.front) entries.push({ depth: it.depth + FRONT_LAYER_DEPTH, actor: -1, item: i, front: true });
     }
     entries.sort(byDepth);
     anim.set(next);
@@ -326,13 +366,15 @@ export function useWorldPicture({
             canvas.translate(-(x + w / 2), -(y + h / 2));
             paint.setAlphaf(SELECTED_ALPHA);
           }
+          const image = e.front && it.front ? it.front : it.image;
+          const src = e.front ? it.frontSrc : it.src;
           canvas.drawImageRect(
-            it.image,
-            Skia.XYWHRect(it.src[0], it.src[1], it.src[2], it.src[3]),
+            image,
+            Skia.XYWHRect(src[0], src[1], src[2], src[3]),
             Skia.XYWHRect(it.dst[0], it.dst[1], it.dst[2], it.dst[3]),
             paint,
           );
-          if (it.selected) {
+          if (it.selected && !e.front) {
             const tint = Skia.Paint();
             tint.setColor(colors.tint);
             tint.setAlphaf(SELECTED_TINT_ALPHA * SELECTED_ALPHA);

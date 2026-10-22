@@ -50,7 +50,10 @@ export interface ActorState {
    * placeholder and never fetch it themselves.
    */
   avatar?: Avatar;
-  /** Logical position. While walking, this is the end of the path. */
+  /**
+   * Logical position. While walking, this is the end of the path. While sitting, it is
+   * the seat's cushion point, with `z` the seat height (see core/seats.ts).
+   */
   position: Position;
   facing: Facing;
   action: ActorAction;

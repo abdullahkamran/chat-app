@@ -1,5 +1,5 @@
 import mongoose, { Document, Model, Schema } from 'mongoose';
-import { Item, ItemPlacement, ItemAction, ItemState } from '@chat-app/shared-types';
+import { Facing, Item, ItemPlacement, ItemAction, ItemState } from '@chat-app/shared-types';
 
 // Override _id and states: the const object (typeof ItemState) can't be stored in Mongo; we store the active state as a string
 export interface IItem extends Omit<Item, '_id' | 'states'>, Document {
@@ -42,6 +42,16 @@ const ItemSchema = new Schema<IItem, IItemModel>(
         states: { type: String, enum: Object.values(ItemState), default: ItemState.NONE },
         isOverlappable: { type: Boolean, default: false },
         assetUrl: { type: String, default: '' },
+        frontAssetUrl: { type: String },
+        seats: {
+            type: [{
+                _id: false,
+                cell: { x: Number, y: Number },
+                facing: { type: String, enum: Object.values(Facing) },
+                offset: { x: Number, y: Number, z: Number },
+            }],
+            default: undefined,
+        },
         canOwnMultiple: { type: Boolean, default: false },
     },
     { timestamps: true, collection: 'items' }

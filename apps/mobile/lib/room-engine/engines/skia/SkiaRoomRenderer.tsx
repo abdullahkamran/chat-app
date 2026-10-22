@@ -4,6 +4,7 @@ import { type LayoutChangeEvent, StyleSheet, View } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 
 import { computeOrigin, screenToGrid } from '@/constants/grid';
+import type { RoomItem } from '@chat-app/shared-types';
 import type { RoomRendererProps } from '../../core/contract';
 import { ActorOverlay } from './ActorOverlay';
 import { Backdrop } from './Backdrop';
@@ -34,7 +35,7 @@ export function SkiaRoomRenderer(props: RoomRendererProps) {
       theme?.floor?.assetUrl,
       theme?.leftWall?.assetUrl,
       theme?.rightWall?.assetUrl,
-      ...items.map(ri => ri.itemId.assetUrl),
+      ...items.flatMap(itemAssetUrls),
     ]);
   }, [theme, items]);
 
@@ -84,7 +85,7 @@ function Room({
 
   const { camera, transform, gesture } = useCamera(width, height, handleTap);
   const motions = useActorMotions(actors);
-  const itemImages = useSkImages(scene.items.map(ri => ri.itemId.assetUrl));
+  const itemImages = useSkImages(scene.items.flatMap(itemAssetUrls));
   const { arts, artKeys } = useAvatarArts(actors);
   const world = useWorldPicture({
     actors,
@@ -128,6 +129,12 @@ function Room({
       </View>
     </View>
   );
+}
+
+/** An item's image and, for furniture drawn over a seated avatar, its front layer. */
+function itemAssetUrls(ri: RoomItem): string[] {
+  const { assetUrl, frontAssetUrl } = ri.itemId;
+  return frontAssetUrl ? [assetUrl, frontAssetUrl] : [assetUrl];
 }
 
 const styles = StyleSheet.create({

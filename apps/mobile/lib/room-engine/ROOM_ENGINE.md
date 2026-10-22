@@ -258,6 +258,7 @@ Room.tsx                      glue: session + shell + selected engine
 core/contract.ts              RoomEngine, RoomRendererProps, RoomScene, ActorState
 core/registry.ts              getRoomEngine() — reads EXPO_PUBLIC_ROOM_ENGINE
 core/facing.ts                facingFromDelta, facingToDirection, facingToView (rig view + mirror)
+core/seats.ts                 findSeat, seatPosition, seatApproach for sit actions
 core/useWalkabilityGrid.ts    blocked cells from placed items
 core/usePathfinding.ts        A* + string-pulling; the session routes every walk through it
 session/useRoomSession.ts     socket events, actors, chat, edit mode, intents
@@ -275,6 +276,7 @@ Contract rules:
 - The session owns every actor's `avatar`: the local one from auth, remote ones fetched from `GET /api/v1/users/:id/avatar` when the actor first appears, on every `RECEIVE_ENTER` and on `RECEIVE_AVATAR_CHANGED`. Saving or switching the selected avatar sends `SEND_AVATAR_CHANGED` (`announceAvatarChanged()` in `utils/socketUtils.ts`); the server relays it to the rooms that socket stands in. Engines draw a placeholder while `avatar` is undefined.
 - The shell's shirt button opens `components/AvatarDrawer.tsx` in place of the chat input: tap an avatar to wear it (`useWearAvatar` in `hooks/useMyAvatars.ts`); Edit and New push the editor over the room. The room screen stays mounted under the editor, so the user never exits and the room sees the change live.
 - Facings are isometric (`NE`, `NW`, `SE`, `SW`, from `@chat-app/shared-types`). The legacy engine collapses them to a mirrored left/right sprite.
+- **Sitting:** seatable items (`action: SIT`) carry `seats` (`ItemSeat`: footprint `cell`, `facing`, cushion `offset` in grid units with `z` the seat height), set in `apps/backend/src/catalog/items.catalog.ts` and rewritten on every backend start. Tapping one picks the nearest free seat, sends `SEND_ACTION { roomId, action: { kind: 'sit', itemId, at, seatIndex } }` (`at` is the placed item's position, which tells copies apart) and walks to the cell in front of the seat; when that walk completes the session sets the `sit` action, the cushion position and the seat's facing. Receivers of `RECEIVE_ACTION` run the same walk. Walking away steps to the front cell first. A seated user answers `RECEIVE_ENTER` and reconnects with `SEND_ACTION` instead of `SEND_POINT`, so late joiners see them walk to their seat and sit. The legacy engine has no sit pose and shows a seated actor standing on the seat.
 
 ### Selecting an engine
 
@@ -324,6 +326,7 @@ For performance checks, `EXPO_PUBLIC_ROOM_STRESS_ACTORS=30` adds 30 wandering av
 - Chat bubbles are RN views over the canvas, positioned from the actor's shared values through the camera; they don't scale with zoom.
 - Items and avatars are drawn into one world `SkPicture` every frame on the UI thread, depth-sorted by live position (`gx + gy`, +0.5 for avatars), so walking past furniture sorts correctly mid-walk.
 - Avatars use the shared `humanoid-v1` rig (types in `packages/shared-types/src/rig.types.ts`). Each frame: advance the clip (walk rate scales with the user's speed), crossfade 150 ms on clip changes, sample, solve bones, then one `drawAtlas` per avatar.
+- **Sit (Phase 4):** the `sit` clip levels the thighs, hangs the shins and drops the hip 14 px. Actors slide onto the seat over 350 ms with a `gz` motion value for the seat height, keep the seat's facing, and sort just in front of their seat item (`+0.01`), and keep that depth for up to 1.5 s while standing up so they don't pop behind it. An item's optional `frontAssetUrl` (same framing as `assetUrl`) is drawn at `+0.02`, over seated actors and under anyone standing in front.
 - Facing comes from the direction of travel each frame while moving, otherwise from the session. SE/SW draw the `front` view, NE/NW `back`; the west pair is mirrored with pre-flipped atlas sprites, because RSXform can't reflect.
 - Clip angles are clockwise degrees and both views face screen right before mirroring, so a forward swing is negative. The back view mirrors the bind x offsets (left/right sides swap), not the rotations.
 - `GestureHandlerRootView` wraps the app in `app/_layout.tsx` for the camera gestures.

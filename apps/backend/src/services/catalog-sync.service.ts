@@ -100,7 +100,18 @@ async function syncItems(): Promise<void> {
             { $setOnInsert: entry },
             { upsert: true, new: false },
         );
-        if (result === null) inserted++;
+        if (result === null) {
+            inserted++;
+            continue;
+        }
+        // Seats and front layers are tuned against the art, so existing records follow the catalog.
+        const { seats, frontAssetUrl } = entry;
+        const set = { ...(seats && { seats }), ...(frontAssetUrl && { frontAssetUrl }) };
+        const unset = { ...(!seats && { seats: 1 }), ...(!frontAssetUrl && { frontAssetUrl: 1 }) };
+        await ItemModel.updateOne({ name: entry.name }, {
+            ...(Object.keys(set).length > 0 && { $set: set }),
+            ...(Object.keys(unset).length > 0 && { $unset: unset }),
+        });
     }
 
     console.log(`[catalog-sync] items: ${inserted} inserted, ${ITEMS_CATALOG.length - inserted} already exist`);
