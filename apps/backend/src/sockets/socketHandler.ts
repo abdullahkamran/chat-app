@@ -90,6 +90,14 @@ const handler = {
             socket.to(roomId).emit(SocketEvent.RECEIVE_TYPING, { roomId, userId, isTyping });
         });
 
+        // The user saved or switched avatars. Everyone sharing a room with them refetches it.
+        socket.on(SocketEvent.SEND_AVATAR_CHANGED, () => {
+            for (const roomId of presentRoomIds) {
+                console.log(SocketEvent.SEND_AVATAR_CHANGED, { userId, roomId });
+                socket.to(roomId).emit(SocketEvent.RECEIVE_AVATAR_CHANGED, { roomId, userId });
+            }
+        });
+
         // The app was killed, crashed or lost its connection without exiting.
         // Remove the character for everyone else. No push: flaky networks would spam it,
         // and a reconnecting client re-enters on its own.

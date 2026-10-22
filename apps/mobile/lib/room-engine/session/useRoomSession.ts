@@ -11,6 +11,7 @@ import {
   ItemState,
   Orientiation,
   type ActorActionKind,
+  type Avatar,
   type Item,
   type Position,
   type RoomItem,
@@ -30,6 +31,10 @@ export function useRoomSession(roomId: string) {
   const { data: roomDetails, isLoading, error } = useRoomDetails(roomId);
   const { data: inventoryItems = [] } = useInventory();
   const [actors, setActors] = useState<Record<User['_id'], ActorState>>({});
+  // Remote actors' avatars by user id. The local actor's comes from auth.
+  const [avatars, setAvatars] = useState<Record<User['_id'], Avatar>>({});
+  // Latest avatar request per user; a response to an older one is dropped.
+  const avatarRequestRef = useRef<Record<User['_id'], number>>({});
 
   const { user } = useUserInfo();
   const { selectedAvatar } = useAuth();
@@ -69,6 +74,7 @@ export function useRoomSession(roomId: string) {
       onPoint: receivePoint,
       onMessage: receiveMessage,
       onTyping: receiveTyping,
+      onAvatarChanged: receiveAvatarChanged,
     },
     getMyPosition: () => {
       const actor = actors[userId ?? ''];
@@ -81,14 +87,44 @@ export function useRoomSession(roomId: string) {
   function dropRemoteActors() {
     setActors(current => (current[userId] ? { [userId]: current[userId] } : {}));
     setTypingUserIds(new Set());
+    for (const uid of Object.keys(avatarRequestRef.current)) forgetAvatar(uid);
   }
 
   function receiveEnter({ userId }: { userId: string }) {
+    // Users often change outfit between visits, so entering always refetches.
+    if (actors[userId]) fetchAvatar(userId);
     enterCharacter(userId);
   }
 
   function receiveExit({ userId }: { userId: string }) {
     exitCharacter(userId);
+  }
+
+  function receiveAvatarChanged({ userId }: { userId: string }) {
+    if (actors[userId]) fetchAvatar(userId);
+  }
+
+  /** Fetch a remote user's selected avatar; the old one stays on screen until it arrives. */
+  function fetchAvatar(uid: string) {
+    if (!uid || uid === userId) return;
+    const request = (avatarRequestRef.current[uid] ?? 0) + 1;
+    avatarRequestRef.current[uid] = request;
+    api.get<Avatar>(`/api/v1/users/${uid}/avatar`)
+      .then(avatar => {
+        if (avatarRequestRef.current[uid] !== request || !avatar) return;
+        setAvatars(current => ({ ...current, [uid]: avatar }));
+      })
+      .catch(err => console.warn(`[room session] no avatar for ${uid}`, err));
+  }
+
+  /** Drop a user's avatar and ignore any response still in flight. */
+  function forgetAvatar(uid: string) {
+    avatarRequestRef.current[uid] = (avatarRequestRef.current[uid] ?? 0) + 1;
+    setAvatars(current => {
+      if (!current[uid]) return current;
+      const { [uid]: _, ...rest } = current;
+      return rest;
+    });
   }
 
   function receivePoint({ userId, x, y }: { userId: string; x: number; y: number }) {
@@ -116,6 +152,7 @@ export function useRoomSession(roomId: string) {
 
   function enterCharacter(uid: string) {
     if (actors[uid]) return;
+    fetchAvatar(uid);
     const spawnDoor = roomDetails?.doors?.find(d => d.isEntry);
     const spawnPos = spawnDoor
       ? { x: spawnDoor.position.x, y: spawnDoor.position.y, z: 0 }
@@ -136,6 +173,7 @@ export function useRoomSession(roomId: string) {
   }
 
   function exitCharacter(uid: string) {
+    forgetAvatar(uid);
     setActors(current => {
       const { [uid]: _, ...rest } = current;
       return rest;
@@ -370,12 +408,12 @@ export function useRoomSession(roomId: string) {
     for (const actor of Object.values(actors)) {
       result[actor.id] = {
         ...actor,
-        avatar: actor.id === userId && selectedAvatar ? selectedAvatar : undefined,
+        avatar: (actor.id === userId ? selectedAvatar : avatars[actor.id]) ?? undefined,
         isTyping: typingUserIds.has(actor.id),
       };
     }
     return result;
-  }, [actors, userId, selectedAvatar, typingUserIds]);
+  }, [actors, avatars, userId, selectedAvatar, typingUserIds]);
 
   const edit: EditState = { selectedItem, selectedPlaced: selectedPlacedItem };
 

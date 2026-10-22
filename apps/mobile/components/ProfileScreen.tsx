@@ -14,6 +14,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Avatar, User } from '@chat-app/shared-types';
 import { useAuth } from '@/context/auth.context';
 import { api } from '@/lib/api';
+import { MY_AVATARS_KEY, useMyAvatars, useWearAvatar } from '@/hooks/useMyAvatars';
 import { theme } from '@/constants/theme';
 import UserCharacter from '@/components/ui/UserCharacter';
 
@@ -21,10 +22,6 @@ import UserCharacter from '@/components/ui/UserCharacter';
 
 function fetchUser(userId: string) {
     return api.get<User>(`/api/v1/users/${userId}`);
-}
-
-function fetchAvatars() {
-    return api.get<{ avatars: Avatar[]; selectedAvatar: string | null }>('/api/v1/avatar/');
 }
 
 // ── Stat chip ─────────────────────────────────────────────────────────────────
@@ -130,7 +127,7 @@ function AvatarCard({
 // ── Main screen ───────────────────────────────────────────────────────────────
 
 export default function ProfileScreen() {
-    const { userId, selectedAvatar, logout, setSelectedAvatar } = useAuth();
+    const { userId, selectedAvatar, logout } = useAuth();
     const router = useRouter();
     const queryClient = useQueryClient();
     const [logoutModalVisible, setLogoutModalVisible] = useState(false);
@@ -141,25 +138,13 @@ export default function ProfileScreen() {
         enabled: !!userId,
     });
 
-    const avatarsQuery = useQuery({
-        queryKey: ['avatars'],
-        queryFn: fetchAvatars,
-    });
-
-    const setDefaultMutation = useMutation({
-        mutationFn: (avatarId: string) =>
-            api.put<void>(`/api/v1/avatar/${avatarId}/set-default`, {}),
-        onSuccess: (_, avatarId) => {
-            const avatar = avatars.find((a) => a._id === avatarId);
-            if (avatar) setSelectedAvatar(avatar);
-            queryClient.invalidateQueries({ queryKey: ['avatars'] });
-        },
-    });
+    const avatarsQuery = useMyAvatars();
+    const setDefaultMutation = useWearAvatar();
 
     const deleteMutation = useMutation({
         mutationFn: (avatarId: string) => api.delete(`/api/v1/avatar/${avatarId}`),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['avatars'] });
+            queryClient.invalidateQueries({ queryKey: MY_AVATARS_KEY });
         },
     });
 
@@ -248,13 +233,13 @@ export default function ProfileScreen() {
                             avatar={avatar}
                             index={index}
                             isDefault={avatar._id === defaultAvatarId}
-                            onSetDefault={() => setDefaultMutation.mutate(avatar._id)}
+                            onSetDefault={() => setDefaultMutation.mutate(avatar)}
                             onEdit={() => router.push(`/(avatar)/edit/${avatar._id}`)}
                             onDelete={() => handleDelete(avatar)}
                             canDelete={avatars.length > 1}
                             isSettingDefault={
                                 setDefaultMutation.isPending &&
-                                setDefaultMutation.variables === avatar._id
+                                setDefaultMutation.variables?._id === avatar._id
                             }
                             isDeleting={
                                 deleteMutation.isPending &&

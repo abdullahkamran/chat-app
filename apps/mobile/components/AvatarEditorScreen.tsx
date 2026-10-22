@@ -10,10 +10,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Avatar, AvatarInventoryEntry, AvatarItem } from '@chat-app/shared-types';
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/auth.context';
+import { MY_AVATARS_KEY } from '@/hooks/useMyAvatars';
+import { announceAvatarChanged } from '@/utils/socketUtils';
 import { theme } from '@/constants/theme';
 import { resolveAvatarSource } from '@/constants/avatarAssets';
 import UserCharacter, { AVATAR_PART_RENDER_ORDER, AvatarLayer } from '@/components/ui/UserCharacter';
@@ -82,7 +84,8 @@ function deriveFromAvatar(avatar: Avatar): {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function AvatarEditorScreen({ mode, avatarId, initialSelections, initialAvatar, onSaved }: Props) {
-  const { setSelectedAvatar } = useAuth();
+  const { selectedAvatar, setSelectedAvatar } = useAuth();
+  const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
 
   const derived = initialAvatar ? deriveFromAvatar(initialAvatar) : null;
@@ -129,10 +132,20 @@ export default function AvatarEditorScreen({ mode, avatarId, initialSelections, 
     queryFn: () => api.get<AvatarInventoryEntry[]>('/api/v1/inventory/avatar'),
   });
 
+  // Profile, the edit screen and the room's avatar drawer list the user's avatars.
+  function refreshAvatarLists() {
+    queryClient.invalidateQueries({ queryKey: MY_AVATARS_KEY });
+  }
+
   const createMutation = useMutation({
     mutationFn: (body: AvatarSelections) => api.post<Avatar>('/api/v1/avatar', body),
     onSuccess: (avatar) => {
-      setSelectedAvatar(avatar);
+      // The backend only selects a new avatar when it is the user's first.
+      if (!selectedAvatar) {
+        setSelectedAvatar(avatar);
+        announceAvatarChanged();
+      }
+      refreshAvatarLists();
       onSaved(avatar);
     },
   });
@@ -140,6 +153,11 @@ export default function AvatarEditorScreen({ mode, avatarId, initialSelections, 
   const editMutation = useMutation({
     mutationFn: (body: AvatarSelections) => api.put<Avatar>(`/api/v1/avatar/${avatarId}`, body),
     onSuccess: (avatar) => {
+      if (selectedAvatar?._id === avatar._id) {
+        setSelectedAvatar(avatar);
+        announceAvatarChanged();
+      }
+      refreshAvatarLists();
       onSaved(avatar);
     },
   });

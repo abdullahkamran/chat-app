@@ -113,11 +113,11 @@ const Character = ({ actor, origin, onActionComplete }: CharacterProps) => {
           ))}
         </View>
 
-        {/* Character sprite — mirrored when facing left */}
+        {/* Character sprite — mirrored when facing left; a skeleton until the session has the avatar */}
         <View style={{ transform: [{ scaleX: facingLeft ? -1 : 1 }] }}>
           {avatar
             ? <UserCharacter avatar={avatar} size={CHAR_HEIGHT} />
-            : <UserCharacter userId={user._id} size={CHAR_HEIGHT} />
+            : <UserCharacter layers={[]} size={CHAR_HEIGHT} />
           }
         </View>
       </View>

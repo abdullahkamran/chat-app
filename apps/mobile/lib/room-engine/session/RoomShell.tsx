@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Button } from 'react-native-elements';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { theme } from '@/constants/theme';
+import { AvatarDrawer } from '../components/AvatarDrawer';
 import { ChatInput } from '../components/ChatInput';
 import { TypingIndicator } from '../components/TypingIndicator';
 import { EditModeButton } from '../EditMode/EditModeButton';
@@ -34,8 +35,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 17,
   },
-  headerSpacer: {
+  headerBtn: {
     width: 40,
+    padding: 8,
+    alignItems: 'center',
   },
 });
 
@@ -46,12 +49,13 @@ interface Props {
 }
 
 /**
- * Engine-independent room chrome: header or edit toolbar, chat input or
- * inventory drawer, and the loading / error states. The engine renders in between.
+ * Engine-independent room chrome: header or edit toolbar, chat input, avatar
+ * drawer or inventory drawer, and the loading / error states. The engine renders in between.
  */
 export function RoomShell({ session, children }: Readonly<Props>) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const [isAvatarDrawerOpen, setAvatarDrawerOpen] = useState(false);
   const { roomDetails, isLoading, error, isOwner, isSaving, mode, edit, scene, typingUserIds, intents } = session;
   const isEditMode = mode === 'edit';
 
@@ -90,7 +94,17 @@ export function RoomShell({ session, children }: Readonly<Props>) {
             <Ionicons name="chevron-back" size={24} color={theme.colors.text} />
           </TouchableOpacity>
           <Text style={styles.roomHeaderTitle} numberOfLines={1}>{roomDetails.name}</Text>
-          <View style={styles.headerSpacer} />
+          <TouchableOpacity
+            style={styles.headerBtn}
+            onPress={() => setAvatarDrawerOpen(open => !open)}
+            accessibilityLabel="Change avatar"
+          >
+            <Ionicons
+              name={isAvatarDrawerOpen ? 'shirt' : 'shirt-outline'}
+              size={22}
+              color={isAvatarDrawerOpen ? theme.colors.primary : theme.colors.text}
+            />
+          </TouchableOpacity>
         </View>
       )}
 
@@ -102,15 +116,16 @@ export function RoomShell({ session, children }: Readonly<Props>) {
         )}
       </View>
 
-      {isEditMode
-        ? <InventoryDrawer selectedItem={edit.selectedItem} onSelectItem={intents.selectInventoryItem} pendingItems={scene?.items ?? []} />
-        : (
-          <>
-            <TypingIndicator typingUserIds={typingUserIds} />
-            <ChatInput onTyping={intents.sendTyping} onSubmit={intents.submitMessage} />
-          </>
-        )
-      }
+      {isEditMode && (
+        <InventoryDrawer selectedItem={edit.selectedItem} onSelectItem={intents.selectInventoryItem} pendingItems={scene?.items ?? []} />
+      )}
+      {!isEditMode && isAvatarDrawerOpen && <AvatarDrawer onClose={() => setAvatarDrawerOpen(false)} />}
+      {!isEditMode && !isAvatarDrawerOpen && (
+        <>
+          <TypingIndicator typingUserIds={typingUserIds} />
+          <ChatInput onTyping={intents.sendTyping} onSubmit={intents.submitMessage} />
+        </>
+      )}
     </View>
   );
 }

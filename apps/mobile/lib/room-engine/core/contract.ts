@@ -44,7 +44,11 @@ export interface ChatBubble {
 export interface ActorState {
   id: User['_id'];
   user: User;
-  /** Set when the avatar is already known locally; otherwise the engine resolves it by user id. */
+  /**
+   * The user's selected avatar, owned by the session: auth for the local actor, fetched
+   * for others on each enter and avatar change. Undefined while loading; engines draw a
+   * placeholder and never fetch it themselves.
+   */
   avatar?: Avatar;
   /** Logical position. While walking, this is the end of the path. */
   position: Position;

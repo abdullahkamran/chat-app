@@ -9,6 +9,7 @@ interface ReceiveHandlers {
   onPoint: (payload: { userId: string; x: number; y: number }) => void;
   onMessage: (payload: { userId: string; message: string }) => void;
   onTyping?: (payload: { userId: string }) => void;
+  onAvatarChanged?: (payload: { userId: string }) => void;
 }
 
 interface UseChatParams {
@@ -74,6 +75,9 @@ export function useChat({ roomId, userId, handlers, getMyPosition, onEnterMe, on
     const handleTyping = (p: RoomPayload<{ userId: string }>) => {
       if (p.roomId === roomId) handlersRef.current.onTyping?.(p);
     };
+    const handleAvatarChanged = (p: RoomPayload<{ userId: string }>) => {
+      if (p.roomId === roomId) handlersRef.current.onAvatarChanged?.(p);
+    };
 
     // Fires only on reconnection, not the first connect. Emits made before the
     // socket is connected again are buffered and sent in order once it is.
@@ -90,6 +94,7 @@ export function useChat({ roomId, userId, handlers, getMyPosition, onEnterMe, on
     socket.on(SocketEvent.RECEIVE_POINT, handlePoint);
     socket.on(SocketEvent.RECEIVE_MESSAGE, handleMessage);
     socket.on(SocketEvent.RECEIVE_TYPING, handleTyping);
+    socket.on(SocketEvent.RECEIVE_AVATAR_CHANGED, handleAvatarChanged);
     socket.io.on('reconnect', handleReconnect);
 
     if (userId) {
@@ -104,6 +109,7 @@ export function useChat({ roomId, userId, handlers, getMyPosition, onEnterMe, on
       socket.off(SocketEvent.RECEIVE_POINT, handlePoint);
       socket.off(SocketEvent.RECEIVE_MESSAGE, handleMessage);
       socket.off(SocketEvent.RECEIVE_TYPING, handleTyping);
+      socket.off(SocketEvent.RECEIVE_AVATAR_CHANGED, handleAvatarChanged);
       socket.io.off('reconnect', handleReconnect);
     };
   }, [roomId, userId]);
