@@ -14,7 +14,7 @@ interface Props {
 
 /**
  * Edit-mode grid: one diamond per cell, as a single path.
- * Cells are centred on grid vertices, matching the legacy GridOverlay and item anchoring.
+ * Cells are centred on grid vertices, matching item anchoring.
  */
 export function EditGrid({ dimensions, origin }: Props) {
   const path = useMemo(() => {

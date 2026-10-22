@@ -2,8 +2,8 @@ import type { RoomEngine } from '../../core/contract';
 import { SkiaRoomRenderer } from './SkiaRoomRenderer';
 
 /**
- * Skia + Reanimated engine. Phase 1 shell: backdrop, items, camera, hit-testing and
- * edit grid are real; avatars are placeholder capsules until the skeletal rig lands.
+ * Skia + Reanimated engine: backdrop, items, camera, hit-testing, edit grid and skeletal
+ * avatars that walk, sit and emote.
  */
 export const skiaEngine: RoomEngine = {
   id: 'skia',

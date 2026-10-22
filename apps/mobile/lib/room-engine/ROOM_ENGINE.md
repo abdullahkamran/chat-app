@@ -68,7 +68,7 @@ gy = dy / TILE_H - dx / TILE_W
 
 ## Cell dimensions at different zoom levels
 
-The `ReactNativeZoomableView` in `engines/legacy/LegacyRoomRenderer.tsx` zooms the canvas.
+The pan/pinch camera in `engines/skia/useCamera.ts` zooms the canvas.
 
 | Zoom level | Cell appears as (px) | TILE_W step (px) | TILE_H step (px) |
 |------------|----------------------|------------------|------------------|
@@ -76,7 +76,7 @@ The `ReactNativeZoomableView` in `engines/legacy/LegacyRoomRenderer.tsx` zooms t
 | `1.0×`     | 80 × 40              | 40               | 20               |
 | `1.5×`     | 120 × 60             | 60               | 30               |
 
-Zoom range: `minZoom = 0.5`, `maxZoom = 1.5`, `initialZoom = 1.0` (set in `LegacyRoomRenderer.tsx`).
+Zoom range: `MIN_ZOOM = 0.5`, `MAX_ZOOM = 1.5`, starting at `1.0` (set in `useCamera.ts`).
 
 ---
 
@@ -133,7 +133,7 @@ For a 390 px wide canvas: `origin.x = 195 - 20 = 175`, `origin.y = 200`.
 
 ## Wall area
 
-The walls are rendered in `engines/legacy/RoomBackdrop.tsx` above the floor as **skewed parallelograms**.
+The walls are drawn in `engines/skia/Backdrop.tsx` above the floor as **sheared parallelograms**, recorded once into the backdrop `SkPicture`.
 
 | Wall         | Width formula               | Value (8×6 room) | Height              |
 |--------------|-----------------------------|------------------|---------------------|
@@ -141,27 +141,16 @@ The walls are rendered in `engines/legacy/RoomBackdrop.tsx` above the floor as *
 | Right wall   | `roomX * TILE_W / 2`        | 320 px           | `WALL_HEIGHT` = 200 px |
 | Combined     | `(roomX + roomY) * TILE_W/2`| 560 px           | 200 px              |
 
-### Wall skew transform
-
-Each wall image is a flat rectangle that is sheared via `skewY` so its edges follow the isometric grid lines.
+Each wall image is a flat rectangle sheared vertically so its edges follow the isometric grid lines:
 
 ```
-skewAngle = arctan(TILE_H / TILE_W) = arctan(0.5) ≈ 26.565°
+shear = TILE_H / TILE_W = 0.5      (tan of the axis angle, ≈ 26.565°)
 
-Right wall: skewY(+26.565°)   — leans right-down, matching the gx axis
-Left wall:  skewY(−26.565°)   — leans left-down, matching the gy axis
+Right wall: +0.5   — leans right-down, matching the gx axis
+Left wall:  −0.5   — leans left-down, matching the gy axis
 ```
 
-React Native applies `skewY` around the element's center, so `top` must be offset to keep the back-top corner (where both walls meet) at `y = 0`:
-
-```
-top = wallWidth * TILE_H / (2 * TILE_W)
-
-Right wall top = (roomX * TILE_W/2) * TILE_H / (2 * TILE_W) = roomX * TILE_H / 4  →  80 px
-Left wall top  = (roomY * TILE_W/2) * TILE_H / (2 * TILE_W) = roomY * TILE_H / 4  →  60 px
-```
-
-The skewed walls extend below the floor line (`y > WALL_HEIGHT`). Floor tiles are rendered **on top** (later in JSX order), naturally masking the lower portions. No explicit clipping is needed for the walls-above-floor area.
+Both walls meet at the back-top corner over the grid origin. The floor tiles are drawn after the walls, so they cover the parts of the walls that reach below the floor line.
 
 ---
 
@@ -178,26 +167,24 @@ When changing `WALL_HEIGHT`, verify that `WALL_HEIGHT + (roomX + roomY) * TILE_H
 
 ---
 
-## Character size & anchor
+## Avatar size & anchor
 
-| Constant      | Value    | File                                        |
-|---------------|----------|---------------------------------------------|
-| `CHAR_HEIGHT` | `80` dp  | `lib/room-engine/engines/legacy/Character.tsx`  |
-| `CHAR_WIDTH`  | `53` dp  | derived: `Math.round(CHAR_HEIGHT * 2/3)`    |
+| Constant        | Value   | File                                              |
+|-----------------|---------|---------------------------------------------------|
+| `AVATAR_HEIGHT` | `80` px | `lib/room-engine/engines/skia/skeleton/humanoidV1.ts` |
 
-`CHAR_HEIGHT = 2 × TILE_H` gives the correct YoWorld proportion (character ≈ 2 tile-heights tall).
+`AVATAR_HEIGHT = 2 × TILE_H` gives the YoWorld proportion (an avatar is about 2 tile heights tall). The humanoid-v1 rig's root is the ground point between the feet.
 
-**Anchor rule:** the character's *feet* (bottom-center of the sprite) are placed at the screen point returned by `gridToScreen(gx, gy, 0, origin)`. The animation ValueXY stores the already-offset position:
-```
-animation.x = screen.x - CHAR_WIDTH  / 2   (center horizontally)
-animation.y = screen.y - CHAR_HEIGHT        (feet at floor tile)
-```
+**Anchor rule:** the rig root (the feet) is drawn at `gridToScreen(gx, gy, gz, origin)`, where `gz` is the seat height while sitting and 0 otherwise.
 
-**Depth sort:** characters use `depth = gx + gy + 0.5` so they always render in front of floor items placed at the same tile.
+**Depth sort:** avatars use `depth = gx + gy + 0.5` so they render in front of floor items placed at the same tile; seated avatars use their seat item's depth + 0.01 (see Skia engine notes).
 
 ---
 
-## Avatar layer layout (`UserCharacter.tsx`)
+## 2D avatar previews (`UserCharacter.tsx`)
+
+Outside rooms (profile, avatar editor, the room's Avatars drawer) avatars are drawn as stacked SVG layers by `components/ui/UserCharacter.tsx`. Rooms draw the rigged Skia avatar instead.
+
 
 All avatar parts are rendered inside a single character container of size `(w × size)` where `w = Math.round(size * 2/3)`. Default `size = 200` → **133 × 200 px**.
 
@@ -251,20 +238,18 @@ To tune feature positions, edit `FACE_FEATURE_LAYOUT` in [UserCharacter.tsx](../
 
 ## Engine architecture
 
-Rendering is pluggable. Everything that is not drawing lives in a shared session; engines only draw and report taps.
+Rendering sits behind an engine contract. Everything that is not drawing lives in a shared session; the engine only draws and reports taps. Skia is the only engine; the original View-based engine was deleted on 2026-10-22 (recover it from git history before that date if ever needed).
 
 ```
-Room.tsx                      glue: session + shell + selected engine
+Room.tsx                      glue: session + shell + the Skia engine
 core/contract.ts              RoomEngine, RoomRendererProps, RoomScene, ActorState
-core/registry.ts              getRoomEngine() — reads EXPO_PUBLIC_ROOM_ENGINE
-core/facing.ts                facingFromDelta, facingToDirection, facingToView (rig view + mirror)
+core/facing.ts                facingFromDelta, facingToView (rig view + mirror)
 core/seats.ts                 findSeat, seatPosition, seatApproach for sit actions
 core/useWalkabilityGrid.ts    blocked cells from placed items
 core/usePathfinding.ts        A* + string-pulling; the session routes every walk through it
 session/useRoomSession.ts     socket events, actors, chat, edit mode, intents
-session/RoomShell.tsx         header / edit toolbar, chat input / inventory drawer, loading + error
-engines/legacy/               View-based renderer (this document's projection + avatar layout)
-engines/skia/                 Skia + Reanimated renderer, skeletal avatars (programmer art until Phase 3)
+session/RoomShell.tsx         header / edit toolbar, chat input / avatar, emote or inventory drawer, loading + error
+engines/skia/                 Skia + Reanimated renderer, skeletal avatars
 engines/skia/skeleton/        humanoid-v1 rig, hand-written clips, sampler/solver worklets, programmer-art atlas
 ```
 
@@ -275,27 +260,18 @@ Contract rules:
 - The session owns logical state (`position`, `facing`, `action`); engines own projection, camera, interpolation and hit-testing.
 - The session owns every actor's `avatar`: the local one from auth, remote ones fetched from `GET /api/v1/users/:id/avatar` when the actor first appears, on every `RECEIVE_ENTER` and on `RECEIVE_AVATAR_CHANGED`. Saving or switching the selected avatar sends `SEND_AVATAR_CHANGED` (`announceAvatarChanged()` in `utils/socketUtils.ts`); the server relays it to the rooms that socket stands in. Engines draw a placeholder while `avatar` is undefined.
 - The shell's shirt button opens `components/AvatarDrawer.tsx` in place of the chat input: tap an avatar to wear it (`useWearAvatar` in `hooks/useMyAvatars.ts`); Edit and New push the editor over the room. The room screen stays mounted under the editor, so the user never exits and the room sees the change live.
-- **Emotes:** owned `EMOTE` animations (`GET /api/v1/inventory/animations`) are listed in `components/EmoteDrawer.tsx`, opened from the header's smiley button. Tapping one sends `SEND_ACTION { roomId, action: { kind: 'emote', animation } }`; the server relays it only if the user owns that emote. The session plays an emote at once when the actor stands still, after its walk when walking, and never while seated; the engine reports `onActionComplete(id, 'emote')` when the clip ends and the session returns to `idle`. Emotes aren't announced to late joiners. The session reads the engine's `capabilities.actions`: on an engine without `emote` (legacy) it skips emotes and the shell hides the button. Every user owns `wave` (signup default, back-filled on server start); `clap`, `laugh` and `dance` are sold in the Shop's Animations tab. A new emote needs a catalog entry in `apps/backend/src/catalog/animations.catalog.ts` and a clip of the same name in `engines/skia/skeleton/clips.ts` (`EMOTE_CLIPS`); clients without the clip finish it at once.
-- Facings are isometric (`NE`, `NW`, `SE`, `SW`, from `@chat-app/shared-types`). The legacy engine collapses them to a mirrored left/right sprite.
-- **Sitting:** seatable items (`action: SIT`) carry `seats` (`ItemSeat`: footprint `cell`, `facing`, cushion `offset` in grid units with `z` the seat height), set in `apps/backend/src/catalog/items.catalog.ts` and rewritten on every backend start. Tapping one picks the nearest free seat, sends `SEND_ACTION { roomId, action: { kind: 'sit', itemId, at, seatIndex } }` (`at` is the placed item's position, which tells copies apart) and walks to the cell in front of the seat; when that walk completes the session sets the `sit` action, the cushion position and the seat's facing. Receivers of `RECEIVE_ACTION` run the same walk. Walking away steps to the front cell first. A seated user answers `RECEIVE_ENTER` and reconnects with `SEND_ACTION` instead of `SEND_POINT`, so late joiners see them walk to their seat and sit. The legacy engine has no sit pose and shows a seated actor standing on the seat.
+- **Emotes:** owned `EMOTE` animations (`GET /api/v1/inventory/animations`) are listed in `components/EmoteDrawer.tsx`, opened from the header's smiley button. Tapping one sends `SEND_ACTION { roomId, action: { kind: 'emote', animation } }`; the server relays it only if the user owns that emote. The session plays an emote at once when the actor stands still, after its walk when walking, and never while seated; the engine reports `onActionComplete(id, 'emote')` when the clip ends and the session returns to `idle`. Emotes aren't announced to late joiners. The session reads the engine's `capabilities.actions` and skips emotes on an engine without `emote`; the shell then hides the button. Every user owns `wave` (signup default, back-filled on server start); `clap`, `laugh` and `dance` are sold in the Shop's Animations tab. A new emote needs a catalog entry in `apps/backend/src/catalog/animations.catalog.ts` and a clip of the same name in `engines/skia/skeleton/clips.ts` (`EMOTE_CLIPS`); clients without the clip finish it at once.
+- Facings are isometric (`NE`, `NW`, `SE`, `SW`, from `@chat-app/shared-types`).
+- **Sitting:** seatable items (`action: SIT`) carry `seats` (`ItemSeat`: footprint `cell`, `facing`, cushion `offset` in grid units with `z` the seat height), set in `apps/backend/src/catalog/items.catalog.ts` and rewritten on every backend start. Tapping one picks the nearest free seat, sends `SEND_ACTION { roomId, action: { kind: 'sit', itemId, at, seatIndex } }` (`at` is the placed item's position, which tells copies apart) and walks to the cell in front of the seat; when that walk completes the session sets the `sit` action, the cushion position and the seat's facing. Receivers of `RECEIVE_ACTION` run the same walk. Walking away steps to the front cell first. A seated user answers `RECEIVE_ENTER` and reconnects with `SEND_ACTION` instead of `SEND_POINT`, so late joiners see them walk to their seat and sit.
 
-### Selecting an engine
+### Dev settings
 
-```bash
-# apps/mobile/.env.local
-EXPO_PUBLIC_ROOM_ENGINE=legacy   # default when unset or unknown
-EXPO_PUBLIC_ROOM_ENGINE=skia     # Skia engine (iOS and Android; web is not set up)
-```
-
-Restart Metro with a cleared cache (`pnpm expo start -c`) after changing it.
-
-For performance checks, `EXPO_PUBLIC_ROOM_STRESS_ACTORS=30` adds 30 wandering avatars to the Skia engine in dev builds. They are engine-local and never reach the session or socket.
+For performance checks, `EXPO_PUBLIC_ROOM_STRESS_ACTORS=30` (in `apps/mobile/.env.local`) adds 30 wandering avatars to the Skia engine in dev builds. They are engine-local and never reach the session or socket. Restart Metro with a cleared cache (`pnpm expo start -c`) after changing it. The Skia engine runs on iOS and Android; web is not set up.
 
 ### Adding an engine
 
 1. Create `engines/<id>/index.ts` exporting a `RoomEngine` (`id`, `capabilities`, `Renderer`).
-2. Register it in `ENGINES` in `core/registry.ts`.
-3. Set `EXPO_PUBLIC_ROOM_ENGINE=<id>`.
+2. Use it in place of `skiaEngine` in `Room.tsx` (or bring back a registry if two must coexist).
 
 ---
 
@@ -306,11 +282,6 @@ For performance checks, `EXPO_PUBLIC_ROOM_STRESS_ACTORS=30` adds 30 wandering av
 | `apps/mobile/constants/grid.ts` | All scale constants + projection math |
 | `apps/mobile/lib/room-engine/core/contract.ts` | Engine contract |
 | `apps/mobile/lib/room-engine/session/useRoomSession.ts` | Engine-agnostic room state and intents |
-| `apps/mobile/lib/room-engine/engines/legacy/LegacyRoomRenderer.tsx` | Zoom config (`minZoom`, `maxZoom`, `initialZoom`), tap-to-grid, depth sort |
-| `apps/mobile/lib/room-engine/engines/legacy/GridOverlay.tsx` | Cell hit-targets (uses `TILE_W`, `TILE_H`) |
-| `apps/mobile/lib/room-engine/engines/legacy/RoomBackdrop.tsx` | Wall + floor tile rendering |
-| `apps/mobile/lib/room-engine/engines/legacy/Character.tsx` | Character positioning via `gridToScreen` |
-| `apps/mobile/lib/room-engine/engines/legacy/RoomItemView.tsx` | Item positioning via `gridToScreen` |
 | `apps/mobile/lib/room-engine/engines/skia/SkiaRoomRenderer.tsx` | Skia canvas layers, tap routing, bubble overlay |
 | `apps/mobile/lib/room-engine/engines/skia/useWorldPicture.ts` | Per-frame UI-thread loop: clip playback, crossfade, facing, depth sort, world picture |
 | `apps/mobile/lib/room-engine/engines/skia/skeleton/` | `humanoidV1.ts` (solver arrays; the rig itself is `packages/shared-types/src/humanoid-v1.ts`), `clips.ts` (idle, walk, sit, emotes), `sampler.ts` (worklets), `avatarArt.ts` (draw-list format), `programmerArt.ts` (fallback atlas) |
@@ -322,7 +293,7 @@ For performance checks, `EXPO_PUBLIC_ROOM_STRESS_ACTORS=30` adds 30 wandering av
 ### Skia engine notes
 
 - `gridToScreen` and `screenToGrid` are worklets, so actor positions are projected on the UI thread.
-- Same anchoring as legacy: items sit bottom-centre on their grid position; edit-mode cells are centred on grid vertices (taps round, not floor).
+- Items sit bottom-centre on their grid position; edit-mode cells are centred on grid vertices (taps round, not floor).
 - The backdrop (walls, floor, doors) is recorded into one `SkPicture` and re-recorded only when the theme, doors or canvas origin change.
 - Chat bubbles are RN views over the canvas, positioned from the actor's shared values through the camera; they don't scale with zoom.
 - Items and avatars are drawn into one world `SkPicture` every frame on the UI thread, depth-sorted by live position (`gx + gy`, +0.5 for avatars), so walking past furniture sorts correctly mid-walk.

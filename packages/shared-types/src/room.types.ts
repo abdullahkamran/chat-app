@@ -1,5 +1,5 @@
 import { Animation } from "./animation.types";
-import { CharacterDirection, Dimensions, Orientiation, Position } from "./dimensions.types";
+import { Dimensions, Orientiation, Position } from "./dimensions.types";
 import { Item, ItemState } from "./item.types";
 import { User } from "./user.types";
 
@@ -48,14 +48,6 @@ export type ActorAction =
     | { kind: 'emote'; animation: Animation['name'] };
 
 export type ActorActionKind = ActorAction['kind'];
-
-export interface RoomCharacter {
-    user: User;
-    position: Position;
-    direction: CharacterDirection;
-    messages: Array<string>;
-    isTyping: boolean;
-}
 
 export interface Door {
     position: Position;

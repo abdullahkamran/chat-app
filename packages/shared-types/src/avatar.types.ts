@@ -47,7 +47,7 @@ export interface AvatarItemVariant {
     sourceUrl?: string;
     price: Amount;
     color?: string;
-    /** Packed rig art for the Skia room engine; the legacy engine keeps using sourceUrl. */
+    /** Packed rig art for the Skia room engine; 2D previews (UserCharacter) keep using sourceUrl. */
     rigAsset?: WearableAsset;
 }
 

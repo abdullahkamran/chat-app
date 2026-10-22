@@ -18,10 +18,3 @@ export const Orientiation = {
 } as const;
 
 export type Orientiation = (typeof Orientiation)[keyof typeof Orientiation];
-
-export const CharacterDirection = {
-    LEFT: 'LEFT',
-    RIGHT: 'RIGHT',
-} as const;
-
-export type CharacterDirection = (typeof CharacterDirection)[keyof typeof CharacterDirection];

@@ -5,7 +5,7 @@ import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { gridToScreen, type GridOrigin } from '@/constants/grid';
 import type { ActorActionKind } from '@chat-app/shared-types';
 import type { ActorState, ChatBubble } from '../../core/contract';
-import Bubble from '../legacy/Bubble';
+import Bubble from '../../components/Bubble';
 import { AVATAR_HEIGHT } from './skeleton/humanoidV1';
 import { useActorWalk, type ActorMotion } from './actorMotion';
 import type { Camera } from './useCamera';

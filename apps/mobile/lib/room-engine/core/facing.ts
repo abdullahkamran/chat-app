@@ -1,4 +1,4 @@
-import { CharacterDirection, Facing, type RigView } from '@chat-app/shared-types';
+import { Facing, type RigView } from '@chat-app/shared-types';
 
 /**
  * Facing for a move by (dgx, dgy) grid cells.
@@ -14,13 +14,6 @@ export function facingFromDelta(dgx: number, dgy: number): Facing {
   const south = dgx + dgy >= 0;
   if (south) return east ? Facing.SE : Facing.SW;
   return east ? Facing.NE : Facing.NW;
-}
-
-/** Collapse a facing to the two directions a mirrored sprite can show. */
-export function facingToDirection(facing: Facing): CharacterDirection {
-  return facing === Facing.NW || facing === Facing.SW
-    ? CharacterDirection.LEFT
-    : CharacterDirection.RIGHT;
 }
 
 /**

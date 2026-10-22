@@ -2,7 +2,7 @@ import { HUMANOID_V1, type BoneName, type RigView } from '@chat-app/shared-types
 
 export { HUMANOID_V1 };
 
-/** Avatar height in content pixels at zoom 1 (feet to top of head), same as the legacy character. */
+/** Avatar height in content pixels at zoom 1 (feet to top of head): two tile heights. */
 export const AVATAR_HEIGHT = 80;
 
 const BONES = HUMANOID_V1.bones;

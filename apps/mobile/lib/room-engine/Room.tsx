@@ -1,9 +1,11 @@
-import { getRoomEngine } from './core/registry';
+import type { RoomEngine } from './core/contract';
+import { skiaEngine } from './engines/skia';
 import { RoomShell } from './session/RoomShell';
 import { useRoomSession } from './session/useRoomSession';
 
-// Chosen once per bundle from EXPO_PUBLIC_ROOM_ENGINE.
-const engine = getRoomEngine();
+// The only engine since the legacy View-based one was deleted (2026-10-22). The contract
+// stays, so another engine can be swapped in here.
+const engine: RoomEngine = skiaEngine;
 
 export function Room({ roomId }: Readonly<{ roomId: string }>) {
   const session = useRoomSession(roomId, engine.capabilities);

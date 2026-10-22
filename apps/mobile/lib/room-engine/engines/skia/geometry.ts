@@ -17,7 +17,7 @@ export interface ScreenRect {
 
 /**
  * Screen rectangle an item's image is fitted into, in content (pre-camera) pixels.
- * Same anchoring as the legacy engine: bottom-centre on the item's grid position.
+ * Anchored bottom-centre on the item's grid position.
  */
 export function itemRect(roomItem: RoomItem, origin: GridOrigin): ScreenRect {
   const dims = getEffectiveDimensions(roomItem.itemId.dimensions, roomItem.orientation);
@@ -52,7 +52,7 @@ export function hitTestItems(
 
 /** Bounds-checked integer cell for an edit-mode tap, or null when it misses the floor. */
 export function cellAt(gx: number, gy: number, dims: { x: number; y: number }) {
-  // Edit cells are centred on grid vertices (matches the legacy GridOverlay), so round, don't floor.
+  // Edit cells are centred on grid vertices, so round, don't floor.
   const cx = Math.round(gx);
   const cy = Math.round(gy);
   if (cx < 0 || cy < 0 || cx >= dims.x || cy >= dims.y) return null;
