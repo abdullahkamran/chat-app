@@ -15,6 +15,10 @@ export const SocketEvent = {
   RECEIVE_AVATAR_CHANGED: "receive_avatar_changed",
   SEND_ACTION: "send_action",
   RECEIVE_ACTION: "receive_action",
+  /** Sent only to a user entering a room: everyone already there. */
+  RECEIVE_ROOM_PRESENCE: "receive_room_presence",
+  /** Sent only to a user whose sit was for a seat someone else holds. */
+  RECEIVE_SIT_REFUSED: "receive_sit_refused",
 } as const;
 
 export type SocketEvent = typeof SocketEvent[keyof typeof SocketEvent];

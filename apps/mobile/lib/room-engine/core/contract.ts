@@ -38,6 +38,8 @@ export interface RoomScene {
 export interface ChatBubble {
   id: string;
   text: string;
+  /** When it was sent, by this device's clock (`Date.now()`); earlier for one seen late, from the presence snapshot. */
+  sentAt: number;
 }
 
 /** A character in the room. Changes often. */

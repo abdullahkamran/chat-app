@@ -18,6 +18,8 @@ import {
   type ItemSeat,
   type Position,
   type RoomItem,
+  type RoomOccupant,
+  type RoomPresenceState,
   type User,
 } from '@chat-app/shared-types';
 import type { ActorState, EditState, EngineCapabilities, RoomMode, RoomScene } from '../core/contract';
@@ -82,6 +84,8 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     userId,
     handlers: {
       onEnter: receiveEnter,
+      onPresence: receivePresence,
+      onSitRefused: receiveSitRefused,
       onExit: receiveExit,
       onPoint: receivePoint,
       onMessage: receiveMessage,
@@ -89,13 +93,14 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
       onAvatarChanged: receiveAvatarChanged,
       onAction: receiveAction,
     },
-    getMyPosition: () => {
-      const actor = actors[userId ?? ''];
-      return actor ? { x: actor.position.x, y: actor.position.y } : { x: 0, y: 0 };
-    },
-    getMyAction: () => {
-      const action = actors[userId]?.action;
-      return pendingSitRef.current[userId] ?? (action?.kind === 'sit' ? action : null);
+    // Doors and seats must be known before occupants can be placed.
+    enabled: !!roomDetails,
+    getMyState: () => {
+      const me = actors[userId];
+      if (!me) return {};
+      const position = { x: me.position.x, y: me.position.y };
+      const seat = seatOf(me);
+      return seat ? { position, action: seat } : { position };
     },
     onEnterMe: () => enterCharacter(userId ?? ''),
     onReconnect: dropRemoteActors,
@@ -109,10 +114,44 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     pendingEmoteRef.current = {};
   }
 
-  function receiveEnter({ userId }: { userId: string }) {
+  function receiveEnter({ userId, ...state }: { userId: string } & RoomPresenceState) {
+    // A re-entry after their reconnect: they are already somewhere in the room.
+    if (state.position || state.action) {
+      placeActor(userId, state);
+      return;
+    }
     // Users often change outfit between visits, so entering always refetches.
     if (actors[userId]) fetchAvatar(userId);
     enterCharacter(userId);
+  }
+
+  /** Everyone already in the room when we entered. They appear where they are, not at the door. */
+  function receivePresence({ occupants }: { occupants: RoomOccupant[] }) {
+    for (const { userId: uid, bubbles = [], ...state } of occupants) {
+      placeActor(uid, state);
+      // Bubbles still up show for the time they have left.
+      for (const b of bubbles) pushChatMessage(uid, b.text, b.elapsedMs);
+    }
+  }
+
+  /**
+   * Someone else took the seat first. Stay standing in front of it; if the walk already
+   * ended and we sat down, stand up. Then tell the room where we stand, as it never saw the sit.
+   */
+  function receiveSitRefused({ action }: { action: SitAction }) {
+    const me = actors[userId];
+    const found = findSeat(roomDetails?.items ?? [], action);
+    if (!me || !found) return;
+    const spot = standingSpot(found.item, found.seat);
+    const pending = pendingSitRef.current[userId];
+    if (pending && sameSeat(pending, action)) {
+      delete pendingSitRef.current[userId];
+    } else if (me.action.kind === 'sit' && sameSeat(me.action, action)) {
+      setActorDestination(userId, spot.gx, spot.gy);
+    } else {
+      return;
+    }
+    moveMe(spot.gx, spot.gy);
   }
 
   function receiveExit({ userId }: { userId: string }) {
@@ -147,13 +186,20 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
   }
 
   function receivePoint({ userId, x, y }: { userId: string; x: number; y: number }) {
-    enterCharacter(userId);
+    // Only an enter brings someone in through the door; anyone else unseen is placed directly.
+    if (!actors[userId]) {
+      placeActor(userId, { position: { x, y } });
+      return;
+    }
     setActorDestination(userId, x, y);
   }
 
   function receiveAction({ userId, action }: { userId: string; action: ActorAction }) {
     if (action.kind === 'sit') {
-      enterCharacter(userId);
+      if (!actors[userId]) {
+        placeActor(userId, { action });
+        return;
+      }
       walkToSeat(userId, action);
     } else if (action.kind === 'emote') {
       enterCharacter(userId);
@@ -179,26 +225,57 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     }, 2000);
   }
 
+  /** Where people come in: the entry door. */
+  function doorPosition(): Position {
+    const spawnDoor = roomDetails?.doors?.find(d => d.isEntry);
+    return spawnDoor
+      ? { x: spawnDoor.position.x, y: spawnDoor.position.y, z: 0 }
+      : { x: 0, y: 0, z: 0 };
+  }
+
+  function newActor(uid: string, position: Position): ActorState {
+    return {
+      id: uid,
+      user: { _id: uid } as User,
+      position,
+      facing: Facing.SE,
+      action: { kind: 'idle' },
+      bubbles: [],
+      isTyping: false,
+    };
+  }
+
   function enterCharacter(uid: string) {
     if (actors[uid]) return;
     fetchAvatar(uid);
-    const spawnDoor = roomDetails?.doors?.find(d => d.isEntry);
-    const spawnPos = spawnDoor
-      ? { x: spawnDoor.position.x, y: spawnDoor.position.y, z: 0 }
-      : { x: 0, y: 0, z: 0 };
+    const actor = newActor(uid, doorPosition());
+    setActors(current => ({ ...current, [uid]: actor }));
+  }
 
-    setActors(current => ({
-      ...current,
-      [uid]: {
-        id: uid,
-        user: { _id: uid } as User,
-        position: spawnPos,
-        facing: Facing.SE,
-        action: { kind: 'idle' },
-        bubbles: [],
-        isTyping: false,
-      },
-    }));
+  /**
+   * Show a remote user where they already are, with no walk from the door: on their seat,
+   * at their point (partway through an emote if one is playing), or at the door when they
+   * haven't moved since entering.
+   */
+  function placeActor(uid: string, { position, action }: RoomPresenceState) {
+    if (!uid || uid === userId) return;
+    fetchAvatar(uid);
+    delete pendingSitRef.current[uid];
+    delete pendingEmoteRef.current[uid];
+    const seat = action?.kind === 'sit' ? findSeat(roomDetails?.items ?? [], action) : null;
+    const at = seat
+      ? seatPosition(seat.item, seat.seat)
+      : position ? { x: position.x, y: position.y, z: 0 } : doorPosition();
+    let next: ActorAction = { kind: 'idle' };
+    if (seat && action) next = action;
+    else if (action?.kind === 'emote' && canEmote) next = action;
+    setActors(current => {
+      const actor = current[uid] ?? newActor(uid, at);
+      return {
+        ...current,
+        [uid]: { ...actor, position: at, facing: seat ? seat.seat.facing : actor.facing, action: next },
+      };
+    });
   }
 
   function exitCharacter(uid: string) {
@@ -211,8 +288,9 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     });
   }
 
-  function pushChatMessage(uid: string, message: string) {
-    const bubble = { id: `${bubbleIdRef.current++}`, text: message };
+  /** `elapsedMs` is how long ago it was sent, for a message seen late. */
+  function pushChatMessage(uid: string, message: string, elapsedMs = 0) {
+    const bubble = { id: `${bubbleIdRef.current++}`, text: message, sentAt: Date.now() - elapsedMs };
     setActors(current => {
       const actor = current[uid];
       if (!actor) return current;

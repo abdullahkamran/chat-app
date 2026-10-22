@@ -5,6 +5,8 @@ interface BubbleProps {
   message?: string;
   isTyping?: boolean;
   duration?: number;
+  /** When the message was sent (`Date.now()`); the bubble closes `duration` after that, not after it appears. */
+  sentAt?: number;
   close?: () => void;
 }
 
@@ -66,12 +68,13 @@ const styles = StyleSheet.create({
   },
 });
 
-export default function Bubble({ message, isTyping, duration = 3500, close }: BubbleProps) {
+export default function Bubble({ message, isTyping, duration = 3500, sentAt, close }: BubbleProps) {
   useEffect(() => {
     if (!close) return;
-    const timer = setTimeout(close, duration);
+    const left = sentAt === undefined ? duration : sentAt + duration - Date.now();
+    const timer = setTimeout(close, Math.max(0, left));
     return () => clearTimeout(timer);
-  }, [close, duration]);
+  }, [close, duration, sentAt]);
 
   return (
     <View style={styles.container}>

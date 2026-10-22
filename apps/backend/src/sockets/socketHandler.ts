@@ -1,28 +1,39 @@
 import { Socket } from 'socket.io';
 import mongoose from 'mongoose';
 import { SocketEvent } from '@chat-app/socket-constants';
-import { AnimationCategory, type ActorAction } from '@chat-app/shared-types';
+import { AnimationCategory, type RoomPresenceState } from '@chat-app/shared-types';
 import Animation from '../models/animation.model';
 import User from '../models/user.model';
 import { sendPushToRoom } from '../services/notification.service';
+import { roomPresence, type EmoteAction, type Presence, type SitAction } from './roomPresence';
+
+/** A grid point with finite coordinates, or null. */
+function parsePoint(p: unknown): { x: number; y: number } | null {
+    const { x, y } = (p ?? {}) as { x?: unknown; y?: unknown };
+    return typeof x === 'number' && typeof y === 'number' && Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
+}
+
+/** A well-formed sit action, copied field by field so nothing else is stored or relayed. */
+function parseSit(action: unknown): SitAction | null {
+    const a = action as Partial<Record<string, unknown>> | null;
+    if (a?.kind !== 'sit' || typeof a.itemId !== 'string' || !Number.isInteger(a.seatIndex)) return null;
+    const at = parsePoint(a.at);
+    return at && { kind: 'sit', itemId: a.itemId, at, seatIndex: a.seatIndex as number };
+}
 
 /**
  * Actions clients may broadcast: sitting, and emotes the user owns. Walks are sent as points.
+ * Returns the action to relay, or null.
  */
-async function mayRelay(userId: string, action: unknown): Promise<boolean> {
+async function allowedAction(userId: string, action: unknown): Promise<SitAction | EmoteAction | null> {
     const a = action as Partial<Record<string, unknown>> | null;
-    if (a?.kind === 'sit') {
-        const at = a.at as { x?: unknown; y?: unknown } | undefined;
-        return typeof a.itemId === 'string'
-            && Number.isInteger(a.seatIndex)
-            && Number.isFinite(at?.x)
-            && Number.isFinite(at?.y);
-    }
+    if (a?.kind === 'sit') return parseSit(a);
     if (a?.kind === 'emote' && typeof a.animation === 'string') {
         const emote = await Animation.findOne({ name: a.animation, category: AnimationCategory.EMOTE }).select('_id');
-        return !!emote && !!(await User.exists({ _id: userId, animations: emote._id }));
+        const owned = !!emote && !!(await User.exists({ _id: userId, animations: emote._id }));
+        return owned ? { kind: 'emote', animation: a.animation } : null;
     }
-    return false;
+    return null;
 }
 
 /** Whether the user may enter the room: a member of it or its owner. */
@@ -85,7 +96,10 @@ const handler = {
         }
 
         socket.on(SocketEvent.SEND_MESSAGE, inRoom(SocketEvent.SEND_MESSAGE, ({ message, roomId }: { message: string; roomId: string }) => {
+            if (typeof message !== 'string') return;
             console.log(SocketEvent.SEND_MESSAGE, { userId, roomId, message });
+            const me = roomPresence.own(roomId, userId, socket.id);
+            if (me) roomPresence.addMessage(me, message);
             socket.to(roomId).emit(SocketEvent.RECEIVE_MESSAGE, { roomId, userId, message });
             sendPushToRoom(roomId, userId, {
                 title: 'New message',
@@ -94,22 +108,54 @@ const handler = {
             });
         }));
 
+        // A walk to a point. Walking leaves any seat and ends any emote.
         socket.on(SocketEvent.SEND_POINT, inRoom(SocketEvent.SEND_POINT, ({ roomId, x, y }: { roomId: string; x: number; y: number }) => {
+            const point = parsePoint({ x, y });
+            if (!point) return;
             console.log(SocketEvent.SEND_POINT, { userId, roomId, x, y });
-            socket.to(roomId).emit(SocketEvent.RECEIVE_POINT, { roomId, userId, x, y });
+            const me = roomPresence.own(roomId, userId, socket.id);
+            if (me) {
+                me.position = point;
+                me.sit = undefined;
+                me.emote = undefined;
+            }
+            socket.to(roomId).emit(SocketEvent.RECEIVE_POINT, { roomId, userId, ...point });
         }));
 
         // Join the room's channel on entry rather than at connect, so rooms joined or created
         // while connected work at once, and owners (`ownedRooms`) hear their own rooms.
-        socket.on(SocketEvent.SEND_ENTER, inOrder(SocketEvent.SEND_ENTER, async ({ roomId }: { roomId: string }) => {
+        // A first entry carries no state: the user appears at the entry door. A re-entry after
+        // a reconnect carries where the user was, so others place them there directly.
+        socket.on(SocketEvent.SEND_ENTER, inOrder(SocketEvent.SEND_ENTER, async ({ roomId, position, action }: { roomId: string } & RoomPresenceState) => {
             if (!(await canEnter(userId, roomId))) {
                 console.warn(SocketEvent.SEND_ENTER, 'refused: not a member', { userId, roomId });
                 return;
             }
             console.log(SocketEvent.SEND_ENTER, { userId, roomId });
+
+            const presence: Presence = { socketId: socket.id };
+            const point = parsePoint(position);
+            if (point) presence.position = point;
+            const sit = parseSit(action);
+            const holder = sit && roomPresence.seatHolder(roomId, sit);
+            if (sit && holder && holder !== userId) {
+                socket.emit(SocketEvent.RECEIVE_SIT_REFUSED, { roomId, action: sit });
+            } else if (sit) {
+                presence.sit = sit;
+            }
+            const state: RoomPresenceState = {};
+            if (presence.position) state.position = presence.position;
+            if (presence.sit) state.action = presence.sit;
+
+            // No await from the snapshot to the broadcast: the newcomer must not miss an event
+            // that isn't in the snapshot, nor get one twice. The in-memory adapter joins at once.
+            const occupants = roomPresence.snapshot(roomId, userId);
+            roomPresence.enter(roomId, userId, presence);
             presentRoomIds.add(roomId);
-            await socket.join(roomId);
-            socket.to(roomId).emit(SocketEvent.RECEIVE_ENTER, { roomId, userId });
+            socket.emit(SocketEvent.RECEIVE_ROOM_PRESENCE, { roomId, occupants });
+            const joined = socket.join(roomId);
+            socket.to(roomId).emit(SocketEvent.RECEIVE_ENTER, { roomId, userId, ...state });
+            await joined;
             sendPushToRoom(roomId, userId, {
                 title: 'Room activity',
                 body: 'Someone entered the room',
@@ -120,8 +166,11 @@ const handler = {
         socket.on(SocketEvent.SEND_EXIT, inRoom(SocketEvent.SEND_EXIT, async ({ roomId }: { roomId: string }) => {
             console.log(SocketEvent.SEND_EXIT, { userId, roomId });
             presentRoomIds.delete(roomId);
-            socket.to(roomId).emit(SocketEvent.RECEIVE_EXIT, { roomId, userId });
+            // False when the user has since entered from another socket; they are still here.
+            const left = roomPresence.leave(roomId, userId, socket.id);
+            if (left) socket.to(roomId).emit(SocketEvent.RECEIVE_EXIT, { roomId, userId });
             await socket.leave(roomId);
+            if (!left) return;
             sendPushToRoom(roomId, userId, {
                 title: 'Room activity',
                 body: 'Someone left the room',
@@ -135,10 +184,30 @@ const handler = {
         }));
 
         // A room action other than walking (sitting, emotes). Walks still travel as SEND_POINT.
-        socket.on(SocketEvent.SEND_ACTION, inRoom(SocketEvent.SEND_ACTION, async ({ roomId, action }: { roomId: string; action: ActorAction }) => {
-            if (!(await mayRelay(userId, action))) return;
-            console.log(SocketEvent.SEND_ACTION, { userId, roomId, action });
-            socket.to(roomId).emit(SocketEvent.RECEIVE_ACTION, { roomId, userId, action });
+        // The server decides who gets a seat: a sit for a seat someone else holds is refused,
+        // and only the sender hears about it.
+        socket.on(SocketEvent.SEND_ACTION, inRoom(SocketEvent.SEND_ACTION, async ({ roomId, action }: { roomId: string; action: unknown }) => {
+            const allowed = await allowedAction(userId, action);
+            if (!allowed) return;
+            // Nothing below awaits, so the seat check and the claim can't interleave with another sit.
+            const me = roomPresence.own(roomId, userId, socket.id);
+            if (allowed.kind === 'sit') {
+                const holder = roomPresence.seatHolder(roomId, allowed);
+                if (holder && holder !== userId) {
+                    console.log(SocketEvent.SEND_ACTION, 'refused: seat taken', { userId, roomId, holder });
+                    socket.emit(SocketEvent.RECEIVE_SIT_REFUSED, { roomId, action: allowed });
+                    return;
+                }
+                if (me) {
+                    me.sit = allowed;
+                    me.emote = undefined;
+                }
+            } else if (me && !me.sit) {
+                // Clients don't play emotes while seated, so neither is one recorded.
+                me.emote = { animation: allowed.animation, startedAt: Date.now() };
+            }
+            console.log(SocketEvent.SEND_ACTION, { userId, roomId, action: allowed });
+            socket.to(roomId).emit(SocketEvent.RECEIVE_ACTION, { roomId, userId, action: allowed });
         }));
 
         // The user saved or switched avatars. Everyone sharing a room with them refetches it.
@@ -153,10 +222,14 @@ const handler = {
         // Remove the character for everyone else. No push: flaky networks would spam it,
         // and a reconnecting client re-enters on its own. Socket.IO drops the socket's channels
         // itself. Not queued, so it runs even if a queued handler is still waiting on the DB.
+        // A dead socket can time out after its client already reconnected and re-entered on a
+        // new one; presence then belongs to the new socket and the user stays.
         socket.on(SocketEvent.DISCONNECT, reason => {
             for (const roomId of presentRoomIds) {
                 console.log(SocketEvent.DISCONNECT, { userId, roomId, reason });
-                socket.nsp.to(roomId).emit(SocketEvent.RECEIVE_EXIT, { roomId, userId });
+                if (roomPresence.leave(roomId, userId, socket.id)) {
+                    socket.nsp.to(roomId).emit(SocketEvent.RECEIVE_EXIT, { roomId, userId });
+                }
             }
             presentRoomIds.clear();
         });

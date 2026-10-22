@@ -10,24 +10,43 @@ Remove an entry when it's fixed and mention the commit.
 Found on 2026-10-10 while testing the Skia room engine with two devices. These are in the socket layer, not
 the renderer. Two earlier entries (owners never hearing their own room, and rooms joined while connected
 staying silent until a reconnect) were fixed on 2026-10-22 by joining a room's channel on `SEND_ENTER`
-after a membership check.
+after a membership check. A third (people already in a room appearing at the door and walking to their spot,
+replies broadcast to the whole room, emotes in progress not sent, two users taking one seat) was fixed on
+2026-10-23 by server-side presence: the server sends a newcomer a snapshot and arbitrates seats
+(`apps/backend/src/sockets/roomPresence.ts`).
 
-### 1. People already in a room appear at the door and walk to where they are
+### 1. One user on two devices in the same room shows as one character
 
-**Seen:** Asad enters a room where Abdullah is already standing. Abdullah appears at the entry door and walks
-to his spot.
+**Seen:** Abdullah opens the same room on a phone and a tablet. Others see one character, moved by whichever
+device acted last.
 
-**Why:** there is no server-side presence. A newcomer only learns who's there when each occupant replies to
-its `RECEIVE_ENTER` (`announceMe` in `apps/mobile/hooks/useChat.ts`). This is fragile:
+**Why:** presence is keyed by user. The later device's enter takes over the entry, and the earlier device's
+exit or disconnect is ignored so it can't remove the user (this is what keeps reconnects clean).
 
-- the reply is a `SEND_POINT` (or, for a seated user, a `SEND_ACTION`), so the newcomer sees each occupant
-  spawn at the entry door and walk to their spot or seat;
-- it's broadcast to everyone in the room, not just the newcomer;
-- an emote in progress isn't sent, and two users can take the same seat because nobody arbitrates.
+**Fix:** key presence by socket and draw one character per device, or refuse a second device in the same room.
 
-**Fix (long term):** keep presence on the server (who is in each room, their position and current action) and
-send the newcomer a snapshot on `SEND_ENTER`. This is the long-term item under *Known presence gaps* in the
-[Room Engine Plan doc](https://claude.ai/code/artifact/cdf82cb3-27c4-48cb-a835-0e85e0fb48d1).
+### 2. Rooms only work with a single backend instance
+
+**Seen:** nothing yet; we run one instance. Run two behind a load balancer and users in the same room stop
+seeing each other whenever they're connected to different instances: no enters, walks or chat between them,
+snapshots missing people, and two users able to take the same seat.
+
+**Why:** two things live in one process's memory. Room presence (`apps/backend/src/sockets/roomPresence.ts`)
+is a `Map` per process, so each instance only knows its own sockets. And Socket.IO's default adapter only
+broadcasts to sockets on the same instance, so relays (`socket.to(roomId)`) never cross instances.
+
+**Fix:** before running more than one instance, add Redis:
+
+- the Socket.IO Redis adapter (`@socket.io/redis-adapter`), so room broadcasts reach every instance;
+- presence in Redis, e.g. a hash per room keyed by user, with the owning socket id in each entry;
+- the seat claim as one atomic Redis step (a Lua script or `WATCH`/`MULTI`), so two instances can't both
+  grant a seat;
+- clear a dead instance's entries, e.g. with a TTL refreshed while the socket is alive, or by listing the
+  live sockets on startup.
+
+The handler's ordering also relies on the in-memory adapter joining at once (no await between the snapshot
+and the join). With Redis, `join` is async, so the snapshot and join need re-checking, e.g. join first and
+drop relayed events the snapshot already covers.
 
 ---
 

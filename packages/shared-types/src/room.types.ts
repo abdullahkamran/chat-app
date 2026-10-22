@@ -45,9 +45,25 @@ export type ActorAction =
     | { kind: 'walk'; path: Position[] }
     /** `at` is the placed item's grid position, which tells apart copies of the same item. */
     | { kind: 'sit'; itemId: Item['_id']; at: { x: number; y: number }; seatIndex: number }
-    | { kind: 'emote'; animation: Animation['name'] };
+    /** `elapsedMs` is how far in the emote already is, for someone who sees it start late. */
+    | { kind: 'emote'; animation: Animation['name']; elapsedMs?: number };
 
 export type ActorActionKind = ActorAction['kind'];
+
+/** Where a user is in a room: the point they stand on or walk to, and a lasting action. */
+export interface RoomPresenceState {
+    /** Absent until they first move; they are still at the entry door. */
+    position?: { x: number; y: number };
+    /** Seated, or partway through an emote. Absent when standing or walking. */
+    action?: Extract<ActorAction, { kind: 'sit' | 'emote' }>;
+}
+
+/** Someone already in a room, as the server sends it to a newcomer (`RECEIVE_ROOM_PRESENCE`). */
+export interface RoomOccupant extends RoomPresenceState {
+    userId: User['_id'];
+    /** Recent chat messages, oldest first, with how long ago each was sent; their bubbles may still be up. */
+    bubbles?: { text: string; elapsedMs: number }[];
+}
 
 export interface Door {
     position: Position;

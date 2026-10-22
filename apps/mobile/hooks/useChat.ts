@@ -1,11 +1,18 @@
 import { useEffect, useRef } from 'react';
 
-import type { ActorAction } from '@chat-app/shared-types';
+import type { ActorAction, RoomOccupant, RoomPresenceState } from '@chat-app/shared-types';
 import { SocketEvent } from '@chat-app/socket-constants';
 import { socketUtils } from '@/utils/socketUtils';
 
+type SitAction = Extract<ActorAction, { kind: 'sit' }>;
+
 interface ReceiveHandlers {
-  onEnter: (payload: { userId: string }) => void;
+  /** Someone entered. A re-entry after their reconnect carries where they were. */
+  onEnter: (payload: { userId: string } & RoomPresenceState) => void;
+  /** Everyone already in the room, sent to us alone each time we enter. */
+  onPresence: (payload: { occupants: RoomOccupant[] }) => void;
+  /** The server refused our sit because someone else holds that seat. */
+  onSitRefused: (payload: { action: SitAction }) => void;
   onExit: (payload: { userId: string }) => void;
   onPoint: (payload: { userId: string; x: number; y: number }) => void;
   onMessage: (payload: { userId: string; message: string }) => void;
@@ -18,17 +25,14 @@ interface UseChatParams {
   roomId: string;
   userId: string;
   handlers: ReceiveHandlers;
-  getMyPosition: () => { x: number; y: number };
-  /**
-   * A lasting action to announce in place of the position when someone enters, such
-   * as sitting. Receivers walk the actor there themselves, so no point is sent.
-   */
-  getMyAction?: () => ActorAction | null;
+  /** Where we are, sent with a re-entry after a reconnect so others place us there directly. */
+  getMyState: () => RoomPresenceState;
+  /** Enter only once this is true, e.g. when the room's doors and seats are known. */
+  enabled: boolean;
   onEnterMe?: () => void;
   /**
    * The socket reconnected after a drop. Events during the gap were lost, so drop
-   * remote characters; everyone present re-announces their position in reply to
-   * our re-enter.
+   * remote characters; the server sends a fresh snapshot in reply to our re-enter.
    */
   onReconnect?: () => void;
 }
@@ -36,51 +40,36 @@ interface UseChatParams {
 /** Every room event the server relays carries the room it came from. */
 type RoomPayload<T> = T & { roomId: string };
 
-export function useChat({ roomId, userId, handlers, getMyPosition, getMyAction, onEnterMe, onReconnect }: UseChatParams) {
+export function useChat({ roomId, userId, handlers, getMyState, enabled, onEnterMe, onReconnect }: UseChatParams) {
 
   // Callers pass fresh closures every render. Keep the latest ones in refs so the
   // socket subscription below only resets when the room or user changes — otherwise
   // every re-render would emit SEND_EXIT + SEND_ENTER and re-register listeners.
   const handlersRef = useRef(handlers);
-  const getMyPositionRef = useRef(getMyPosition);
-  const getMyActionRef = useRef(getMyAction);
+  const getMyStateRef = useRef(getMyState);
   const onEnterMeRef = useRef(onEnterMe);
   const onReconnectRef = useRef(onReconnect);
   useEffect(() => {
     handlersRef.current = handlers;
-    getMyPositionRef.current = getMyPosition;
-    getMyActionRef.current = getMyAction;
+    getMyStateRef.current = getMyState;
     onEnterMeRef.current = onEnterMe;
     onReconnectRef.current = onReconnect;
   });
 
-  const pointMe = () => {
-    if (!socketUtils.socket) return;
-    const { x, y } = getMyPositionRef.current();
-    socketUtils.socket.emit(SocketEvent.SEND_POINT, { roomId, x, y });
-  };
-
   useEffect(() => {
     const socket = socketUtils.socket;
-    if (!socket) return;
-
-    // Tell others where we are: a lasting action (sitting) if there is one, else our position.
-    const announceMe = () => {
-      const action = getMyActionRef.current?.();
-      if (action) {
-        socket.emit(SocketEvent.SEND_ACTION, { roomId, action });
-        return;
-      }
-      const { x, y } = getMyPositionRef.current();
-      socket.emit(SocketEvent.SEND_POINT, { roomId, x, y });
-    };
+    if (!socket || !enabled) return;
 
     // The socket is joined to every room the user belongs to, so it also receives
     // events from rooms other than the one on screen. Ignore those.
-    const handleEnter = (p: RoomPayload<{ userId: string }>) => {
-      if (p.roomId !== roomId) return;
-      handlersRef.current.onEnter(p);
-      announceMe();
+    const handleEnter = (p: RoomPayload<{ userId: string } & RoomPresenceState>) => {
+      if (p.roomId === roomId) handlersRef.current.onEnter(p);
+    };
+    const handlePresence = (p: RoomPayload<{ occupants: RoomOccupant[] }>) => {
+      if (p.roomId === roomId) handlersRef.current.onPresence(p);
+    };
+    const handleSitRefused = (p: RoomPayload<{ action: SitAction }>) => {
+      if (p.roomId === roomId) handlersRef.current.onSitRefused(p);
     };
     const handleExit = (p: RoomPayload<{ userId: string }>) => {
       if (p.roomId === roomId) handlersRef.current.onExit(p);
@@ -106,11 +95,12 @@ export function useChat({ roomId, userId, handlers, getMyPosition, getMyAction, 
     const handleReconnect = () => {
       if (!userId) return;
       onReconnectRef.current?.();
-      socket.emit(SocketEvent.SEND_ENTER, { roomId });
-      announceMe();
+      socket.emit(SocketEvent.SEND_ENTER, { roomId, ...getMyStateRef.current() });
     };
 
     socket.on(SocketEvent.RECEIVE_ENTER, handleEnter);
+    socket.on(SocketEvent.RECEIVE_ROOM_PRESENCE, handlePresence);
+    socket.on(SocketEvent.RECEIVE_SIT_REFUSED, handleSitRefused);
     socket.on(SocketEvent.RECEIVE_EXIT, handleExit);
     socket.on(SocketEvent.RECEIVE_POINT, handlePoint);
     socket.on(SocketEvent.RECEIVE_MESSAGE, handleMessage);
@@ -127,6 +117,8 @@ export function useChat({ roomId, userId, handlers, getMyPosition, getMyAction, 
     return () => {
       socket.emit(SocketEvent.SEND_EXIT, { roomId });
       socket.off(SocketEvent.RECEIVE_ENTER, handleEnter);
+      socket.off(SocketEvent.RECEIVE_ROOM_PRESENCE, handlePresence);
+      socket.off(SocketEvent.RECEIVE_SIT_REFUSED, handleSitRefused);
       socket.off(SocketEvent.RECEIVE_EXIT, handleExit);
       socket.off(SocketEvent.RECEIVE_POINT, handlePoint);
       socket.off(SocketEvent.RECEIVE_MESSAGE, handleMessage);
@@ -135,7 +127,7 @@ export function useChat({ roomId, userId, handlers, getMyPosition, getMyAction, 
       socket.off(SocketEvent.RECEIVE_ACTION, handleAction);
       socket.io.off('reconnect', handleReconnect);
     };
-  }, [roomId, userId]);
+  }, [roomId, userId, enabled]);
 
   return {
     moveMe: (x: number, y: number) => {
@@ -154,6 +146,5 @@ export function useChat({ roomId, userId, handlers, getMyPosition, getMyAction, 
       if (!socketUtils.socket) return;
       socketUtils.socket.emit(SocketEvent.SEND_TYPING, { roomId });
     },
-    pointMe,
   };
 }

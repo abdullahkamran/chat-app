@@ -62,6 +62,8 @@ interface ActorDraw {
   emoting: boolean;
   /** The emote's clip, or '' when not emoting or the client has no clip for it. */
   emote: ClipId | '';
+  /** Seconds into the emote to start at; non-zero when we saw it start late (joined the room mid-emote). */
+  emoteStart: number;
   /** Changes with every new action, so the same emote sent twice plays twice. */
   actionKey: number;
   /** Depth of the item the actor sits on, or -1. */
@@ -169,9 +171,10 @@ function byDepth(p: { depth: number }, q: { depth: number }): number {
 function advance(prev: AnimRuntime | undefined, a: ActorDraw, gx: number, gy: number, dt: number): AnimRuntime {
   'worklet';
   const want: ClipId = a.walking ? 'walk' : a.sitting ? 'sit' : a.emote !== '' ? a.emote : 'idle';
+  const startTime = want === a.emote ? a.emoteStart : 0;
   if (!prev) {
     return {
-      clip: want, time: 0, prevClip: '', prevTime: 0, fade: 1,
+      clip: want, time: startTime, prevClip: '', prevTime: 0, fade: 1,
       facing: a.facing, propFacing: a.facing, lastGx: gx, lastGy: gy,
       seatDepth: a.seatDepth, standHold: 0, actionKey: a.actionKey, reportedKey: 0,
     };
@@ -205,7 +208,7 @@ function advance(prev: AnimRuntime | undefined, a: ActorDraw, gx: number, gy: nu
     st.prevClip = st.clip;
     st.prevTime = st.time;
     st.clip = want;
-    st.time = 0;
+    st.time = startTime;
     st.fade = 0;
   }
 
@@ -318,6 +321,7 @@ export function useWorldPicture({
       sitting: a.action.kind === 'sit',
       emoting: a.action.kind === 'emote',
       emote: a.action.kind === 'emote' && isEmoteClip(a.action.animation) ? a.action.animation : '',
+      emoteStart: a.action.kind === 'emote' ? (a.action.elapsedMs ?? 0) / 1000 : 0,
       actionKey: actionKey(a.action),
       seatDepth: seat ? itemDepth(seat.item) + SEATED_DEPTH : -1,
       facing: a.facing,
