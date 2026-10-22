@@ -1,4 +1,4 @@
-import type { AnimationClip, BoneTrack, BoneName, RigView } from '@chat-app/shared-types';
+import type { AnimationClip, BoneTrack, BoneName, ClipKey, RigView } from '@chat-app/shared-types';
 
 /**
  * Hand-written clips for humanoid-v1 (no animation editor; decided 2026-10-10).
@@ -197,6 +197,68 @@ const SIT_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
   'foreArm.R': { rotate: [{ t: 0, v: -45 }] },
 };
 
+/**
+ * Emotes. One-shot clips named after their Animation catalog entry; they start and end
+ * near the bind pose so the crossfades in and out stay short. Raising an arm forward
+ * and up is negative (-90 points it ahead, -180 straight up); leaning the chest back is
+ * negative too. The near arm in the front view is `.L`.
+ */
+function keys(times: number[], values: number[]): ClipKey<number>[] {
+  return times.map((t, i) => ({ t, v: values[i], ease: 'inOut' }));
+}
+
+/** The near arm goes up and the hand waves side to side three times. */
+const WAVE_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
+  'upperArm.L': { rotate: keys([0, 0.3, 1.5, 1.8], [0, -160, -160, 0]) },
+  'foreArm.L': { rotate: keys([0, 0.3, 0.5, 0.7, 0.9, 1.1, 1.3, 1.5, 1.8], [0, 0, 35, -15, 35, -15, 35, 0, 0]) },
+  chest: { rotate: keys([0, 0.3, 1.5, 1.8], [0, -2, -2, 0]) },
+  head: { rotate: keys([0, 0.3, 1.5, 1.8], [0, 5, 5, 0]) },
+};
+
+/** Both hands come up in front and clap five times. */
+const CLAP_BEATS = [0.3, 0.45, 0.6, 0.75, 0.9, 1.05, 1.2, 1.35];
+const CLAP_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
+  'upperArm.L': { rotate: keys([0, 0.25, 1.35, 1.6], [0, -50, -50, 0]) },
+  'upperArm.R': { rotate: keys([0, 0.25, 1.35, 1.6], [0, -50, -50, 0]) },
+  'foreArm.L': { rotate: keys([0, ...CLAP_BEATS, 1.6], [0, -60, -85, -60, -85, -60, -85, -60, -85, 0]) },
+  'foreArm.R': { rotate: keys([0, ...CLAP_BEATS, 1.6], [0, -85, -60, -85, -60, -85, -60, -85, -60, 0]) },
+  head: { rotate: keys([0, 0.3, 1.35, 1.6], [0, 3, 3, 0]) },
+};
+
+/** Throws the head back, shakes with laughter holding the belly, then doubles forward. */
+const LAUGH_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
+  chest: { rotate: keys([0, 0.25, 0.4, 0.55, 0.7, 0.85, 1.1, 1.4, 1.6], [0, -8, -5, -8, -5, -8, 6, 6, 0]) },
+  head: { rotate: keys([0, 0.25, 0.85, 1.1, 1.4, 1.6], [0, -10, -10, 4, 4, 0]) },
+  hip: { translate: [0, 0.3, 0.45, 0.6, 0.75, 0.9, 1.6].map((t, i) => ({ t, v: [0, i % 2 ? 1.5 : 0] as [number, number], ease: 'inOut' as const })) },
+  'upperArm.L': { rotate: keys([0, 0.25, 1.4, 1.6], [0, -25, -25, 0]) },
+  'foreArm.L': { rotate: keys([0, 0.25, 1.4, 1.6], [0, -80, -80, 0]) },
+  'upperArm.R': { rotate: keys([0, 0.25, 1.4, 1.6], [0, -25, -25, 0]) },
+  'foreArm.R': { rotate: keys([0, 0.25, 1.4, 1.6], [0, -80, -80, 0]) },
+};
+
+/** Eight beats of 0.4 s: hips sway and bob, arms pump up in turn, knees dip on each beat. */
+const DANCE_BEATS = [0, 0.4, 0.8, 1.2, 1.6, 2, 2.4, 2.8, 3.2];
+const alternate = (a: number, b: number) => DANCE_BEATS.map((_, i) => (i === 0 || i === 8 ? 0 : i % 2 ? a : b));
+const DANCE_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
+  hip: {
+    translate: DANCE_BEATS.map((t, i) => ({
+      t,
+      v: (i === 0 || i === 8 ? [0, 0] : [i % 2 ? 3 : -3, 2.5]) as [number, number],
+      ease: 'inOut' as const,
+    })),
+  },
+  chest: { rotate: keys(DANCE_BEATS, alternate(8, -8)) },
+  head: { rotate: keys(DANCE_BEATS, alternate(-6, 6)) },
+  'upperArm.L': { rotate: keys(DANCE_BEATS, alternate(-150, -30)) },
+  'upperArm.R': { rotate: keys(DANCE_BEATS, alternate(-30, -150)) },
+  'foreArm.L': { rotate: keys(DANCE_BEATS, alternate(-30, -60)) },
+  'foreArm.R': { rotate: keys(DANCE_BEATS, alternate(-60, -30)) },
+  'thigh.L': { rotate: keys(DANCE_BEATS, alternate(-15, 0)) },
+  'shin.L': { rotate: keys(DANCE_BEATS, alternate(25, 0)) },
+  'thigh.R': { rotate: keys(DANCE_BEATS, alternate(0, -15)) },
+  'shin.R': { rotate: keys(DANCE_BEATS, alternate(0, 25)) },
+};
+
 function bothViews(base: Omit<AnimationClip, 'view'>): Record<RigView, AnimationClip> {
   return { front: { ...base, view: 'front' }, back: { ...base, view: 'back' } };
 }
@@ -211,9 +273,20 @@ export const CLIPS = {
     events: [{ t: 0, name: 'footstep' }, { t: 0.4, name: 'footstep' }],
   }),
   sit: bothViews({ name: 'sit', duration: 2.8, loop: true, tracks: SIT_TRACKS }),
+  wave: bothViews({ name: 'wave', duration: 1.8, loop: false, tracks: WAVE_TRACKS }),
+  clap: bothViews({ name: 'clap', duration: 1.6, loop: false, tracks: CLAP_TRACKS }),
+  laugh: bothViews({ name: 'laugh', duration: 1.6, loop: false, tracks: LAUGH_TRACKS }),
+  dance: bothViews({ name: 'dance', duration: 3.2, loop: false, tracks: DANCE_TRACKS }),
 } satisfies Record<string, Record<RigView, AnimationClip>>;
 
 export type ClipId = keyof typeof CLIPS;
+
+/** Clips an `emote` action can name; each matches an EMOTE entry in the backend's animation catalog. */
+export const EMOTE_CLIPS = ['wave', 'clap', 'laugh', 'dance'] as const satisfies readonly ClipId[];
+
+export function isEmoteClip(name: string): name is (typeof EMOTE_CLIPS)[number] {
+  return (EMOTE_CLIPS as readonly string[]).includes(name);
+}
 
 /** Walk clip is authored for this pace; playback rate scales with the actor's real pace. */
 export const WALK_AUTHORED_MS_PER_CELL = 500;

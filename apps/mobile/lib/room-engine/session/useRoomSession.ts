@@ -20,18 +20,21 @@ import {
   type RoomItem,
   type User,
 } from '@chat-app/shared-types';
-import type { ActorState, EditState, RoomMode, RoomScene } from '../core/contract';
+import type { ActorState, EditState, EngineCapabilities, RoomMode, RoomScene } from '../core/contract';
 import { facingFromDelta } from '../core/facing';
 import { findSeat, sameSeat, seatApproach, seatPosition, type SitAction } from '../core/seats';
 import { findPath, isLineClear, smoothPath } from '../core/usePathfinding';
 import { useWalkabilityGrid } from '../core/useWalkabilityGrid';
 import { useRoomDetails } from '../hooks/useRoomDetails';
 
+type EmoteAction = Extract<ActorAction, { kind: 'emote' }>;
+
 /**
  * Engine-agnostic room state: socket events, characters, chat and edit mode.
  * Engines render what this returns and report user intents back through `intents`.
+ * Actions the engine can't play (`capabilities.actions`) are skipped on this device.
  */
-export function useRoomSession(roomId: string) {
+export function useRoomSession(roomId: string, capabilities: EngineCapabilities) {
   const { data: roomDetails, isLoading, error } = useRoomDetails(roomId);
   const { data: inventoryItems = [] } = useInventory();
   const [actors, setActors] = useState<Record<User['_id'], ActorState>>({});
@@ -41,6 +44,9 @@ export function useRoomSession(roomId: string) {
   const avatarRequestRef = useRef<Record<User['_id'], number>>({});
   // Seats actors are walking to; each becomes a `sit` action when its walk completes.
   const pendingSitRef = useRef<Record<User['_id'], SitAction>>({});
+  // Emotes sent while their actor was walking; each plays when the walk completes.
+  const pendingEmoteRef = useRef<Record<User['_id'], EmoteAction>>({});
+  const canEmote = capabilities.actions.includes('emote');
 
   const { user } = useUserInfo();
   const { selectedAvatar } = useAuth();
@@ -100,6 +106,7 @@ export function useRoomSession(roomId: string) {
     setTypingUserIds(new Set());
     for (const uid of Object.keys(avatarRequestRef.current)) forgetAvatar(uid);
     pendingSitRef.current = pendingSitRef.current[userId] ? { [userId]: pendingSitRef.current[userId] } : {};
+    pendingEmoteRef.current = {};
   }
 
   function receiveEnter({ userId }: { userId: string }) {
@@ -145,9 +152,13 @@ export function useRoomSession(roomId: string) {
   }
 
   function receiveAction({ userId, action }: { userId: string; action: ActorAction }) {
-    if (action.kind !== 'sit') return;
-    enterCharacter(userId);
-    walkToSeat(userId, action);
+    if (action.kind === 'sit') {
+      enterCharacter(userId);
+      walkToSeat(userId, action);
+    } else if (action.kind === 'emote') {
+      enterCharacter(userId);
+      playEmote(userId, action);
+    }
   }
 
   function receiveMessage({ userId, message }: { userId: string; message: string }) {
@@ -193,6 +204,7 @@ export function useRoomSession(roomId: string) {
   function exitCharacter(uid: string) {
     forgetAvatar(uid);
     delete pendingSitRef.current[uid];
+    delete pendingEmoteRef.current[uid];
     setActors(current => {
       const { [uid]: _, ...rest } = current;
       return rest;
@@ -236,6 +248,7 @@ export function useRoomSession(roomId: string) {
   /** Point an actor at a new floor position, routing around furniture. Leaves any seat. */
   function setActorDestination(uid: string, x: number, y: number) {
     delete pendingSitRef.current[uid];
+    delete pendingEmoteRef.current[uid];
     setActors(current => {
       const actor = current[uid];
       if (!actor) return current;
@@ -321,17 +334,46 @@ export function useRoomSession(roomId: string) {
     return best;
   }
 
+  /**
+   * Play an emote on an actor: now when it stands still, after its walk when walking.
+   * Seated actors don't emote. Skipped when the engine has no emotes.
+   */
+  function playEmote(uid: string, action: EmoteAction) {
+    if (!canEmote) return;
+    const actor = actors[uid];
+    if (actor?.action.kind === 'sit' || pendingSitRef.current[uid]) return;
+    if (actor?.action.kind === 'walk') {
+      pendingEmoteRef.current[uid] = action;
+      return;
+    }
+    setActors(current => {
+      const a = current[uid];
+      if (!a || a.action.kind === 'walk' || a.action.kind === 'sit') return current;
+      return { ...current, [uid]: { ...a, action } };
+    });
+  }
+
   function onActionComplete(actorId: string, action: ActorActionKind) {
+    if (action === 'emote') {
+      setActors(current => {
+        const actor = current[actorId];
+        if (!actor || actor.action.kind !== 'emote') return current;
+        return { ...current, [actorId]: { ...actor, action: { kind: 'idle' } } };
+      });
+      return;
+    }
     if (action !== 'walk') return;
     const sit = pendingSitRef.current[actorId];
+    const emote = pendingEmoteRef.current[actorId];
     delete pendingSitRef.current[actorId];
+    delete pendingEmoteRef.current[actorId];
     const found = sit ? findSeat(roomDetails?.items ?? [], sit) : null;
     setActors(current => {
       const actor = current[actorId];
       if (!actor || actor.action.kind !== 'walk') return current;
       const next: ActorState = sit && found
         ? { ...actor, position: seatPosition(found.item, found.seat), facing: found.seat.facing, action: sit }
-        : { ...actor, action: { kind: 'idle' } };
+        : { ...actor, action: emote ?? { kind: 'idle' } };
       return { ...current, [actorId]: next };
     });
   }
@@ -383,6 +425,16 @@ export function useRoomSession(roomId: string) {
     });
 
     walkMeTo(best.gx, best.gy);
+  }
+
+  /** Play one of the user's emotes for everyone in the room. Not while seated or heading to a seat. */
+  function emote(animation: string) {
+    if (isEditMode) return;
+    const me = actors[userId];
+    if (!me || seatOf(me)) return;
+    const action: EmoteAction = { kind: 'emote', animation };
+    sendAction(action);
+    playEmote(userId, action);
   }
 
   function submitMessage(message: string) {
@@ -529,9 +581,14 @@ export function useRoomSession(roomId: string) {
     edit,
     typingUserIds,
     onActionComplete,
+    /** Whether this device's engine plays emotes; the shell hides the emote button otherwise. */
+    canEmote,
+    /** The local user is seated, so emotes are unavailable. */
+    isSeated: actors[userId]?.action.kind === 'sit',
     intents: {
       walkTo,
       interactWith,
+      emote,
       submitMessage,
       sendTyping,
       enterEdit,

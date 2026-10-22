@@ -13,8 +13,11 @@ export const SIGNUP_DEFAULTS = {
         realMoney: 0,
     },
 
-    /** Animation names (must match Animation.name in DB) to grant on signup. */
-    animationNames: ['walk'] as string[],
+    /**
+     * Animation names (must match Animation.name in DB) to grant on signup. Existing
+     * users are given any they lack on every server start, so adding one here reaches everyone.
+     */
+    animationNames: ['walk', 'wave'] as string[],
 
     /**
      * Avatar item variants to add to the user's avatarInventory on signup.

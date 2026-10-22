@@ -6,7 +6,7 @@ import { useRoomSession } from './session/useRoomSession';
 const engine = getRoomEngine();
 
 export function Room({ roomId }: Readonly<{ roomId: string }>) {
-  const session = useRoomSession(roomId);
+  const session = useRoomSession(roomId, engine.capabilities);
   const { Renderer } = engine;
 
   return (

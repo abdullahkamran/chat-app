@@ -9,7 +9,7 @@ import { ITEMS_CATALOG } from '../catalog/items.catalog';
 import { TEST_USERS_CATALOG } from '../catalog/test-users.catalog';
 import WEARABLES from '../catalog/wearables.generated.json';
 import type { WearableAsset } from '@chat-app/shared-types';
-import { applySignupDefaults } from './signup-defaults.service';
+import { applySignupDefaults, grantDefaultAnimationsToAll } from './signup-defaults.service';
 
 /**
  * Inserts any catalog entries that don't yet exist in the DB.
@@ -27,6 +27,7 @@ export async function syncCatalog(): Promise<void> {
     ]);
     // Test users run after items are seeded — applySignupDefaults depends on them
     await syncTestUsers();
+    await grantDefaultAnimationsToAll();
 }
 
 async function syncAnimations(): Promise<void> {

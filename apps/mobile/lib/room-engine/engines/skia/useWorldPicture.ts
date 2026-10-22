@@ -10,7 +10,7 @@ import {
   type SkImage,
   type SkPicture,
 } from '@shopify/react-native-skia';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   makeMutable,
   useFrameCallback,
@@ -18,16 +18,17 @@ import {
   type FrameInfo,
   type SharedValue,
 } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import { gridToScreen, type GridOrigin } from '@/constants/grid';
 import { theme } from '@/constants/theme';
-import type { Facing, RoomItem } from '@chat-app/shared-types';
+import type { ActorAction, ActorActionKind, Facing, RoomItem } from '@chat-app/shared-types';
 import type { ActorState } from '../../core/contract';
 import { facingFromDelta, facingToView } from '../../core/facing';
 import { findSeat } from '../../core/seats';
 import type { ActorMotion } from './actorMotion';
 import { itemDepth, itemRect } from './geometry';
-import { WALK_AUTHORED_MS_PER_CELL, type ClipId } from './skeleton/clips';
+import { WALK_AUTHORED_MS_PER_CELL, isEmoteClip, type ClipId } from './skeleton/clips';
 import type { AvatarArt, TintGroup } from './skeleton/avatarArt';
 import { COMPILED_CLIPS, blendPose, samplePose, solveWorld } from './skeleton/sampler';
 import { PLACEHOLDER_ART } from './wearables/useAvatarArts';
@@ -58,6 +59,11 @@ interface ActorDraw {
   motion: ActorMotion;
   walking: boolean;
   sitting: boolean;
+  emoting: boolean;
+  /** The emote's clip, or '' when not emoting or the client has no clip for it. */
+  emote: ClipId | '';
+  /** Changes with every new action, so the same emote sent twice plays twice. */
+  actionKey: number;
   /** Depth of the item the actor sits on, or -1. */
   seatDepth: number;
   facing: Facing;
@@ -98,6 +104,22 @@ interface AnimRuntime {
   /** Seat item depth held while sitting and briefly while standing up, or -1. */
   seatDepth: number;
   standHold: number;
+  actionKey: number;
+  /** Last emote action reported finished, so each is reported once. */
+  reportedKey: number;
+}
+
+const actionKeys = new WeakMap<ActorAction, number>();
+let nextActionKey = 1;
+
+/** A number per action object; the session keeps an actor's action object until it changes. */
+function actionKey(action: ActorAction): number {
+  let key = actionKeys.get(action);
+  if (key === undefined) {
+    key = nextActionKey++;
+    actionKeys.set(action, key);
+  }
+  return key;
 }
 
 function hashId(id: string): number {
@@ -146,12 +168,12 @@ function byDepth(p: { depth: number }, q: { depth: number }): number {
 
 function advance(prev: AnimRuntime | undefined, a: ActorDraw, gx: number, gy: number, dt: number): AnimRuntime {
   'worklet';
-  const want: ClipId = a.walking ? 'walk' : a.sitting ? 'sit' : 'idle';
+  const want: ClipId = a.walking ? 'walk' : a.sitting ? 'sit' : a.emote !== '' ? a.emote : 'idle';
   if (!prev) {
     return {
       clip: want, time: 0, prevClip: '', prevTime: 0, fade: 1,
       facing: a.facing, propFacing: a.facing, lastGx: gx, lastGy: gy,
-      seatDepth: a.seatDepth, standHold: 0,
+      seatDepth: a.seatDepth, standHold: 0, actionKey: a.actionKey, reportedKey: 0,
     };
   }
   const st = { ...prev };
@@ -176,7 +198,10 @@ function advance(prev: AnimRuntime | undefined, a: ActorDraw, gx: number, gy: nu
   st.lastGx = gx;
   st.lastGy = gy;
 
-  if (want !== st.clip) {
+  // A new emote restarts its clip even when it is the one already playing.
+  const replay = a.emoting && a.actionKey !== st.actionKey;
+  st.actionKey = a.actionKey;
+  if (want !== st.clip || replay) {
     st.prevClip = st.clip;
     st.prevTime = st.time;
     st.clip = want;
@@ -193,6 +218,15 @@ function advance(prev: AnimRuntime | undefined, a: ActorDraw, gx: number, gy: nu
     if (st.fade >= 1) st.prevClip = '';
   }
   return st;
+}
+
+/** True once per emote action, when its clip has played to the end (at once if it has none). */
+function emoteFinished(st: AnimRuntime, a: ActorDraw): boolean {
+  'worklet';
+  if (!a.emoting || st.reportedKey === a.actionKey) return false;
+  if (a.emote !== '' && (st.clip !== a.emote || st.time < COMPILED_CLIPS[a.emote].front.duration)) return false;
+  st.reportedKey = a.actionKey;
+  return true;
 }
 
 function drawAvatar(
@@ -240,6 +274,8 @@ interface Params {
   motions: ReadonlyMap<string, ActorMotion>;
   localActorId: string;
   items: RoomItem[];
+  /** Reports an emote that finished playing. */
+  onActionComplete(actorId: string, action: ActorActionKind): void;
   /** Avatar art by key, and each actor's key (see useAvatarArts). */
   arts: Readonly<Record<string, AvatarArt>>;
   artKeys: Readonly<Record<string, string>>;
@@ -259,10 +295,17 @@ interface Params {
  * avatars that happened several times a second.
  */
 export function useWorldPicture({
-  actors, motions, localActorId, items, arts, artKeys, itemImages, selectedPlaced, origin,
+  actors, motions, localActorId, items, arts, artKeys, itemImages, selectedPlaced, origin, onActionComplete,
 }: Params): SharedValue<SkPicture> {
   const [picture] = useState(() => makeMutable(createPicture(() => {})));
   const anim = useSharedValue<Record<string, AnimRuntime>>({});
+
+  // The frame worklet captures one stable function; it forwards to the latest callback.
+  const completeRef = useRef(onActionComplete);
+  useEffect(() => {
+    completeRef.current = onActionComplete;
+  });
+  const [reportEmoteDone] = useState(() => (actorId: string) => completeRef.current(actorId, 'emote'));
 
   const actorDraws = useMemo<ActorDraw[]>(() => Object.values(actors).flatMap(a => {
     const motion = motions.get(a.id);
@@ -273,6 +316,9 @@ export function useWorldPicture({
       motion,
       walking: a.action.kind === 'walk',
       sitting: a.action.kind === 'sit',
+      emoting: a.action.kind === 'emote',
+      emote: a.action.kind === 'emote' && isEmoteClip(a.action.animation) ? a.action.animation : '',
+      actionKey: actionKey(a.action),
       seatDepth: seat ? itemDepth(seat.item) + SEATED_DEPTH : -1,
       facing: a.facing,
       msPerCell: a.user?.attributes?.speed ?? DEFAULT_MS_PER_CELL,
@@ -332,6 +378,7 @@ export function useWorldPicture({
       const gy = a.motion.gy.get();
       const st = advance(prev[a.id], a, gx, gy, dt);
       next[a.id] = st;
+      if (emoteFinished(st, a)) scheduleOnRN(reportEmoteDone, a.id);
       feet.push(gridToScreen(gx, gy, a.motion.gz.get(), origin));
       const depth = gx + gy + 0.5;
       entries.push({ depth: st.seatDepth >= 0 ? Math.max(depth, st.seatDepth) : depth, actor: i, item: -1, front: false });
@@ -392,7 +439,7 @@ export function useWorldPicture({
         }
       }
     }));
-  }, [actorsInput, itemsInput, originInput, artsInput, anim, picture, colors]);
+  }, [actorsInput, itemsInput, originInput, artsInput, anim, picture, colors, reportEmoteDone]);
 
   useFrameCallback(onFrame);
 

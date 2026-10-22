@@ -1,18 +1,28 @@
 import { Socket } from 'socket.io';
 import mongoose from 'mongoose';
 import { SocketEvent } from '@chat-app/socket-constants';
-import type { ActorAction } from '@chat-app/shared-types';
+import { AnimationCategory, type ActorAction } from '@chat-app/shared-types';
+import Animation from '../models/animation.model';
 import User from '../models/user.model';
 import { sendPushToRoom } from '../services/notification.service';
 
-/** Actions clients may broadcast. Walks are sent as points, and emotes arrive in Phase 5. */
-function isRelayedAction(action: unknown): action is ActorAction {
-    const a = action as Partial<Extract<ActorAction, { kind: 'sit' }>> | null;
-    return a?.kind === 'sit'
-        && typeof a.itemId === 'string'
-        && Number.isInteger(a.seatIndex)
-        && Number.isFinite(a.at?.x)
-        && Number.isFinite(a.at?.y);
+/**
+ * Actions clients may broadcast: sitting, and emotes the user owns. Walks are sent as points.
+ */
+async function mayRelay(userId: string, action: unknown): Promise<boolean> {
+    const a = action as Partial<Record<string, unknown>> | null;
+    if (a?.kind === 'sit') {
+        const at = a.at as { x?: unknown; y?: unknown } | undefined;
+        return typeof a.itemId === 'string'
+            && Number.isInteger(a.seatIndex)
+            && Number.isFinite(at?.x)
+            && Number.isFinite(at?.y);
+    }
+    if (a?.kind === 'emote' && typeof a.animation === 'string') {
+        const emote = await Animation.findOne({ name: a.animation, category: AnimationCategory.EMOTE }).select('_id');
+        return !!emote && !!(await User.exists({ _id: userId, animations: emote._id }));
+    }
+    return false;
 }
 
 interface ClientSocketData {
@@ -102,10 +112,14 @@ const handler = {
         });
 
         // A room action other than walking (sitting, later emotes). Walks still travel as SEND_POINT.
-        socket.on(SocketEvent.SEND_ACTION, ({ roomId, action }: { roomId: string; action: ActorAction }) => {
-            if (!isRelayedAction(action)) return;
-            console.log(SocketEvent.SEND_ACTION, { userId, roomId, action });
-            socket.to(roomId).emit(SocketEvent.RECEIVE_ACTION, { roomId, userId, action });
+        socket.on(SocketEvent.SEND_ACTION, async ({ roomId, action }: { roomId: string; action: ActorAction }) => {
+            try {
+                if (!(await mayRelay(userId, action))) return;
+                console.log(SocketEvent.SEND_ACTION, { userId, roomId, action });
+                socket.to(roomId).emit(SocketEvent.RECEIVE_ACTION, { roomId, userId, action });
+            } catch (e) {
+                console.error(SocketEvent.SEND_ACTION, e);
+            }
         });
 
         // The user saved or switched avatars. Everyone sharing a room with them refetches it.

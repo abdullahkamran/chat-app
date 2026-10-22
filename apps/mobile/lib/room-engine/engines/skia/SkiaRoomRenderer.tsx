@@ -97,6 +97,7 @@ function Room({
     itemImages,
     selectedPlaced: isEditMode ? edit.selectedPlaced : null,
     origin,
+    onActionComplete,
   });
 
   return (

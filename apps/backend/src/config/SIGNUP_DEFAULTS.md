@@ -21,9 +21,12 @@ A `Welcome bonus` transaction is logged to the transaction history.
 
 ## Animations
 
-| Name |
-|------|
-| walk |
+| Name | Category |
+|------|----------|
+| walk | WALK     |
+| wave | EMOTE    |
+
+On every server start, existing users are also given any of these they lack (`grantDefaultAnimationsToAll`), so a default added later reaches everyone. Other emotes are sold in the shop.
 
 ---
 

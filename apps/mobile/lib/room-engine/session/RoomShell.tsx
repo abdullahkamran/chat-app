@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '@/constants/theme';
 import { AvatarDrawer } from '../components/AvatarDrawer';
 import { ChatInput } from '../components/ChatInput';
+import { EmoteDrawer } from '../components/EmoteDrawer';
 import { TypingIndicator } from '../components/TypingIndicator';
 import { EditModeButton } from '../EditMode/EditModeButton';
 import { EditModeToolbar } from '../EditMode/EditModeToolbar';
@@ -49,14 +50,19 @@ interface Props {
 }
 
 /**
- * Engine-independent room chrome: header or edit toolbar, chat input, avatar
+ * Engine-independent room chrome: header or edit toolbar, chat input, avatar or emote
  * drawer or inventory drawer, and the loading / error states. The engine renders in between.
  */
 export function RoomShell({ session, children }: Readonly<Props>) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [isAvatarDrawerOpen, setAvatarDrawerOpen] = useState(false);
-  const { roomDetails, isLoading, error, isOwner, isSaving, mode, edit, scene, typingUserIds, intents } = session;
+  // One drawer at a time takes the chat input's place.
+  const [drawer, setDrawer] = useState<'avatars' | 'emotes' | null>(null);
+  const toggleDrawer = (next: 'avatars' | 'emotes') => setDrawer(open => (open === next ? null : next));
+  const closeDrawer = () => setDrawer(null);
+  const {
+    roomDetails, isLoading, error, isOwner, isSaving, mode, edit, scene, typingUserIds, intents, canEmote, isSeated,
+  } = session;
   const isEditMode = mode === 'edit';
 
   if (isLoading) {
@@ -94,15 +100,28 @@ export function RoomShell({ session, children }: Readonly<Props>) {
             <Ionicons name="chevron-back" size={24} color={theme.colors.text} />
           </TouchableOpacity>
           <Text style={styles.roomHeaderTitle} numberOfLines={1}>{roomDetails.name}</Text>
+          {canEmote && (
+            <TouchableOpacity
+              style={styles.headerBtn}
+              onPress={() => toggleDrawer('emotes')}
+              accessibilityLabel="Emotes"
+            >
+              <Ionicons
+                name={drawer === 'emotes' ? 'happy' : 'happy-outline'}
+                size={22}
+                color={drawer === 'emotes' ? theme.colors.primary : theme.colors.text}
+              />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={styles.headerBtn}
-            onPress={() => setAvatarDrawerOpen(open => !open)}
+            onPress={() => toggleDrawer('avatars')}
             accessibilityLabel="Change avatar"
           >
             <Ionicons
-              name={isAvatarDrawerOpen ? 'shirt' : 'shirt-outline'}
+              name={drawer === 'avatars' ? 'shirt' : 'shirt-outline'}
               size={22}
-              color={isAvatarDrawerOpen ? theme.colors.primary : theme.colors.text}
+              color={drawer === 'avatars' ? theme.colors.primary : theme.colors.text}
             />
           </TouchableOpacity>
         </View>
@@ -119,8 +138,11 @@ export function RoomShell({ session, children }: Readonly<Props>) {
       {isEditMode && (
         <InventoryDrawer selectedItem={edit.selectedItem} onSelectItem={intents.selectInventoryItem} pendingItems={scene?.items ?? []} />
       )}
-      {!isEditMode && isAvatarDrawerOpen && <AvatarDrawer onClose={() => setAvatarDrawerOpen(false)} />}
-      {!isEditMode && !isAvatarDrawerOpen && (
+      {!isEditMode && drawer === 'avatars' && <AvatarDrawer onClose={closeDrawer} />}
+      {!isEditMode && drawer === 'emotes' && (
+        <EmoteDrawer disabled={isSeated} onEmote={intents.emote} onClose={closeDrawer} />
+      )}
+      {!isEditMode && drawer === null && (
         <>
           <TypingIndicator typingUserIds={typingUserIds} />
           <ChatInput onTyping={intents.sendTyping} onSubmit={intents.submitMessage} />

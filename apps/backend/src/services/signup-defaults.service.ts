@@ -51,6 +51,26 @@ async function grantWallet(userIdStr: string): Promise<void> {
     });
 }
 
+/**
+ * Gives every existing user the default animations they don't own yet, so a default
+ * added after they signed up (such as the free emote) still reaches them.
+ */
+export async function grantDefaultAnimationsToAll(): Promise<void> {
+    const names = SIGNUP_DEFAULTS.animationNames;
+    if (names.length === 0) return;
+
+    try {
+        const found = await AnimationModel.find({ name: { $in: names } }).select('_id');
+        if (!found.length) return;
+        const result = await User.updateMany({}, {
+            $addToSet: { animations: { $each: found.map(a => a._id) } },
+        });
+        console.log(`[signup-defaults] default animations granted to ${result.modifiedCount} existing users`);
+    } catch (e) {
+        console.error('[signup-defaults] Failed to grant default animations to existing users:', e);
+    }
+}
+
 async function grantAnimations(userId: mongoose.Types.ObjectId): Promise<void> {
     const names = SIGNUP_DEFAULTS.animationNames;
     if (names.length === 0) return;
