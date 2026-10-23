@@ -2,7 +2,7 @@ import { Skia } from '@shopify/react-native-skia';
 import { useEffect, useMemo, useState } from 'react';
 
 import { theme } from '@/constants/theme';
-import type { Avatar, AvatarItem, WearableAsset } from '@chat-app/shared-types';
+import type { Avatar, AvatarItemVariant, WearableAsset } from '@chat-app/shared-types';
 import type { ActorState } from '../../../core/contract';
 import type { AvatarArt } from '../skeleton/avatarArt';
 import { getAvatarArt } from '../skeleton/programmerArt';
@@ -19,6 +19,15 @@ const PARTS = [
   'headwear', 'facewear', 'tops', 'bottoms', 'footwear', 'wristwear',
 ] as const satisfies readonly (keyof Avatar)[];
 
+/**
+ * What composing reads from an avatar: each worn part's selected variant, first in
+ * `variants`. A saved `Avatar` fits; so does the editor's unsaved working outfit.
+ */
+export type AvatarOutfit = Partial<Record<
+  (typeof PARTS)[number],
+  { variants: Pick<AvatarItemVariant, 'color' | 'rigAsset'>[] }
+>>;
+
 interface Outfit {
   /** Identifies the composed art; equal outfits share one atlas. */
   key: string;
@@ -28,14 +37,13 @@ interface Outfit {
 }
 
 /** The selected variant's packed art for each worn part, or null when nothing is packed yet. */
-function outfitOf(avatar: Avatar | null | undefined): Outfit | null {
+function outfitOf(avatar: AvatarOutfit | null | undefined): Outfit | null {
   if (!avatar) return null;
   const skin = avatar.skin?.variants[0]?.color ?? theme.colors.avatarPlaceholderSkin;
   const assets: WearableAsset[] = [];
   const colors: (string | null)[] = [];
   for (const part of PARTS) {
-    const item = avatar[part] as AvatarItem | undefined;
-    const variant = item?.variants[0];
+    const variant = avatar[part]?.variants[0];
     if (!variant?.rigAsset) continue;
     assets.push(variant.rigAsset);
     colors.push(part === 'skin' ? null : variant.color ?? null);
@@ -84,24 +92,38 @@ function compose(outfit: Outfit): Promise<void> {
  * while actors move.
  */
 export function useAvatarArts(actors: Readonly<Record<string, ActorState>>) {
+  const outfits = useMemo(() => {
+    const out: Record<string, AvatarOutfit | undefined> = {};
+    // Stress avatars always draw the placeholder.
+    for (const actor of Object.values(actors)) out[actor.id] = isStressActor(actor.id) ? undefined : actor.avatar;
+    return out;
+  }, [actors]);
+  return useOutfitArts(outfits);
+}
+
+/**
+ * Composed art for any set of outfits, by caller-chosen id (actor ids in rooms, one
+ * entry for the avatar editor's preview). Same caches and placeholder rule as rooms:
+ * an id maps to PLACEHOLDER_ART until its outfit is composed.
+ */
+export function useOutfitArts(outfits: Readonly<Record<string, AvatarOutfit | null | undefined>>) {
   const [version, setVersion] = useState(0);
 
   const result = useMemo(() => {
     const artKeys: Record<string, string> = {};
     const toCompose: Outfit[] = [];
 
-    for (const actor of Object.values(actors)) {
-      artKeys[actor.id] = PLACEHOLDER_ART;
-      if (isStressActor(actor.id)) continue;
-      const outfit = outfitOf(actor.avatar);
+    for (const [id, avatar] of Object.entries(outfits)) {
+      artKeys[id] = PLACEHOLDER_ART;
+      const outfit = outfitOf(avatar);
       if (!outfit || failed.has(outfit.key)) continue;
-      if (composed.has(outfit.key)) artKeys[actor.id] = outfit.key;
+      if (composed.has(outfit.key)) artKeys[id] = outfit.key;
       else toCompose.push(outfit);
     }
     return { artKeys, toCompose };
     // `version` marks newly composed outfits; the caches live outside React.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [actors, version]);
+  }, [outfits, version]);
 
   const { artKeys, toCompose } = result;
 
@@ -128,7 +150,7 @@ export function useAvatarArts(actors: Readonly<Record<string, ActorState>>) {
     };
   }, [toCompose]);
 
-  // Retry outfits that failed to load on the next room visit.
+  // Retry outfits that failed to load on the next room visit (or preview).
   useEffect(() => () => failed.clear(), []);
 
   return { arts, artKeys };

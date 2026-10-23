@@ -181,9 +181,22 @@ When changing `WALL_HEIGHT`, verify that `WALL_HEIGHT + (roomX + roomY) * TILE_H
 
 ---
 
-## 2D avatar previews (`UserCharacter.tsx`)
+## 2D avatar previews
 
-Outside rooms (profile, avatar editor, the room's Avatars drawer) avatars are drawn as stacked SVG layers by `components/ui/UserCharacter.tsx`. Rooms draw the rigged Skia avatar instead.
+### Skia preview (`components/AvatarPreview.tsx`)
+
+The avatar editor (`components/AvatarEditorScreen.tsx`) previews the rigged Skia avatar exactly as rooms draw it, playing the `idle` clip. `<AvatarPreview avatar size rotatable />` takes an `AvatarOutfit` (see `wearables/useAvatarArts.ts`: per part, the selected variant first in `variants`, of which only `rigAsset` and `color` are read; a saved `Avatar` fits as is).
+
+- **Outfit:** the editor keeps each part's chosen variant (`previewVariants`), seeded from the avatar being edited, or in create mode from `GET /api/v1/avatar/defaults` (which returns each default's `rigAsset`), and replaced as the user picks variants from the catalog. Unsaved picks show as soon as they compose.
+- **Art:** `useOutfitArts({ preview: outfit })`, the same hook and caches rooms use (`useAvatarArts` wraps it, mapping actors to outfits), so an outfit composed in the editor is ready in the room and vice versa. The programmer-art placeholder shows until the outfit composes; a failed compose keeps the placeholder.
+- **Drawing:** `engines/skia/useAvatarPreviewPicture.ts` runs a frame callback that records one `SkPicture` per frame calling the room's `drawAvatar` (`engines/skia/drawAvatar.ts`, shared with `useWorldPicture`) with the canvas translated to the feet and scaled by `size / 100` (100 rig px fill the height: the 80 px avatar plus headroom). The canvas is `0.75 × size` wide; the editor uses `size = 220`.
+- **Facing:** `rotatable` adds a small button that cycles SE → SW → NW → NE (front right, front left, back left, back right).
+
+Every outfit composed in the editor is cached for the app's lifetime (like rooms), so trying many combinations holds one atlas each.
+
+### SVG preview (`UserCharacter.tsx`)
+
+The profile screen and the room's Avatars drawer still draw avatars as stacked SVG layers by `components/ui/UserCharacter.tsx`.
 
 
 All avatar parts are rendered inside a single character container of size `(w × size)` where `w = Math.round(size * 2/3)`. Default `size = 200` → **133 × 200 px**.
@@ -285,8 +298,10 @@ For performance checks, `EXPO_PUBLIC_ROOM_STRESS_ACTORS=30` (in `apps/mobile/.en
 | `apps/mobile/lib/room-engine/session/useRoomSession.ts` | Engine-agnostic room state and intents |
 | `apps/mobile/lib/room-engine/engines/skia/SkiaRoomRenderer.tsx` | Skia canvas layers, tap routing, bubble overlay |
 | `apps/mobile/lib/room-engine/engines/skia/useWorldPicture.ts` | Per-frame UI-thread loop: clip playback, crossfade, facing, depth sort, world picture |
+| `apps/mobile/lib/room-engine/engines/skia/drawAvatar.ts` | `drawAvatar` worklet (sample, blend, solve, one `drawAtlas`) and placeholder tints; shared by rooms and the editor preview |
+| `apps/mobile/lib/room-engine/engines/skia/useAvatarPreviewPicture.ts` | One idling avatar redrawn per frame, for `components/AvatarPreview.tsx` (the avatar editor's preview) |
 | `apps/mobile/lib/room-engine/engines/skia/skeleton/` | `humanoidV1.ts` (solver arrays; the rig itself is `packages/shared-types/src/humanoid-v1.ts`), `clips.ts` (idle, walk, sit, emotes), `sampler.ts` (worklets), `avatarArt.ts` (draw-list format), `programmerArt.ts` (fallback atlas) |
-| `apps/mobile/lib/room-engine/engines/skia/wearables/` | `useAvatarArts.ts` (composed art for each actor's session-supplied avatar), `atlasCache.ts` (download + disk cache by `atlasVersion`), `composeAvatar.ts` (bakes an outfit into one tinted atlas) |
+| `apps/mobile/lib/room-engine/engines/skia/wearables/` | `useAvatarArts.ts` (composed art for each actor's session-supplied avatar; `useOutfitArts` for any outfit, used by the editor preview), `atlasCache.ts` (download + disk cache by `atlasVersion`), `composeAvatar.ts` (bakes an outfit into one tinted atlas) |
 | `apps/backend/art/` | Wearable source art, rig template and the art workflow (`art/README.md`); `scripts/pack-wearables.ts` packs it |
 | `apps/mobile/lib/room-engine/engines/skia/useCamera.ts` | Pan/pinch camera (0.5x–1.5x) as shared values; taps mapped to content coords |
 | `apps/mobile/lib/room-engine/engines/skia/actorMotion.ts` | Per-actor shared positions; walks animated on the UI thread |

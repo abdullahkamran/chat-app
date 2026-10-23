@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -11,14 +11,15 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Avatar, AvatarInventoryEntry, AvatarItem } from '@chat-app/shared-types';
+import { Avatar, AvatarInventoryEntry, AvatarItem, AvatarItemVariant, WearableAsset } from '@chat-app/shared-types';
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/auth.context';
 import { MY_AVATARS_KEY } from '@/hooks/useMyAvatars';
 import { announceAvatarChanged } from '@/utils/socketUtils';
 import { theme } from '@/constants/theme';
 import { resolveAvatarSource } from '@/constants/avatarAssets';
-import UserCharacter, { AVATAR_PART_RENDER_ORDER, AvatarLayer } from '@/components/ui/UserCharacter';
+import AvatarPreview from '@/components/AvatarPreview';
+import type { AvatarOutfit } from '@/lib/room-engine/engines/skia/wearables/useAvatarArts';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -42,6 +43,10 @@ type AvatarPartKey = (typeof PART_CATEGORIES)[number]['key'];
 
 type AvatarSelections = Partial<Record<AvatarPartKey, { itemId: string; variantId: string }>>;
 
+/** What the live preview needs of each chosen variant: its rig art and colour. */
+type PreviewVariant = Pick<AvatarItemVariant, 'color' | 'rigAsset'>;
+type PreviewVariants = Partial<Record<AvatarPartKey, PreviewVariant>>;
+
 interface Props {
   mode: 'create' | 'edit';
   avatarId?: string;
@@ -59,26 +64,32 @@ function isComplete(selections: AvatarSelections): boolean {
   return REQUIRED_PARTS.every((k) => !!selections[k]);
 }
 
-/** Extract selections + resolved visual state from a fully-populated Avatar object. */
+/** Extract selections + each part's selected variant (for the preview) from a fully-populated Avatar object. */
 function deriveFromAvatar(avatar: Avatar): {
   selections: AvatarSelections;
-  sourceUrls: Partial<Record<AvatarPartKey, string>>;
-  colors: Partial<Record<AvatarPartKey, string>>;
+  variants: PreviewVariants;
 } {
   const selections: AvatarSelections = {};
-  const sourceUrls: Partial<Record<AvatarPartKey, string>> = {};
-  const colors: Partial<Record<AvatarPartKey, string>> = {};
+  const variants: PreviewVariants = {};
 
   for (const { key } of PART_CATEGORIES) {
-    const item = avatar[key as keyof Avatar] as (AvatarItem & { variants?: Array<{ _id: string; sourceUrl?: string; color?: string }> }) | undefined;
+    const item = avatar[key] as AvatarItem | undefined;
     const variant = item?.variants?.[0];
     if (!item?._id || !variant) continue;
     selections[key] = { itemId: item._id, variantId: variant._id };
-    if (variant.sourceUrl) sourceUrls[key] = variant.sourceUrl;
-    else if (variant.color) colors[key] = variant.color;
+    variants[key] = variant;
   }
 
-  return { selections, sourceUrls, colors };
+  return { selections, variants };
+}
+
+/** The working outfit in the shape the Skia preview composes: each part's chosen variant first. */
+function toOutfit(variants: PreviewVariants): AvatarOutfit {
+  const outfit: AvatarOutfit = {};
+  for (const [key, variant] of Object.entries(variants) as [AvatarPartKey, PreviewVariant | undefined][]) {
+    if (variant) outfit[key] = { variants: [variant] };
+  }
+  return outfit;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -93,29 +104,30 @@ export default function AvatarEditorScreen({ mode, avatarId, initialSelections, 
   const [activeCategory, setActiveCategory] = useState<AvatarPartKey>('skin');
   const [selections, setSelections] = useState<AvatarSelections>(derived?.selections ?? initialSelections ?? {});
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
-  // Maps part key → sourceUrl (SVG layers) or solid color (e.g. skin), for live preview
-  const [resolvedSourceUrls, setResolvedSourceUrls] = useState<Partial<Record<AvatarPartKey, string>>>(derived?.sourceUrls ?? {});
-  const [resolvedColors, setResolvedColors] = useState<Partial<Record<AvatarPartKey, string>>>(derived?.colors ?? {});
+  // Each part's chosen variant (rig art + colour), so unsaved picks show in the preview at once.
+  const [previewVariants, setPreviewVariants] = useState<PreviewVariants>(derived?.variants ?? {});
+  const previewOutfit = useMemo(() => toOutfit(previewVariants), [previewVariants]);
 
   // Pre-populate defaults when opening the create editor
   useEffect(() => {
     if (mode !== 'create') return;
     api
-      .get<Record<string, { itemId: string; variantId: string; sourceUrl: string | null; color: string | null }>>(
-        '/api/v1/avatar/defaults'
-      )
+      .get<Record<string, {
+        itemId: string;
+        variantId: string;
+        sourceUrl: string | null;
+        color: string | null;
+        rigAsset?: WearableAsset | null;
+      }>>('/api/v1/avatar/defaults')
       .then((defaults) => {
         const sel: AvatarSelections = {};
-        const urls: Partial<Record<AvatarPartKey, string>> = {};
-        const colors: Partial<Record<AvatarPartKey, string>> = {};
+        const variants: PreviewVariants = {};
         for (const [cat, d] of Object.entries(defaults)) {
           sel[cat as AvatarPartKey] = { itemId: d.itemId, variantId: d.variantId };
-          if (d.sourceUrl) urls[cat as AvatarPartKey] = d.sourceUrl;
-          if (d.color) colors[cat as AvatarPartKey] = d.color;
+          variants[cat as AvatarPartKey] = { color: d.color ?? undefined, rigAsset: d.rigAsset ?? undefined };
         }
         setSelections(sel);
-        setResolvedSourceUrls(urls);
-        setResolvedColors(colors);
+        setPreviewVariants(variants);
       })
       .catch(() => {});
   }, [mode]);
@@ -177,11 +189,7 @@ export default function AvatarEditorScreen({ mode, avatarId, initialSelections, 
     const variant = catalogItems
       .find((i) => i._id === itemId)
       ?.variants.find((v) => v._id === variantId);
-    if (variant?.sourceUrl) {
-      setResolvedSourceUrls((prev) => ({ ...prev, [activeCategory]: variant.sourceUrl }));
-    } else if (variant?.color) {
-      setResolvedColors((prev) => ({ ...prev, [activeCategory]: variant.color! }));
-    }
+    if (variant) setPreviewVariants((prev) => ({ ...prev, [activeCategory]: variant }));
   }
 
   function handleSave() {
@@ -217,12 +225,7 @@ export default function AvatarEditorScreen({ mode, avatarId, initialSelections, 
       delete next[activeCategory];
       return next;
     });
-    setResolvedSourceUrls((prev) => {
-      const next = { ...prev };
-      delete next[activeCategory];
-      return next;
-    });
-    setResolvedColors((prev) => {
+    setPreviewVariants((prev) => {
       const next = { ...prev };
       delete next[activeCategory];
       return next;
@@ -234,22 +237,13 @@ export default function AvatarEditorScreen({ mode, avatarId, initialSelections, 
     (createMutation.error as Error | null)?.message ??
     (editMutation.error as Error | null)?.message ?? null;
 
-  // Build ordered layer list for the live preview from resolved sourceUrls and colors
-  const previewLayers: AvatarLayer[] = AVATAR_PART_RENDER_ORDER.flatMap((key): AvatarLayer[] => {
-    const url = resolvedSourceUrls[key as AvatarPartKey];
-    if (url) return [{ key, sourceUrl: url }];
-    const color = resolvedColors[key as AvatarPartKey];
-    if (color) return [{ key, color }];
-    return [];
-  });
-
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom }]}>
       {/* ── Preview ── */}
       <View style={styles.preview}>
         <Text style={styles.previewLabel}>Preview</Text>
         <View style={styles.previewCharacter}>
-          <UserCharacter layers={previewLayers} size={220} />
+          <AvatarPreview avatar={previewOutfit} size={220} rotatable />
         </View>
       </View>
 
@@ -283,7 +277,7 @@ export default function AvatarEditorScreen({ mode, avatarId, initialSelections, 
 
       {/* ── Items grid ── */}
       {loadingItems ? (
-        <ActivityIndicator style={styles.gridLoader} color="#FFFC00" />
+        <ActivityIndicator style={styles.gridLoader} color={theme.colors.primary} />
       ) : (
         <FlatList
           key={activeCategory}
@@ -345,7 +339,7 @@ export default function AvatarEditorScreen({ mode, avatarId, initialSelections, 
                   <View
                     style={[
                       styles.variantSwatchColor,
-                      { backgroundColor: variant.color ?? '#555' },
+                      { backgroundColor: variant.color ?? theme.colors.textMuted },
                     ]}
                   />
                   <Text style={styles.variantSwatchName} numberOfLines={1}>
@@ -368,7 +362,7 @@ export default function AvatarEditorScreen({ mode, avatarId, initialSelections, 
         disabled={!isComplete(selections) || isSaving}
       >
         {isSaving ? (
-          <ActivityIndicator color="#000" />
+          <ActivityIndicator color={theme.colors.primaryText} />
         ) : (
           <Text style={styles.saveButtonText}>
             {mode === 'create' ? 'Create Avatar' : 'Save Changes'}
@@ -407,7 +401,7 @@ const styles = StyleSheet.create({
   },
   tabBar: {
     borderBottomWidth: 1,
-    borderBottomColor: '#222',
+    borderBottomColor: theme.colors.border,
     flexGrow: 0,
   },
   tabBarContent: {
@@ -419,18 +413,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 20,
-    backgroundColor: '#111',
+    backgroundColor: theme.colors.surface,
   },
   tabActive: {
-    backgroundColor: '#FFFC00',
+    backgroundColor: theme.colors.primary,
   },
   tabText: {
-    color: '#888',
+    color: theme.colors.textSecondary,
     fontSize: 13,
     fontWeight: '600',
   },
   tabTextActive: {
-    color: '#000',
+    color: theme.colors.primaryText,
   },
   gridLoader: {
     flex: 1,
@@ -445,12 +439,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 10,
     borderRadius: 12,
-    backgroundColor: '#111',
+    backgroundColor: theme.colors.surface,
     borderWidth: 2,
     borderColor: 'transparent',
   },
   gridItemChosen: {
-    borderColor: '#FFFC00',
+    borderColor: theme.colors.primary,
   },
   gridItemSwatch: {
     width: 48,
@@ -459,12 +453,12 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   gridItemName: {
-    color: '#ccc',
+    color: theme.colors.textSubtle,
     fontSize: 11,
     textAlign: 'center',
   },
   emptyText: {
-    color: '#555',
+    color: theme.colors.textMuted,
     textAlign: 'center',
     marginTop: 40,
     fontSize: 14,
@@ -485,11 +479,11 @@ const styles = StyleSheet.create({
   },
   variantRow: {
     borderTopWidth: 1,
-    borderTopColor: '#222',
+    borderTopColor: theme.colors.border,
     padding: 12,
   },
   variantLabel: {
-    color: '#666',
+    color: theme.colors.textDisabled,
     fontSize: 11,
     marginBottom: 8,
     textTransform: 'uppercase',
@@ -504,7 +498,7 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   variantSwatchChosen: {
-    borderColor: '#FFFC00',
+    borderColor: theme.colors.primary,
   },
   variantSwatchColor: {
     width: 36,
@@ -513,13 +507,13 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   variantSwatchName: {
-    color: '#aaa',
+    color: theme.colors.placeholder,
     fontSize: 10,
     maxWidth: 50,
     textAlign: 'center',
   },
   error: {
-    color: '#ff5555',
+    color: theme.colors.error,
     textAlign: 'center',
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -527,16 +521,16 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     margin: 16,
-    backgroundColor: '#FFFC00',
+    backgroundColor: theme.colors.primary,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
   },
   saveButtonDisabled: {
-    backgroundColor: '#333',
+    backgroundColor: theme.colors.borderSubtle,
   },
   saveButtonText: {
-    color: '#000',
+    color: theme.colors.primaryText,
     fontWeight: '700',
     fontSize: 16,
   },

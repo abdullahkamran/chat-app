@@ -1,11 +1,7 @@
 import {
-  BlendMode,
-  FilterMode,
-  MipmapMode,
   PaintStyle,
   Skia,
   createPicture,
-  type SkCanvas,
   type SkColor,
   type SkImage,
   type SkPicture,
@@ -24,13 +20,14 @@ import { gridToScreen, type GridOrigin } from '@/constants/grid';
 import { theme } from '@/constants/theme';
 import type { ActorAction, ActorActionKind, Facing, RoomItem } from '@chat-app/shared-types';
 import type { ActorState } from '../../core/contract';
-import { facingFromDelta, facingToView } from '../../core/facing';
+import { facingFromDelta } from '../../core/facing';
 import { findSeat } from '../../core/seats';
 import type { ActorMotion } from './actorMotion';
+import { drawAvatar, placeholderTints, type AvatarPlayhead } from './drawAvatar';
 import { itemDepth, itemRect } from './geometry';
 import { WALK_AUTHORED_MS_PER_CELL, isEmoteClip, type ClipId } from './skeleton/clips';
 import type { AvatarArt, TintGroup } from './skeleton/avatarArt';
-import { COMPILED_CLIPS, blendPose, samplePose, solveWorld } from './skeleton/sampler';
+import { COMPILED_CLIPS } from './skeleton/sampler';
 import { PLACEHOLDER_ART } from './wearables/useAvatarArts';
 
 const CROSSFADE_S = 0.15;
@@ -43,7 +40,6 @@ const SHADOW_ALPHA = 0.35;
 const SELECTED_SCALE = 1.08;
 const SELECTED_ALPHA = 0.7;
 const SELECTED_TINT_ALPHA = 0.25;
-const ATLAS_SAMPLING = { filter: FilterMode.Linear, mipmap: MipmapMode.None };
 /**
  * A seated actor draws just in front of its seat item, and the item's front layer just
  * in front of the actor. Both stay below anything standing in front of the item.
@@ -91,14 +87,7 @@ interface ItemDraw {
 }
 
 /** Per-actor animation playhead, carried across frames on the UI thread. */
-interface AnimRuntime {
-  clip: ClipId;
-  time: number;
-  /** Clip being faded out, or '' when not crossfading. */
-  prevClip: ClipId | '';
-  prevTime: number;
-  fade: number;
-  facing: Facing;
+interface AnimRuntime extends AvatarPlayhead {
   /** The session's facing last frame, to notice when it changes (e.g. sitting). */
   propFacing: Facing;
   lastGx: number;
@@ -122,32 +111,6 @@ function actionKey(action: ActorAction): number {
     actionKeys.set(action, key);
   }
   return key;
-}
-
-function hashId(id: string): number {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
-
-const tintCache = new Map<string, Record<TintGroup, SkColor>>();
-
-/** Placeholder outfit colours, stable per user and cached so re-renders don't reallocate them. */
-function actorTints(id: string): Record<TintGroup, SkColor> {
-  let tints = tintCache.get(id);
-  if (!tints) {
-    const n = theme.avatarPalette.length;
-    const h = hashId(id);
-    tints = {
-      skin: Skia.Color(theme.colors.avatarPlaceholderSkin),
-      tops: Skia.Color(theme.avatarPalette[h % n]),
-      bottoms: Skia.Color(theme.avatarPalette[(h + 3) % n]),
-      footwear: Skia.Color(theme.colors.avatarPlaceholderHair),
-      hair: Skia.Color(theme.colors.avatarPlaceholderHair),
-    };
-    tintCache.set(id, tints);
-  }
-  return tints;
 }
 
 /** Fit an image inside a rect, centred, keeping its aspect ratio (CSS `contain`). */
@@ -232,46 +195,6 @@ function emoteFinished(st: AnimRuntime, a: ActorDraw): boolean {
   return true;
 }
 
-function drawAvatar(
-  canvas: SkCanvas,
-  art: AvatarArt,
-  st: AnimRuntime,
-  tints: Record<TintGroup, SkColor>,
-  feetX: number,
-  feetY: number,
-) {
-  'worklet';
-  const { view, mirror } = facingToView(st.facing);
-  let pose = samplePose(COMPILED_CLIPS[st.clip][view], st.time);
-  if (st.prevClip !== '') {
-    pose = blendPose(samplePose(COMPILED_CLIPS[st.prevClip][view], st.prevTime), pose, st.fade);
-  }
-  const bones = solveWorld(pose, view);
-
-  // RSXform can't reflect, so the west pair uses pre-flipped sprites with x and angle negated.
-  const list = art.views[view];
-  const xforms = [];
-  const colors: SkColor[] = [];
-  for (let i = 0; i < list.bone.length; i++) {
-    if (art.tinted) colors.push(tints[list.tint[i]]);
-    const b = list.bone[i];
-    const x = mirror ? -bones.x[b] : bones.x[b];
-    const angle = mirror ? -bones.angle[b] : bones.angle[b];
-    const px = mirror ? list.pivotXMirror[i] : list.pivotX[i];
-    const py = mirror ? list.pivotYMirror[i] : list.pivotY[i];
-    xforms.push(Skia.RSXformFromRadians(1 / art.scale, angle, feetX + x, feetY + bones.y[b], px, py));
-  }
-  canvas.drawAtlas(
-    art.image,
-    mirror ? list.srcMirror : list.src,
-    xforms,
-    Skia.Paint(),
-    BlendMode.Modulate,
-    art.tinted ? colors : undefined,
-    ATLAS_SAMPLING,
-  );
-}
-
 interface Params {
   actors: Readonly<Record<string, ActorState>>;
   motions: ReadonlyMap<string, ActorMotion>;
@@ -328,7 +251,7 @@ export function useWorldPicture({
       msPerCell: a.user?.attributes?.speed ?? DEFAULT_MS_PER_CELL,
       isLocal: a.id === localActorId,
       artKey: artKeys[a.id],
-      tints: actorTints(a.id),
+      tints: placeholderTints(a.id),
     }];
   }), [actors, motions, localActorId, artKeys, items]);
 

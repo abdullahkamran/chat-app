@@ -86,7 +86,8 @@ export interface RoomRendererProps {
   /** A grid cell tapped in edit mode. Integer grid coordinates. */
   onCellTap(cell: GridPoint): void;
   /** The engine finished playing a non-looping action (e.g. a walk reached its destination). */
-  onActionComplete(actorId: string, action: ActorActionKind): void;
+  /** `finished` is the action object that ended, so the session can ignore a report for one it has since replaced. */
+  onActionComplete(actorId: string, action: ActorActionKind, finished?: ActorAction): void;
 }
 
 export interface EngineCapabilities {

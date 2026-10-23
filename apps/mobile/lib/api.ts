@@ -47,6 +47,8 @@ async function request<T>(path: string, options: RequestInit = {}, timeoutMs = 1
     }
 
     if (res.status === 204 || res.status === 205) return null as T;
+    // Bodiless replies like res.sendStatus(200) send plain text ("OK"), not JSON
+    if (!res.headers.get('content-type')?.includes('application/json')) return null as T;
     return res.json() as Promise<T>;
 }
 

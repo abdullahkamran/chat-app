@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { Facing, type ActorActionKind, type Dimensions, type User } from '@chat-app/shared-types';
+import { Facing, type ActorAction, type ActorActionKind, type Dimensions, type User } from '@chat-app/shared-types';
 import type { ActorState } from '../../core/contract';
 import { facingFromDelta } from '../../core/facing';
 
@@ -55,15 +55,15 @@ function spawn(count: number, dims: Pick<Dimensions, 'x' | 'y'>): Record<string,
 export function useStressActors(
   actors: Readonly<Record<string, ActorState>>,
   dims: Pick<Dimensions, 'x' | 'y'>,
-  onActionComplete: (actorId: string, action: ActorActionKind) => void,
+  onActionComplete: (actorId: string, action: ActorActionKind, finished?: ActorAction) => void,
 ) {
   const [fake, setFake] = useState(() => spawn(STRESS_ACTOR_COUNT, dims));
 
   if (STRESS_ACTOR_COUNT === 0) return { actors, onActionComplete };
 
-  const handleComplete = (actorId: string, action: ActorActionKind) => {
+  const handleComplete = (actorId: string, action: ActorActionKind, finished?: ActorAction) => {
     if (!isStressActor(actorId)) {
-      onActionComplete(actorId, action);
+      onActionComplete(actorId, action, finished);
       return;
     }
     setFake(current => {

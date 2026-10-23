@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { useAuth } from '@/context/auth.context';
 import { useUserInfo } from '@/context/user.context';
@@ -38,6 +39,7 @@ type EmoteAction = Extract<ActorAction, { kind: 'emote' }>;
  */
 export function useRoomSession(roomId: string, capabilities: EngineCapabilities) {
   const { data: roomDetails, isLoading, error } = useRoomDetails(roomId);
+  const queryClient = useQueryClient();
   const { data: inventoryItems = [] } = useInventory();
   const [actors, setActors] = useState<Record<User['_id'], ActorState>>({});
   // Remote actors' avatars by user id. The local actor's comes from auth.
@@ -48,6 +50,10 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
   const pendingSitRef = useRef<Record<User['_id'], SitAction>>({});
   // Emotes sent while their actor was walking; each plays when the walk completes.
   const pendingEmoteRef = useRef<Record<User['_id'], EmoteAction>>({});
+  // Each actor's latest walk number, and the number of each walk action, so a completion
+  // report for a walk that has since been replaced is recognised as stale.
+  const walkSeqRef = useRef<Record<User['_id'], number>>({});
+  const [walkIds] = useState(() => new WeakMap<ActorAction, number>());
   const canEmote = capabilities.actions.includes('emote');
 
   const { user } = useUserInfo();
@@ -327,6 +333,8 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
   function setActorDestination(uid: string, x: number, y: number) {
     delete pendingSitRef.current[uid];
     delete pendingEmoteRef.current[uid];
+    const walkId = (walkSeqRef.current[uid] ?? 0) + 1;
+    walkSeqRef.current[uid] = walkId;
     setActors(current => {
       const actor = current[uid];
       if (!actor) return current;
@@ -336,6 +344,8 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
       const path = spot
         ? [{ x: spot.gx, y: spot.gy, z: 0 }, ...planPath({ x: spot.gx, y: spot.gy, z: 0 }, x, y)]
         : planPath(actor.position, x, y);
+      const walk: ActorAction = { kind: 'walk', path };
+      walkIds.set(walk, walkId);
       return {
         ...current,
         [uid]: {
@@ -343,7 +353,7 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
           position: path[path.length - 1],
           // Engines that animate per segment re-derive facing from travel; this is the first leg's.
           facing: facingFromDelta(path[0].x - actor.position.x, path[0].y - actor.position.y),
-          action: { kind: 'walk', path },
+          action: walk,
         },
       };
     });
@@ -431,7 +441,7 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     });
   }
 
-  function onActionComplete(actorId: string, action: ActorActionKind) {
+  function onActionComplete(actorId: string, action: ActorActionKind, finished?: ActorAction) {
     if (action === 'emote') {
       setActors(current => {
         const actor = current[actorId];
@@ -441,6 +451,10 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
       return;
     }
     if (action !== 'walk') return;
+    // A walk can finish on the UI thread just as a tap starts a new one. Its report then
+    // arrives after the new walk began; acting on it would end the new walk at once and
+    // snap the actor to its destination.
+    if (finished && walkIds.get(finished) !== walkSeqRef.current[actorId]) return;
     const sit = pendingSitRef.current[actorId];
     const emote = pendingEmoteRef.current[actorId];
     delete pendingSitRef.current[actorId];
@@ -546,6 +560,9 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
         state: ri.state,
       }));
       await api.patch(`/api/v1/rooms/${roomId}/items`, { items: body });
+      // Play mode draws the room's saved items, so load the new layout before leaving edit
+      // mode; otherwise the old items show until the room is entered again.
+      await queryClient.invalidateQueries({ queryKey: ['roomDetails', roomId] });
       setMode('play');
       setSelectedItem(null);
       setSelectedPlacedItem(null);

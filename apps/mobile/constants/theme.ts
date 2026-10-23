@@ -61,6 +61,7 @@ export const theme = {
     textSecondary: palette.neutral600,
     textMuted: palette.neutral400,
     textDisabled: palette.neutral500,
+    textSubtle: palette.neutral800, // small light labels, e.g. item names in grids
     placeholder: palette.neutral700,
 
     // Brand / interactive

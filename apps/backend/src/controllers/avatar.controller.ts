@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { Avatar, AvatarItem } from '@chat-app/shared-types';
+import { Avatar, AvatarItem, WearableAsset } from '@chat-app/shared-types';
 import AvatarModel, { IAvatar } from '../models/avatar.model';
 import AvatarItemModel from '../models/avatar-item.model';
 import User from '../models/user.model';
@@ -41,16 +41,18 @@ const avatarController = {
     // GET /avatar/defaults — resolve default item+variant ids for each required part
     getDefaults: async (_req: Request, res: Response): Promise<void> => {
         try {
-            const result: Record<string, { itemId: string; variantId: string; sourceUrl: string | null; color: string | null }> = {};
+            // rigAsset lets the editor's Skia preview draw the defaults before anything is saved.
+            const result: Record<string, { itemId: string; variantId: string; sourceUrl: string | null; color: string | null; rigAsset: WearableAsset | null }> = {};
             for (const [category, name] of Object.entries(AVATAR_DEFAULTS_CATALOG)) {
                 const item = await AvatarItemModel.findOne({ name });
                 if (!item) continue;
-                const variant = item.variants[0] as unknown as { _id: { toString(): string }; sourceUrl?: string; color?: string };
+                const variant = item.variants[0] as unknown as { _id: { toString(): string }; sourceUrl?: string; color?: string; rigAsset?: WearableAsset };
                 result[category] = {
                     itemId:    item._id.toString(),
                     variantId: variant._id.toString(),
                     sourceUrl: variant.sourceUrl ?? null,
                     color:     variant.color ?? null,
+                    rigAsset:  variant.rigAsset ?? null,
                 };
             }
             res.send(result);

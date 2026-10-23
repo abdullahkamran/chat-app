@@ -3,7 +3,7 @@ import { StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
 import { gridToScreen, type GridOrigin } from '@/constants/grid';
-import type { ActorActionKind } from '@chat-app/shared-types';
+import type { ActorAction, ActorActionKind } from '@chat-app/shared-types';
 import type { ActorState, ChatBubble } from '../../core/contract';
 import Bubble from '../../components/Bubble';
 import { AVATAR_HEIGHT } from './skeleton/humanoidV1';
@@ -21,7 +21,7 @@ interface Props {
   camera: Camera;
   origin: GridOrigin;
   canvasHeight: number;
-  onActionComplete: (actorId: string, action: ActorActionKind) => void;
+  onActionComplete: (actorId: string, action: ActorActionKind, finished?: ActorAction) => void;
 }
 
 /**

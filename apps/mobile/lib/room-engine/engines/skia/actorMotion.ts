@@ -9,7 +9,7 @@ import {
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
-import type { ActorActionKind } from '@chat-app/shared-types';
+import type { ActorAction, ActorActionKind } from '@chat-app/shared-types';
 import type { ActorState } from '../../core/contract';
 
 /** Default walking pace in ms per grid cell, when the user has no speed attribute. */
@@ -66,9 +66,9 @@ export function useActorMotions(actors: Actors): ReadonlyMap<string, ActorMotion
 export function useActorWalk(
   actor: ActorState,
   motion: ActorMotion,
-  onActionComplete: (actorId: string, action: ActorActionKind) => void,
+  onActionComplete: (actorId: string, action: ActorActionKind, finished?: ActorAction) => void,
 ) {
-  const onWalkDone = useEffectEvent((actorId: string) => onActionComplete(actorId, 'walk'));
+  const onWalkDone = useEffectEvent((actorId: string, walk: ActorAction) => onActionComplete(actorId, 'walk', walk));
 
   const { id, action, position } = actor;
   const gzTarget = position.z ?? 0;
@@ -76,7 +76,8 @@ export function useActorWalk(
 
   useEffect(() => {
     const { gx, gy, gz } = motion;
-    const complete = (actorId: string) => onWalkDone(actorId);
+    // Reports which walk ended, so a late report for a replaced walk can be ignored.
+    const complete = (actorId: string) => onWalkDone(actorId, action);
 
     if (action.kind === 'sit') {
       const settle = { duration: SETTLE_MS, easing: Easing.out(Easing.quad) };
