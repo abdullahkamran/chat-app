@@ -8,8 +8,19 @@ export function setAccessToken(token: string | null) {
     _accessToken = token;
 }
 
+// Shared by every request that hits a 401 at the same time, so the refresh
+// token (which rotates on use) is only spent once
+let _refreshInFlight: Promise<string | null> | null = null;
+
 export function setTokenRefresher(fn: (() => Promise<string | null>) | null) {
     _refresher = fn;
+}
+
+function refreshOnce(refresher: () => Promise<string | null>): Promise<string | null> {
+    if (!_refreshInFlight) {
+        _refreshInFlight = refresher().finally(() => { _refreshInFlight = null; });
+    }
+    return _refreshInFlight;
 }
 
 async function request<T>(path: string, options: RequestInit = {}, timeoutMs = 10000): Promise<T> {
@@ -32,9 +43,10 @@ async function request<T>(path: string, options: RequestInit = {}, timeoutMs = 1
         clearTimeout(timer);
     }
 
-    // Auto-refresh on 401 and retry once
-    if (res.status === 401 && _refresher) {
-        const newToken = await _refresher();
+    // Auto-refresh on 401 and retry once. Never for auth endpoints: a 401 from
+    // /auth/refresh would call the refresher, which calls /auth/refresh again, forever
+    if (res.status === 401 && _refresher && !path.startsWith('/api/v1/auth/')) {
+        const newToken = await refreshOnce(_refresher);
         if (newToken) {
             headers['Authorization'] = `Bearer ${newToken}`;
             res = await myFetch(path, { ...options, headers });
