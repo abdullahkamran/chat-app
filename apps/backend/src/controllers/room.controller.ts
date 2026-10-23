@@ -5,21 +5,23 @@ import Item from '../models/item.model';
 import Room, { canManageMembers, IRoom } from '../models/room.model';
 import { announceMemberRemoved, announceMembersAdded, announceRoomItemsChanged } from '../sockets/socketHandler';
 import User, { PUBLIC_USER_FIELDS } from '../models/user.model';
+import { notFriendsAmong } from '../services/friend.service';
 import { sendPushToUsers } from '../services/notification.service';
 import { resolveRoomDefaults } from '../services/room-defaults.service';
 import type { PublicUser, RoomMembers, RoomRemovalReason } from '@chat-app/shared-types';
 
 /**
- * The users among `ids` that exist, deduplicated, leaving out `exclude` (the owner, people
- * already in the room). Unknown IDs are dropped, e.g. an account deleted after it was picked.
- * Null when `ids` isn't an array of user IDs.
+ * The people `actorId` asked to add, deduplicated, leaving out `exclude` (the owner, people
+ * already in the room). Only the actor's friends may be added; members needn't be friends
+ * with each other. Returns the IDs, or an error message for a 400.
  */
-async function existingUserIds(ids: unknown, exclude: string[]): Promise<string[] | null> {
-    if (!Array.isArray(ids) || !ids.every((id) => typeof id === 'string' && mongoose.isValidObjectId(id))) return null;
+async function idsToAdd(actorId: string, ids: unknown, exclude: string[]): Promise<{ ids: string[] } | { error: string }> {
+    if (!Array.isArray(ids) || !ids.every((id) => typeof id === 'string' && mongoose.isValidObjectId(id))) {
+        return { error: 'Expected an array of user IDs' };
+    }
     const wanted = [...new Set(ids as string[])].filter((id) => !exclude.includes(id));
-    if (wanted.length === 0) return [];
-    const found = await User.find({ _id: { $in: wanted } }).select('_id');
-    return found.map((u) => u._id.toString());
+    if ((await notFriendsAmong(actorId, wanted)).length) return { error: 'You can only add your friends' };
+    return { ids: wanted };
 }
 
 /** Whether the user is the room's owner or one of its members. */
@@ -81,11 +83,12 @@ const controller = {
         }
         const creatorId = req.user!.userId;
         try {
-            const memberIds = await existingUserIds(members ?? [], [creatorId]);
-            if (!memberIds) {
-                res.status(400).send({ error: 'members must be an array of user IDs' });
+            const picked = await idsToAdd(creatorId, members ?? [], [creatorId]);
+            if ('error' in picked) {
+                res.status(400).send({ error: picked.error });
                 return;
             }
+            const memberIds = picked.ids;
             const roomDefaults = await resolveRoomDefaults({ personLimit });
             // The owner takes a place too.
             if (memberIds.length + 1 > roomDefaults.personLimit) {
@@ -296,11 +299,12 @@ const controller = {
                 return;
             }
             const already = [room.ownerId.toString(), ...room.members.map((id) => id.toString())];
-            const newIds = await existingUserIds(req.body?.userIds, already);
-            if (!newIds) {
-                res.status(400).send({ error: 'userIds must be an array of user IDs' });
+            const picked = await idsToAdd(userId, req.body?.userIds, already);
+            if ('error' in picked) {
+                res.status(400).send({ error: picked.error });
                 return;
             }
+            const newIds = picked.ids;
             if (newIds.length === 0) {
                 res.status(400).send({ error: 'Everyone picked is already in the room' });
                 return;

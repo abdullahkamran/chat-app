@@ -10,6 +10,7 @@ import { Server } from 'socket.io';
 
 import userRouter from './routes/user.route';
 import roomRouter from './routes/room.route';
+import friendRouter from './routes/friend.route';
 import authRouter from './routes/auth.route';
 import avatarRouter from './routes/avatar.route';
 import { shopRouter, inventoryRouter } from './controllers/shop.controller';
@@ -34,6 +35,7 @@ app.use('/wearables', express.static(join(__dirname, '..', 'public', 'wearables'
 app.use('/api/v1/auth/', authRouter);
 app.use('/api/v1/users/', userRouter);
 app.use('/api/v1/rooms/', roomRouter);
+app.use('/api/v1/friends/', friendRouter);
 app.use('/api/v1/shop', shopRouter);
 app.use('/api/v1/inventory', inventoryRouter);
 app.use('/api/v1/avatar', avatarRouter);

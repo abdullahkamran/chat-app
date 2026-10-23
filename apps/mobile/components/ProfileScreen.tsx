@@ -6,23 +6,19 @@ import {
     Pressable,
     ScrollView,
     StyleSheet,
+    Switch,
     Text,
     View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Avatar, User } from '@chat-app/shared-types';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Avatar } from '@chat-app/shared-types';
 import { useAuth } from '@/context/auth.context';
 import { api } from '@/lib/api';
+import { useMe } from '@/hooks/useMe';
 import { MY_AVATARS_KEY, useMyAvatars, useWearAvatar } from '@/hooks/useMyAvatars';
 import { theme } from '@/constants/theme';
 import UserCharacter from '@/components/ui/UserCharacter';
-
-// ── Data fetching helpers ──────────────────────────────────────────────────────
-
-function fetchMe() {
-    return api.get<User>('/api/v1/users/me');
-}
 
 // ── Stat chip ─────────────────────────────────────────────────────────────────
 
@@ -132,10 +128,12 @@ export default function ProfileScreen() {
     const queryClient = useQueryClient();
     const [logoutModalVisible, setLogoutModalVisible] = useState(false);
 
-    const userQuery = useQuery({
-        queryKey: ['user', userId],
-        queryFn: fetchMe,
-        enabled: !!userId,
+    const userQuery = useMe();
+
+    const discoverableMutation = useMutation({
+        mutationFn: (discoverableByPhone: boolean) => api.patch('/api/v1/users/me', { discoverableByPhone }),
+        onSettled: () => queryClient.invalidateQueries({ queryKey: ['user', userId] }),
+        onError: (e: Error) => Alert.alert('Could not save', e.message),
     });
 
     const avatarsQuery = useMyAvatars();
@@ -247,6 +245,24 @@ export default function ProfileScreen() {
                             }
                         />
                     ))}
+                </View>
+            )}
+
+            {/* Privacy */}
+            {user && (
+                <View style={styles.settingRow}>
+                    <View style={styles.settingText}>
+                        <Text style={styles.settingTitle}>Find me by my phone number</Text>
+                        <Text style={styles.settingBody}>
+                            People who have your number in their contacts see you in Quick Add.
+                        </Text>
+                    </View>
+                    <Switch
+                        value={discoverableMutation.isPending ? discoverableMutation.variables : user.discoverableByPhone}
+                        onValueChange={(value) => discoverableMutation.mutate(value)}
+                        trackColor={{ true: theme.colors.primary, false: theme.colors.borderSubtle }}
+                        thumbColor={theme.colors.text}
+                    />
                 </View>
             )}
 
@@ -542,6 +558,31 @@ const styles = StyleSheet.create({
         color: theme.colors.text,
         fontWeight: '700',
         fontSize: 15,
+    },
+
+    // Privacy
+    settingRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        backgroundColor: theme.colors.surface,
+        borderRadius: 12,
+        padding: 14,
+        marginTop: 24,
+        marginBottom: 16,
+    },
+    settingText: {
+        flex: 1,
+    },
+    settingTitle: {
+        color: theme.colors.text,
+        fontSize: 15,
+        fontWeight: '600',
+    },
+    settingBody: {
+        color: theme.colors.textSecondary,
+        fontSize: 12,
+        marginTop: 2,
     },
 
     // Logout

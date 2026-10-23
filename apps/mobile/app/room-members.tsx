@@ -15,8 +15,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import UserAvatar from '@/components/UserAvatar';
 import UserPicker from '@/components/UserPicker';
+import UserRow from '@/components/UserRow';
 import { theme } from '@/constants/theme';
 import { useAuth } from '@/context/auth.context';
 import { api } from '@/lib/api';
@@ -140,22 +140,19 @@ export default function RoomMembersScreen() {
   }
 
   const memberRow = (user: PublicUser, isRoomOwner: boolean) => (
-    <View style={styles.row}>
-      <UserAvatar username={user.username} />
-      <View style={styles.rowText}>
-        <Text style={styles.username} numberOfLines={1}>
-          {user.username}{user._id === userId ? ' (you)' : ''}
-        </Text>
-        <Text style={styles.level}>Level {user.level}</Text>
-      </View>
-      {isRoomOwner ? (
-        <Text style={styles.ownerBadge}>Owner</Text>
-      ) : canManageMembers && user._id !== userId ? (
-        <Pressable onPress={() => confirmRemove(user)} hitSlop={8} accessibilityLabel={`Remove ${user.username}`}>
-          <Ionicons name="person-remove-outline" size={20} color={theme.colors.error} />
-        </Pressable>
-      ) : null}
-    </View>
+    <UserRow
+      username={`${user.username}${user._id === userId ? ' (you)' : ''}`}
+      subtitle={`Level ${user.level}`}
+      right={
+        isRoomOwner ? (
+          <Text style={styles.ownerBadge}>Owner</Text>
+        ) : canManageMembers && user._id !== userId ? (
+          <Pressable onPress={() => confirmRemove(user)} hitSlop={8} accessibilityLabel={`Remove ${user.username}`}>
+            <Ionicons name="person-remove-outline" size={20} color={theme.colors.error} />
+          </Pressable>
+        ) : null
+      }
+    />
   );
 
   return (
@@ -233,25 +230,6 @@ const styles = StyleSheet.create({
   },
   list: {
     flex: 1,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 10,
-  },
-  rowText: {
-    flex: 1,
-  },
-  username: {
-    color: theme.colors.text,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  level: {
-    color: theme.colors.textSecondary,
-    fontSize: 12,
-    marginTop: 2,
   },
   ownerBadge: {
     color: theme.colors.primary,

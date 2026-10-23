@@ -8,6 +8,10 @@ userRouter.get('/me', requireAuth, (req, res) => {
     userController.getMe(req, res);
 });
 
+userRouter.patch('/me', requireAuth, (req, res) => {
+    userController.updateMe(req, res);
+});
+
 userRouter.get('/search', requireAuth, (req, res) => {
     userController.search(req, res);
 });

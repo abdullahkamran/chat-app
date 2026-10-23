@@ -108,6 +108,11 @@ function userChannel(userId: string): string {
     return `user:${userId}`;
 }
 
+/** Something changed between these users as friends. Their friend lists and requests refetch. */
+export function announceFriendsChanged(io: Server, userIds: string[]): void {
+    io.to(userIds.map(userChannel)).emit(SocketEvent.RECEIVE_FRIENDS_CHANGED);
+}
+
 /** Users were added to a room. Their room lists refetch, and so does the room's member list. */
 export function announceMembersAdded(io: Server, roomId: string, userIds: string[]): void {
     if (userIds.length) io.to(userIds.map(userChannel)).emit(SocketEvent.RECEIVE_ADDED_TO_ROOM, { roomId });

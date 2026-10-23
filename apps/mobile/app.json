@@ -44,11 +44,25 @@
       ],
       "expo-font",
       "expo-web-browser",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-localization",
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Allow $(PRODUCT_NAME) to find friends from your contacts. Only numbers are checked, and your contacts aren't saved."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "invite": {
+        "message": "Add me on Chat App! My username is {username}. Get the app: {link}",
+        "androidUrl": "https://play.google.com/store/apps/details?id=com.chatapp.v2",
+        "iosUrl": ""
+      }
     }
   }
 }

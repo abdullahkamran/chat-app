@@ -9,13 +9,20 @@ import {
     verifyRefreshToken,
 } from '../services/auth.service';
 import { applySignupDefaults } from '../services/signup-defaults.service';
+import { toE164 } from '../services/phone.service';
 
 const authController = {
     signup: async (req: Request, res: Response): Promise<void> => {
         try {
-            const { username, password, email, phoneNumber, city, state, country } = req.body;
-            if (!username || !password || !email || !phoneNumber || !city || !state || !country) {
+            const { username, password, email, city, state, country } = req.body;
+            if (!username || !password || !email || !req.body.phoneNumber || !city || !state || !country) {
                 res.status(400).send({ error: 'username, password, email, phoneNumber, city, state, and country are required' });
+                return;
+            }
+            // Stored as E.164 so contact matching finds it however a friend saved it.
+            const phoneNumber = toE164(req.body.phoneNumber);
+            if (!phoneNumber) {
+                res.status(400).send({ error: 'phoneNumber must be a valid number with its country code, e.g. +923001234567' });
                 return;
             }
 
@@ -35,7 +42,8 @@ const authController = {
             }
 
             const hashed = await bcrypt.hash(password, 10);
-            const user = new User({ ...req.body, password: hashed });
+            // Only these fields: the rest (coins, level, rooms...) start at their defaults.
+            const user = new User({ username, password: hashed, email, phoneNumber, city, state, country });
             const saved = await user.save();
             await applySignupDefaults(saved._id as any, saved.username);
             res.status(201).send(saved);

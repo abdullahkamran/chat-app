@@ -423,6 +423,149 @@
             ]
         },
         {
+            "name": "Friends",
+            "item": [
+                {
+                    "name": "Get My Friends",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/friends",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "friends"]
+                        }
+                    }
+                },
+                {
+                    "name": "Get Incoming Requests (Added Me)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/friends/requests",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "friends", "requests"]
+                        }
+                    }
+                },
+                {
+                    "name": "Send Friend Request",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Content-Type", "value": "application/json" },
+                            { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/friends/requests",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "friends", "requests"]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"userId\": \"{{otherUserId}}\"\n}",
+                            "options": { "raw": { "language": "json" } }
+                        }
+                    }
+                },
+                {
+                    "name": "Accept Friend Request",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/friends/requests/{{otherUserId}}/accept",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "friends", "requests", "{{otherUserId}}", "accept"]
+                        }
+                    }
+                },
+                {
+                    "name": "Decline or Cancel Friend Request",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/friends/requests/{{otherUserId}}",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "friends", "requests", "{{otherUserId}}"]
+                        }
+                    }
+                },
+                {
+                    "name": "Unfriend",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/friends/{{otherUserId}}",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "friends", "{{otherUserId}}"]
+                        }
+                    }
+                },
+                {
+                    "name": "Get Quick Add Suggestions",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/friends/suggestions",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "friends", "suggestions"]
+                        }
+                    }
+                },
+                {
+                    "name": "Dismiss Suggestion",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/friends/suggestions/{{otherUserId}}/dismiss",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "friends", "suggestions", "{{otherUserId}}", "dismiss"]
+                        }
+                    }
+                },
+                {
+                    "name": "Sync Contacts",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Content-Type", "value": "application/json" },
+                            { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/friends/contacts/sync",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "friends", "contacts", "sync"]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"phoneNumbers\": [\"+923001234567\"]\n}",
+                            "options": { "raw": { "language": "json" } }
+                        }
+                    }
+                }
+            ]
+        },
+        {
             "name": "Shop",
             "item": [
                 {

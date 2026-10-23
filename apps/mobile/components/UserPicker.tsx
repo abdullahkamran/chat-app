@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
-import React, { useEffect, useState } from 'react';
+import { useRouter } from 'expo-router';
+import React, { useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -13,12 +13,9 @@ import {
 } from 'react-native';
 
 import type { PublicUser } from '@chat-app/shared-types';
-import UserAvatar from '@/components/UserAvatar';
+import UserRow from '@/components/UserRow';
 import { theme } from '@/constants/theme';
-import { api } from '@/lib/api';
-
-/** How long typing must pause before a search goes out. */
-const SEARCH_DEBOUNCE_MS = 250;
+import { useFriends } from '@/hooks/useFriends';
 
 interface Props {
   selected: PublicUser[];
@@ -30,24 +27,16 @@ interface Props {
 }
 
 /**
- * Pick several people by searching their usernames. Picked people show as chips above the
- * search, and stay picked across searches.
+ * Pick several of your friends to add to a room; only friends can be added. Lists them all,
+ * narrowed by typing. Picked people show as chips above the search.
  */
 export default function UserPicker({ selected, onChange, excludeIds = [], maxSelected }: Readonly<Props>) {
+  const router = useRouter();
   const [input, setInput] = useState('');
-  const [query, setQuery] = useState('');
+  const { data: friends = [], isLoading } = useFriends();
 
-  useEffect(() => {
-    const timer = setTimeout(() => setQuery(input.trim()), SEARCH_DEBOUNCE_MS);
-    return () => clearTimeout(timer);
-  }, [input]);
-
-  const { data: results = [], isFetching } = useQuery({
-    queryKey: ['userSearch', query],
-    queryFn: () => api.get<PublicUser[]>(`/api/v1/users/search?q=${encodeURIComponent(query)}`),
-    enabled: query.length > 0,
-    staleTime: 30_000,
-  });
+  const query = input.trim().toLowerCase();
+  const shown = query ? friends.filter((f) => f.username.toLowerCase().includes(query)) : friends;
 
   const isFull = maxSelected !== undefined && selected.length >= maxSelected;
   const isSelected = (id: string) => selected.some((u) => u._id === id);
@@ -56,6 +45,18 @@ export default function UserPicker({ selected, onChange, excludeIds = [], maxSel
     if (isSelected(user._id)) onChange(selected.filter((u) => u._id !== user._id));
     else if (!isFull) onChange([...selected, user]);
   };
+
+  if (!isLoading && friends.length === 0) {
+    return (
+      <View style={styles.noFriends}>
+        <Text style={styles.empty}>{"You can add your friends to rooms. You don't have any yet."}</Text>
+        <Pressable style={styles.findBtn} onPress={() => router.push('/add-friends')}>
+          <Ionicons name="person-add" size={16} color={theme.colors.primaryText} />
+          <Text style={styles.findText}>Find Friends</Text>
+        </Pressable>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.root}>
@@ -76,13 +77,12 @@ export default function UserPicker({ selected, onChange, excludeIds = [], maxSel
           style={styles.searchInput}
           value={input}
           onChangeText={setInput}
-          placeholder="Search by username"
+          placeholder="Search your friends"
           placeholderTextColor={theme.colors.textMuted}
           autoCapitalize="none"
           autoCorrect={false}
           returnKeyType="search"
         />
-        {isFetching && <ActivityIndicator size="small" color={theme.colors.primary} />}
       </View>
 
       {maxSelected !== undefined && (
@@ -92,41 +92,39 @@ export default function UserPicker({ selected, onChange, excludeIds = [], maxSel
       )}
 
       <FlatList
-        data={query ? results : []}
+        data={shown}
         keyExtractor={(user) => user._id}
         keyboardShouldPersistTaps="handled"
         style={styles.list}
         renderItem={({ item }) => {
           const added = excludeIds.includes(item._id);
           const picked = isSelected(item._id);
-          const disabled = added || (isFull && !picked);
           return (
-            <Pressable
-              style={[styles.row, disabled && styles.rowDisabled]}
+            <UserRow
+              username={item.username}
+              subtitle={`Level ${item.level}`}
               onPress={() => toggle(item)}
-              disabled={disabled}
-            >
-              <UserAvatar username={item.username} />
-              <View style={styles.rowText}>
-                <Text style={styles.username} numberOfLines={1}>{item.username}</Text>
-                <Text style={styles.level}>Level {item.level}</Text>
-              </View>
-              {added ? (
-                <Text style={styles.addedText}>Added</Text>
-              ) : (
-                <Ionicons
-                  name={picked ? 'checkmark-circle' : 'ellipse-outline'}
-                  size={24}
-                  color={picked ? theme.colors.primary : theme.colors.textMuted}
-                />
-              )}
-            </Pressable>
+              disabled={added || (isFull && !picked)}
+              right={
+                added ? (
+                  <Text style={styles.addedText}>Added</Text>
+                ) : (
+                  <Ionicons
+                    name={picked ? 'checkmark-circle' : 'ellipse-outline'}
+                    size={24}
+                    color={picked ? theme.colors.primary : theme.colors.textMuted}
+                  />
+                )
+              }
+            />
           );
         }}
         ListEmptyComponent={
-          <Text style={styles.empty}>
-            {!query ? 'Search for people by their username.' : isFetching ? '' : `No one found for "${query}".`}
-          </Text>
+          isLoading ? (
+            <ActivityIndicator color={theme.colors.primary} style={styles.loader} />
+          ) : (
+            <Text style={styles.empty}>{`No friends match "${input.trim()}".`}</Text>
+          )
         }
       />
     </View>
@@ -184,32 +182,32 @@ const styles = StyleSheet.create({
     flex: 1,
     marginTop: 8,
   },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 10,
-  },
-  rowDisabled: {
-    opacity: 0.4,
-  },
-  rowText: {
-    flex: 1,
-  },
-  username: {
-    color: theme.colors.text,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  level: {
-    color: theme.colors.textSecondary,
-    fontSize: 12,
-    marginTop: 2,
-  },
   addedText: {
     color: theme.colors.textSecondary,
     fontSize: 13,
     fontWeight: '600',
+  },
+  loader: {
+    marginTop: 32,
+  },
+  noFriends: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 16,
+  },
+  findBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: theme.colors.primary,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+  },
+  findText: {
+    color: theme.colors.primaryText,
+    fontWeight: '700',
+    fontSize: 15,
   },
   empty: {
     color: theme.colors.textMuted,

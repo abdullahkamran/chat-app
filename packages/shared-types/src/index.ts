@@ -8,3 +8,4 @@ export * from './avatar.types';
 export * from './dimensions.types';
 export * from './currency.types';
 export * from './transaction.types';
+export * from './friend.types';

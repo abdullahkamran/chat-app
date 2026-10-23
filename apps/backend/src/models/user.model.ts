@@ -3,12 +3,11 @@ import { User } from '@chat-app/shared-types';
 
 // Override ref-array fields with ObjectId since mongoose stores references, not populated docs
 export interface IUser
-    extends Omit<User, '_id' | 'rooms' | 'ownedRooms' | 'favouriteRooms' | 'friends' | 'inventory' | 'avatarInventory' | 'avatars' | 'selectedAvatar' | 'animations'>,
+    extends Omit<User, '_id' | 'rooms' | 'ownedRooms' | 'favouriteRooms' | 'inventory' | 'avatarInventory' | 'avatars' | 'selectedAvatar' | 'animations'>,
         Document {
     rooms: mongoose.Types.ObjectId[];
     ownedRooms: mongoose.Types.ObjectId[];
     favouriteRooms: mongoose.Types.ObjectId[];
-    friends: mongoose.Types.ObjectId[];
     inventory: mongoose.Types.ObjectId[];
     avatarInventory: Array<{ item: mongoose.Types.ObjectId; variantId: string }>;
     avatars: mongoose.Types.ObjectId[];
@@ -16,6 +15,12 @@ export interface IUser
     animations: mongoose.Types.ObjectId[];
     pushTokens: string[];    // backend-only, for push notifications
     refreshTokens: string[]; // backend-only, for auth session management
+    /** Backend-only. Users whose numbers were in this user's contacts at the last sync (not the contacts themselves). */
+    contactMatches: mongoose.Types.ObjectId[];
+    /** Backend-only. Contact syncs today, to cap how many numbers one account can look up. */
+    contactSyncs: { day: string; count: number };
+    /** Backend-only. People hidden from this user's Quick Add. */
+    dismissedSuggestions: mongoose.Types.ObjectId[];
 }
 
 /** The fields of a `PublicUser`, for `select` and `populate` wherever one user sees another. */
@@ -66,7 +71,6 @@ const UserSchema = new Schema<IUser, IUserModel>(
         rooms: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Room' }],
         ownedRooms: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Room' }],
         favouriteRooms: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Room' }],
-        friends: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
         inventory: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Item' }],
         avatarInventory: [
             {
@@ -85,6 +89,13 @@ const UserSchema = new Schema<IUser, IUserModel>(
         ],
         pushTokens: [{ type: String }],
         refreshTokens: [{ type: String }],
+        discoverableByPhone: { type: Boolean, default: true },
+        contactMatches: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+        contactSyncs: {
+            day: { type: String, default: '' },
+            count: { type: Number, default: 0 },
+        },
+        dismissedSuggestions: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     },
     {
         collection: 'users',
@@ -93,6 +104,9 @@ const UserSchema = new Schema<IUser, IUserModel>(
                 delete ret.password;
                 delete ret.refreshTokens;
                 delete ret.pushTokens;
+                delete ret.contactMatches;
+                delete ret.contactSyncs;
+                delete ret.dismissedSuggestions;
                 return ret;
             },
         },

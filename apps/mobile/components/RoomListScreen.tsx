@@ -1,13 +1,16 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { io } from 'socket.io-client';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { PaginatedRooms } from '@chat-app/shared-types';
 import { useAuth } from '@/context/auth.context';
+import { useIncomingRequests } from '@/hooks/useFriends';
 import { api } from '@/lib/api';
 import { SERVER_ORIGIN } from '../utils/config';
-import { listenForMembershipChanges, socketUtils } from '../utils/socketUtils';
+import { listenForAccountEvents, socketUtils } from '../utils/socketUtils';
 import RoomListItem from './RoomListItem';
 import { theme } from '@/constants/theme';
 
@@ -17,6 +20,7 @@ export default function RoomListScreen(): React.JSX.Element {
   const { userId, selectedAvatar } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
   const [showAvatarDialog, setShowAvatarDialog] = useState(!selectedAvatar);
 
   const {
@@ -36,6 +40,7 @@ export default function RoomListScreen(): React.JSX.Element {
   });
 
   const rooms = data?.pages.flatMap((p) => p.rooms) ?? [];
+  const requestCount = useIncomingRequests().data?.length ?? 0;
 
   function handleRoomPress(roomId: string) {
     if (!selectedAvatar) {
@@ -54,7 +59,7 @@ export default function RoomListScreen(): React.JSX.Element {
     const socket = io(SERVER_ORIGIN, { autoConnect: false });
     socketUtils.socket = socket;
     socket.auth = { id: userId };
-    const stopListening = listenForMembershipChanges(socket, queryClient);
+    const stopListening = listenForAccountEvents(socket, queryClient);
     socket.connect();
 
     return () => {
@@ -64,7 +69,18 @@ export default function RoomListScreen(): React.JSX.Element {
   }, [userId, queryClient]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Rooms</Text>
+        <Pressable onPress={() => router.push('/add-friends')} hitSlop={8} accessibilityLabel="Add friends">
+          <Ionicons name="person-add-outline" size={24} color={theme.colors.text} />
+          {requestCount > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{requestCount > 9 ? '9+' : requestCount}</Text>
+            </View>
+          )}
+        </Pressable>
+      </View>
       {isLoading ? (
         <ActivityIndicator style={styles.loader} size="large" color="#FFFC00" />
       ) : (
@@ -120,6 +136,35 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  headerTitle: {
+    color: theme.colors.text,
+    fontSize: 24,
+    fontWeight: '700',
+  },
+  badge: {
+    position: 'absolute',
+    top: -6,
+    right: -8,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: theme.colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: {
+    color: theme.colors.primaryText,
+    fontSize: 11,
+    fontWeight: '700',
   },
   loader: {
     flex: 1,

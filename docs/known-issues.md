@@ -53,7 +53,7 @@ instances make them more likely or more costly.
 
 **Seen:** a socket connecting with `auth: { id: '<any user id>' }` is accepted as that user and can enter
 their rooms, chat, walk and sit as them. It also joins their own channel (`user:<id>`), so it hears which
-rooms they are added to and removed from.
+rooms they are added to and removed from, and when their friends or requests change.
 
 **Why:** `authenticate` in `apps/backend/src/sockets/socketHandler.ts` reads `socket.handshake.auth.id` and
 only checks that the user exists. No token is verified, unlike the REST routes (`requireAuth`).
@@ -147,6 +147,46 @@ Found on 2026-10-23 while adding search-and-pick on Create Room, adding and remo
 
 ---
 
+## Friends
+
+Found on 2026-10-24 while adding friend requests, Quick Add, contact matching and inviting people.
+
+### 1. No blocking
+
+**Seen:** someone you don't want can request you again right after you decline, as often as they like
+(there's deliberately no cooldown), and can still find you by username or in Quick Add.
+
+**Why:** blocking was left out on purpose. The open question is what it means for rooms you both are in:
+hide each other's characters and chat, remove one of you, or stop the owner from adding a blocked person.
+
+**Fix:** decide the room behaviour first. Then store a block as a third `status` on the friendship document
+(`blocked`, with `requester` as the blocker), so one record per pair still holds. Have search, Quick Add,
+requests and the room member picker skip blocked pairs; every query already filters on `status`.
+
+### 2. Many accounts together can still find which numbers are on the app
+
+**Seen:** nothing yet. A script with many accounts could send numbers to `POST /friends/contacts/sync`
+and learn which belong to users who allow being found by number.
+
+**Why:** the cap is per account (10 syncs a day, 3000 numbers each), and signup doesn't verify the phone
+number or limit how many accounts one person makes.
+
+**Fix:** verify phone numbers with a one-time code at signup, rate-limit signup and sync per IP or device,
+and watch for accounts that sync but never add anyone.
+
+### 3. Numbers saved before E.164 normalization won't match contacts
+
+**Seen:** a user created before 2026-10-24 whose number isn't stored as `+<country><number>` never shows up
+as "In your contacts".
+
+**Why:** signup now stores E.164 (`toE164` in `apps/backend/src/services/phone.service.ts`), but existing
+documents weren't rewritten. The seeded test users are already E.164.
+
+**Fix:** a one-off script that rewrites each `phoneNumber` with `toE164`, and reports the ones it can't parse
+(those are missing a country code and need the user to fix them).
+
+---
+
 ## Scaling past one backend instance
 
 We run one instance and will fix these before running more. Nothing here shows today.
@@ -170,7 +210,7 @@ take the same seat.
 
 **Why:** two things live in one process's memory. Room presence (`apps/backend/src/sockets/roomPresence.ts`)
 is a `Map` per process, so each instance only knows its own sockets. And Socket.IO's default adapter only
-broadcasts to sockets on the same instance, so relays (`socket.to(roomId)`) never cross instances. The same goes for layout saves: `announceRoomItemsChanged` only places the people this instance knows and tells only its own sockets. And for membership: the added, removed and members-changed events only reach this instance's sockets, and `announceMemberRemoved` only takes out a removed user standing in the room on this instance. On another instance, the removed user stays and is still relayed to until they exit. With the Redis adapter, evict with `io.in(userChannel).socketsLeave(roomId)` plus a broadcast that tells each instance to drop the user from presence and its sockets' `presentRoomIds`.
+broadcasts to sockets on the same instance, so relays (`socket.to(roomId)`) never cross instances. The same goes for layout saves: `announceRoomItemsChanged` only places the people this instance knows and tells only its own sockets. And for membership and friends: the added, removed, members-changed and friends-changed events only reach this instance's sockets, and `announceMemberRemoved` only takes out a removed user standing in the room on this instance. On another instance, the removed user stays and is still relayed to until they exit. With the Redis adapter, evict with `io.in(userChannel).socketsLeave(roomId)` plus a broadcast that tells each instance to drop the user from presence and its sockets' `presentRoomIds`.
 
 **Fix:** add Redis, decide room presence issue 1 first, and keep `roomPresence`'s API (made async) so the
 handlers barely change:
@@ -234,3 +274,15 @@ index's bounds for a case-insensitive regex, so it scans the whole index. Found 
 **Fix:** store a lowercased `usernameLower` with an index (set on signup, backfill once) and match
 `^<lowercased query>` against it without `i`. That's an index range scan. Rate-limit search per user
 (scaling issue 5).
+
+### 8. Quick Add is worked out from scratch on every open
+
+**Seen (with more users and friends):** `GET /api/v1/friends/suggestions` slows down, and it runs every time
+someone opens Add Friends and after every friend change.
+
+**Why:** `suggestionsFor` in `apps/backend/src/services/friend.service.ts` reads all of the user's friendships,
+up to 5000 friendships of their friends, and every room they're in, then counts in memory. Found on 2026-10-24.
+
+**Fix:** cache each user's list for a few minutes (in Redis once we have it, so every instance shares it) and
+drop it when their friends, rooms or contact matches change. With much more traffic, compute suggestions in a
+background job.

@@ -30,10 +30,11 @@ export interface User {
     rooms: Array<Room>;
     ownedRooms: Array<Room>;
     favouriteRooms: Array<Room>;
-    friends: Array<User['_id']>;
     inventory: Array<Item['_id']>;
     avatarInventory: Array<AvatarInventoryEntry>;
     badges: Array<Badge>;
+    /** Whether people who have this user's number in their contacts see them in Quick Add. */
+    discoverableByPhone: boolean;
 }
 
 /** What any signed-in user may see about another: search results, room member lists. */
