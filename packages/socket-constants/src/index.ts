@@ -29,6 +29,10 @@ export const SocketEvent = {
   RECEIVE_ROOM_MEMBERS_CHANGED: "receive_room_members_changed",
   /** Sent to a user's own channel: a friend request to or from them, or a friendship, was made or ended. Refetch friends and requests. */
   RECEIVE_FRIENDS_CHANGED: "receive_friends_changed",
+  /** Sent to a personal room owner's own channel: a friend entered their room while they weren't there. */
+  RECEIVE_ROOM_VISITED: "receive_room_visited",
+  /** Sent to the own channel of everyone who can read it: mail was left in a room's postbox. */
+  RECEIVE_ROOM_MAIL: "receive_room_mail",
 } as const;
 
 export type SocketEvent = typeof SocketEvent[keyof typeof SocketEvent];

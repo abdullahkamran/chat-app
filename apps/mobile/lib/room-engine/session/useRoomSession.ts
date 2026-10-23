@@ -61,6 +61,8 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
   // report for a walk that has since been replaced is recognised as stale.
   const walkSeqRef = useRef<Record<User['_id'], number>>({});
   const [walkIds] = useState(() => new WeakMap<ActorAction, number>());
+  // Whether the server has told us who was here when we entered. Until then, an empty room may not be.
+  const [presenceKnown, setPresenceKnown] = useState(false);
   const canEmote = capabilities.actions.includes('emote');
 
   const { user } = useUserInfo();
@@ -145,6 +147,7 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
 
   /** Everyone already in the room when we entered. They appear where they are, not at the door. */
   function receivePresence({ occupants }: { occupants: RoomOccupant[] }) {
+    setPresenceKnown(true);
     for (const { userId: uid, bubbles = [], ...state } of occupants) {
       placeActor(uid, state);
       // Bubbles still up show for the time they have left.
@@ -752,6 +755,10 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     canEmote,
     /** The local user is seated, so emotes are unavailable. */
     isSeated: actors[userId]?.action.kind === 'sit',
+    /** No one else is in the room. False until the server's presence snapshot has arrived. */
+    isAlone: presenceKnown && Object.keys(actors).every(id => id === userId),
+    /** The signed-in user. */
+    userId,
     intents: {
       walkTo,
       interactWith,

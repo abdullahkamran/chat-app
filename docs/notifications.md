@@ -49,13 +49,20 @@ work in Expo Go or on simulators.
 
 ## When pushes are sent today
 
-All three go to every room **member** except the sender, on every device they've registered.
+The first three go to every room **member** except the sender, on every device they've registered (a personal
+room has no members, so none of them fire there).
 
 | Trigger | Socket event | Title | Body | `data.type` |
 |---|---|---|---|---|
 | Someone sends a chat message in a room | `SEND_MESSAGE` | `New message` | the raw message text | `message` |
-| Someone enters a room | `SEND_ENTER` (after the membership check passes) | `Room activity` | `Someone entered the room` | `enter` |
+| Someone enters a room | `SEND_ENTER` (after the access check passes) | `Room activity` | `Someone entered the room` | `enter` |
 | Someone leaves a room on purpose | `SEND_EXIT` (only if they really left) | `Room activity` | `Someone left the room` | `exit` |
+| A friend enters your personal room | `SEND_ENTER`, not a reconnect re-entry; skipped if you're in the room, and at most once per friend per 10 minutes | room name | `<username> visited your room` | `visit` |
+| Someone leaves mail in a room's postbox | `POST /api/v1/rooms/:roomId/mail`; to its readers (personal room: the owner; group room: owner and members) who aren't in the room | room name | `<username> left a mail: <first 100 chars>` | `mail` |
+
+The last two also reach the app by socket, to the user's own channel (`RECEIVE_ROOM_VISITED`,
+`RECEIVE_ROOM_MAIL`), and show as an in-app toast ([`Toast.tsx`](../apps/mobile/components/Toast.tsx)). That
+part works today, without push.
 
 Every push carries `data: { roomId, type, senderUserId }`.
 

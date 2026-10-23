@@ -1,13 +1,14 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import type { Server } from 'socket.io';
-import { FriendshipStatus, type FriendRelation, type IncomingFriendRequest, type PublicUser } from '@chat-app/shared-types';
+import { FriendshipStatus, RoomCategory, type FriendRelation, type IncomingFriendRequest, type PublicUser } from '@chat-app/shared-types';
 import Friendship, { IFriendship, pairKeyOf } from '../models/friendship.model';
+import Room from '../models/room.model';
 import User, { PUBLIC_USER_FIELDS } from '../models/user.model';
 import { friendIdsOf, suggestionsFor } from '../services/friend.service';
 import { sendPushToUsers } from '../services/notification.service';
 import { toE164 } from '../services/phone.service';
-import { announceFriendsChanged } from '../sockets/socketHandler';
+import { announceFriendsChanged, announceMemberRemoved } from '../sockets/socketHandler';
 
 /** Most numbers one contact sync may check. */
 const MAX_CONTACT_NUMBERS = 3000;
@@ -226,7 +227,8 @@ const controller = {
         }
     },
 
-    // DELETE /friends/:userId — unfriend. No one is notified, and shared rooms are untouched.
+    // DELETE /friends/:userId — unfriend. No one is notified, and shared group rooms are untouched.
+    // Each loses access to the other's personal room, and is taken out of it if they're in it now.
     unfriend: async (req: Request, res: Response): Promise<void> => {
         const userId = req.user!.userId;
         try {
@@ -239,6 +241,12 @@ const controller = {
             }
             res.sendStatus(204);
             notify(req, [userId, otherId]);
+            const io = req.app.get('io') as Server;
+            const personalRooms = await Room.find({ ownerId: { $in: [userId, otherId] }, category: RoomCategory.PERSONAL }).select('ownerId');
+            for (const room of personalRooms) {
+                const visitor = room.ownerId.toString() === userId ? otherId : userId;
+                announceMemberRemoved(io, room._id.toString(), visitor, 'unfriended');
+            }
         } catch (e) {
             console.error(`Error: ${e}`);
             res.sendStatus(500);

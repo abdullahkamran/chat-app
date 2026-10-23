@@ -109,6 +109,10 @@ user per minute), and with more traffic move sending to a queue (BullMQ on the s
 **Fix:** a per-socket token bucket in the handler for socket events, and `express-rate-limit` on auth routes.
 Past one instance the limits must be shared; see scaling issue 5.
 
+The postbox has the same gap (found on 2026-10-24): `POST /api/v1/rooms/:roomId/mail` has no limit, so one
+person can fill a friend's postbox and push them once per mail. Mail is kept forever, so it also grows without
+bound. Limit mails per author per room per hour, and cap or expire old mail per room.
+
 ### 7. Room membership can be left half-written, and room limits can be dodged
 
 Found on 2026-10-23 while adding search-and-pick on Create Room, adding and removing members, and leaving.
@@ -239,7 +243,6 @@ updates them; an exit for someone already gone is ignored).
 
 **Fix:** run it as a one-off job or migration per deploy, or guard it with a Redis lock
 (`SET catalog-sync <id> NX EX 120`).
-
 ### 4. No health checks or graceful shutdown
 
 **Seen (with rolling deploys):** an orchestrator can't tell a booting or broken instance from a ready one, and
@@ -286,3 +289,25 @@ up to 5000 friendships of their friends, and every room they're in, then counts 
 **Fix:** cache each user's list for a few minutes (in Redis once we have it, so every instance shares it) and
 drop it when their friends, rooms or contact matches change. With much more traffic, compute suggestions in a
 background job.
+
+### 9. "Visited your room" can repeat once per instance
+
+**Seen (with N instances):** a friend who walks in and out of someone's personal room can notify the owner up to
+N times in ten minutes instead of once.
+
+**Why:** the cooldown that stops repeat visit notices is a `Map` in process memory (`lastVisitNotice` in
+`apps/backend/src/sockets/socketHandler.ts`), and the "is the owner in the room" check reads this instance's
+`roomPresence` (scaling issue 2). Each instance keeps its own. Found on 2026-10-24.
+
+**Fix:** keep the cooldown in Redis (`SET visit:<roomId>:<userId> 1 NX PX 600000`; send only when it was set),
+and check owner presence against the shared presence store once that moves.
+
+### 10. The room list joins friends' personal rooms on every page
+
+**Seen (with many friends):** `GET /api/v1/rooms` gets slower as someone's friend count grows.
+
+**Why:** each page reads all of the user's friendships (`friendIdsOf`), then queries rooms with
+`ownerId: { $in: friendIds }`, sorted by `updatedAt`, and counts the same filter for `total`. Found on 2026-10-24.
+
+**Fix:** cache friend IDs per user (shared, dropped on friend changes, like Quick Add in issue 8), add a
+`{ category: 1, updatedAt: -1 }` index, and switch to cursor pagination so `countDocuments` isn't needed.

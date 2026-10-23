@@ -27,6 +27,7 @@ export default function RoomScreen() {
       if (p.roomId !== roomId) return;
       router.dismissTo('/(tabs)');
       if (p.reason === 'removed') Alert.alert('Removed from room', 'The owner removed you from this room.');
+      if (p.reason === 'unfriended') Alert.alert('Room closed', "You're no longer friends with this room's owner.");
     };
     socket.on(SocketEvent.RECEIVE_REMOVED_FROM_ROOM, onRemoved);
     return () => {

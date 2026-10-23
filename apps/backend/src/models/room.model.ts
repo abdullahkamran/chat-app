@@ -1,6 +1,6 @@
 import mongoose, { Document, Model, Schema } from 'mongoose';
 import { Room, RoomDetails } from '@chat-app/shared-types';
-import { Orientiation, ItemState } from '@chat-app/shared-types';
+import { Orientiation, ItemState, RoomCategory } from '@chat-app/shared-types';
 
 // Override ownerId to use ObjectId since mongoose stores a reference, not a plain string
 export interface IRoom extends Omit<Room, '_id' | 'ownerId'>, Omit<RoomDetails, '_id' | 'ownerId' | 'members' | 'items' | 'theme'>, Document {
@@ -30,9 +30,17 @@ const RoomSchema = new Schema<IRoom, IRoomModel>(
         ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
         name: { type: String, required: true },
         description: { type: String, default: '' },
-        category: { type: String, default: '' },
+        category: { type: String, enum: Object.values(RoomCategory), default: RoomCategory.GROUP },
         personLimit: { type: Number, default: 10 },
-        members: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+        members: {
+            type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+            validate: {
+                validator(this: IRoom, members: unknown[]) {
+                    return this.category !== RoomCategory.PERSONAL || members.length === 0;
+                },
+                message: "Personal rooms don't have members",
+            },
+        },
         dimensions: {
             x: { type: Number, default: 0 },
             y: { type: Number, default: 0 },
@@ -75,6 +83,13 @@ const RoomSchema = new Schema<IRoom, IRoomModel>(
     { timestamps: true, collection: 'rooms' }
 );
 
+// One personal room per user. A second create for the same owner (say a retried signup)
+// fails with a duplicate key instead of making another.
+RoomSchema.index(
+    { ownerId: 1 },
+    { unique: true, partialFilterExpression: { category: RoomCategory.PERSONAL }, name: 'one_personal_room_per_owner' },
+);
+
 RoomSchema.statics.getAll = function () {
     return this.find({});
 };
@@ -83,16 +98,18 @@ RoomSchema.statics.createRoom = function (room: IRoom) {
     return room.save();
 };
 
+// Never deletes a personal room: every user keeps exactly one.
 RoomSchema.statics.deleteByID = function (room: { _id: mongoose.Types.ObjectId }) {
-    return this.deleteOne({ _id: room._id });
+    return this.deleteOne({ _id: room._id, category: { $ne: RoomCategory.PERSONAL } });
 };
 
 /**
- * Whether the user may add and remove the room's members. Only the owner today. Room admins,
- * when they come, are checked here, so the routes that call this don't change.
+ * Whether the user may add and remove the room's members. Only the owner today, and never in a
+ * personal room, which has no members. Room admins, when they come, are checked here, so the
+ * routes that call this don't change.
  */
-export function canManageMembers(room: Pick<IRoom, 'ownerId'>, userId: string): boolean {
-    return room.ownerId.toString() === userId;
+export function canManageMembers(room: Pick<IRoom, 'ownerId' | 'category'>, userId: string): boolean {
+    return room.category !== RoomCategory.PERSONAL && room.ownerId.toString() === userId;
 }
 
 const RoomModel = mongoose.model<IRoom, IRoomModel>('Room', RoomSchema);

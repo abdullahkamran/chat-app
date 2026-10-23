@@ -1,11 +1,18 @@
 import { Server, Socket } from 'socket.io';
 import mongoose from 'mongoose';
 import { SocketEvent } from '@chat-app/socket-constants';
-import { AnimationCategory, type RoomPresenceState, type RoomRemovalReason } from '@chat-app/shared-types';
+import {
+    AnimationCategory,
+    type RoomMailNotice,
+    type RoomPresenceState,
+    type RoomRemovalReason,
+    type RoomVisit,
+} from '@chat-app/shared-types';
 import Animation from '../models/animation.model';
-import Room from '../models/room.model';
+import Room, { IRoom } from '../models/room.model';
 import User from '../models/user.model';
-import { sendPushToRoom } from '../services/notification.service';
+import { sendPushToRoom, sendPushToUsers } from '../services/notification.service';
+import { findAccessibleRoom, isPersonalRoom } from '../services/room-access.service';
 import { blockedCells, cellOf, nearestFreeCell, type RoomLayout } from './roomLayout';
 import { roomPresence, type EmoteAction, type Presence, type SitAction } from './roomPresence';
 
@@ -84,10 +91,45 @@ async function allowedAction(userId: string, roomId: string, action: unknown): P
     return null;
 }
 
-/** Whether the user may enter the room: a member of it or its owner. */
-async function canEnter(userId: string, roomId: unknown): Promise<boolean> {
-    if (typeof roomId !== 'string' || !mongoose.isValidObjectId(roomId)) return false;
-    return !!(await User.exists({ _id: userId, $or: [{ rooms: roomId }, { ownedRooms: roomId }] }));
+/**
+ * The room when the user may enter it (its owner, a member, or for a personal room a friend
+ * of its owner), else null.
+ */
+async function roomToEnter(userId: string, roomId: unknown): Promise<Pick<IRoom, 'ownerId' | 'category' | 'name'> | null> {
+    return (await findAccessibleRoom(roomId, userId, 'name')) || null;
+}
+
+/** A friend who keeps popping in notifies the owner at most once per this long. */
+const VISIT_NOTICE_COOLDOWN_MS = 10 * 60_000;
+/**
+ * When each visitor last notified each room's owner, by `roomId:userId`. In this process's
+ * memory, so with several instances each keeps its own; see docs/known-issues.md.
+ */
+const lastVisitNotice = new Map<string, number>();
+
+/**
+ * A friend entered someone's personal room. Tell the owner, on their devices and by push, unless
+ * they are in the room to see it, or this friend already told them a moment ago.
+ */
+function announceVisit(io: Server, roomId: string, room: Pick<IRoom, 'ownerId' | 'name'>, visitor: { userId: string; username: string }): void {
+    const ownerId = room.ownerId.toString();
+    if (roomPresence.has(roomId, ownerId)) return;
+    const key = `${roomId}:${visitor.userId}`;
+    const now = Date.now();
+    if (now - (lastVisitNotice.get(key) ?? 0) < VISIT_NOTICE_COOLDOWN_MS) return;
+    lastVisitNotice.set(key, now);
+    for (const [k, at] of lastVisitNotice) {
+        if (now - at >= VISIT_NOTICE_COOLDOWN_MS) lastVisitNotice.delete(k);
+    }
+
+    const visit: RoomVisit = { roomId, userId: visitor.userId, username: visitor.username };
+    console.log(SocketEvent.RECEIVE_ROOM_VISITED, visit);
+    io.to(userChannel(ownerId)).emit(SocketEvent.RECEIVE_ROOM_VISITED, visit);
+    sendPushToUsers(
+        [ownerId],
+        { title: room.name, body: `${visitor.username} visited your room`, type: 'visit' },
+        { roomId, senderUserId: visitor.userId },
+    );
 }
 
 interface ClientSocketData {
@@ -113,6 +155,11 @@ export function announceFriendsChanged(io: Server, userIds: string[]): void {
     io.to(userIds.map(userChannel)).emit(SocketEvent.RECEIVE_FRIENDS_CHANGED);
 }
 
+/** Mail was left in a room's postbox. Its readers' mailboxes refetch. */
+export function announceRoomMail(io: Server, userIds: string[], notice: RoomMailNotice): void {
+    if (userIds.length) io.to(userIds.map(userChannel)).emit(SocketEvent.RECEIVE_ROOM_MAIL, notice);
+}
+
 /** Users were added to a room. Their room lists refetch, and so does the room's member list. */
 export function announceMembersAdded(io: Server, roomId: string, userIds: string[]): void {
     if (userIds.length) io.to(userIds.map(userChannel)).emit(SocketEvent.RECEIVE_ADDED_TO_ROOM, { roomId });
@@ -120,7 +167,8 @@ export function announceMembersAdded(io: Server, roomId: string, userIds: string
 }
 
 /**
- * The user is no longer a member: removed by a manager, or left. Every socket of theirs standing
+ * The user can no longer be in the room: removed by a manager, left, or no longer friends with
+ * the owner of a personal room. Every socket of theirs standing
  * in the room is taken out (their character leaves, and nothing more is relayed for them), their
  * devices are told so a room on screen closes, and the room's member list refetches.
  * Entering checks membership, so they can't come back in.
@@ -217,8 +265,9 @@ const handler = {
         // A first entry carries no state: the user appears at the entry door. A re-entry after
         // a reconnect carries where the user was, so others place them there directly.
         socket.on(SocketEvent.SEND_ENTER, inOrder(SocketEvent.SEND_ENTER, async ({ roomId, position, action }: { roomId: string } & RoomPresenceState) => {
-            if (!(await canEnter(userId, roomId))) {
-                console.warn(SocketEvent.SEND_ENTER, 'refused: not a member', { userId, roomId });
+            const room = await roomToEnter(userId, roomId);
+            if (!room) {
+                console.warn(SocketEvent.SEND_ENTER, 'refused: no access', { userId, roomId });
                 return;
             }
             console.log(SocketEvent.SEND_ENTER, { userId, roomId });
@@ -248,6 +297,11 @@ const handler = {
             const joined = socket.join(roomId);
             socket.to(roomId).emit(SocketEvent.RECEIVE_ENTER, { roomId, userId, ...state });
             await joined;
+            // A re-entry after a reconnect carries where they were; it isn't a new visit.
+            const isReentry = !!point || !!claimed;
+            if (isPersonalRoom(room) && room.ownerId.toString() !== userId && !isReentry) {
+                announceVisit(socket.nsp.server, roomId, room, { userId, username });
+            }
             sendPushToRoom(roomId, userId, {
                 title: 'Room activity',
                 body: 'Someone entered the room',

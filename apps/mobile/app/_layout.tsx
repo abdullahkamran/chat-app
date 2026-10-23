@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { ToastHost } from '@/components/Toast';
 import { ActiveRoomContext } from '@/context/activeRoom.context';
 import { AuthProvider, useAuth } from '@/context/auth.context';
 import { UserContext } from '@/context/user.context';
@@ -83,6 +84,7 @@ function AppNavigator() {
               </Stack.Protected>
             </Stack>
             <StatusBar style="auto" />
+            <ToastHost />
           </ThemeProvider>
         </QueryClientProvider>
       </ActiveRoomContext.Provider>

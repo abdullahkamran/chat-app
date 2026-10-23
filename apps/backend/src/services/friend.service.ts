@@ -43,6 +43,11 @@ export async function notFriendsAmong(userId: string, otherIds: string[]): Promi
     return otherIds.filter((id) => !friendIds.has(id));
 }
 
+/** Whether two users are accepted friends. */
+export async function areFriends(a: string, b: string): Promise<boolean> {
+    return !!(await Friendship.exists({ pairKey: pairKeyOf(a, b), status: FriendshipStatus.ACCEPTED }));
+}
+
 /**
  * Quick Add for the user: people in their contacts (who allow it), friends of their friends,
  * and people they share rooms with. Leaves out friends, people who sent them a request (those

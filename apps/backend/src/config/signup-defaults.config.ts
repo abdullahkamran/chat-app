@@ -44,12 +44,11 @@ export const SIGNUP_DEFAULTS = {
     inventoryItemNames: ['Test Chair', 'Test Couch'] as string[],
 
     /**
-     * Config for the default room created and owned by the new user.
+     * The user's personal room (personal-room.service.ts), named "{username}'s Room".
      * personLimit and theme/doors come from room-defaults.catalog.ts.
      */
     defaultRoom: {
         description: 'Welcome to my room!',
-        category: 'personal',
         dimensions: { x: 10, y: 10, z: 0 },
     },
 };

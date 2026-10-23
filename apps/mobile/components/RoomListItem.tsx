@@ -1,5 +1,7 @@
+import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { theme } from '@/constants/theme';
 
 const AVATAR_COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8'];
 
@@ -12,10 +14,13 @@ function avatarColor(name: string): string {
 const RoomListItem = ({
   name,
   subtitle,
+  isPersonal,
   onPress,
 }: {
   name: string;
   subtitle?: string;
+  /** Someone's personal room: marked with a house. */
+  isPersonal?: boolean;
   onPress?: () => void;
 }) => {
   return (
@@ -24,7 +29,10 @@ const RoomListItem = ({
         <Text style={styles.avatarLetter}>{name.charAt(0).toUpperCase()}</Text>
       </View>
       <View style={styles.text}>
-        <Text style={styles.name} numberOfLines={1}>{name}</Text>
+        <View style={styles.nameRow}>
+          {isPersonal && <Ionicons name="home" size={14} color={theme.colors.primary} />}
+          <Text style={styles.name} numberOfLines={1}>{name}</Text>
+        </View>
         {subtitle ? (
           <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text>
         ) : null}
@@ -59,7 +67,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   name: {
+    flexShrink: 1,
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',

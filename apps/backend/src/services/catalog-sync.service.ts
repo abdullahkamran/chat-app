@@ -10,7 +10,6 @@ import { TEST_USERS_CATALOG } from '../catalog/test-users.catalog';
 import WEARABLES from '../catalog/wearables.generated.json';
 import type { WearableAsset } from '@chat-app/shared-types';
 import { applySignupDefaults, grantDefaultAnimationsToAll } from './signup-defaults.service';
-
 /**
  * Inserts any catalog entries that don't yet exist in the DB.
  * Existing documents are never modified — they are the stable source for

@@ -5,10 +5,14 @@ import { ActivityIndicator, Keyboard, StyleSheet, Text, TouchableOpacity, View }
 import { Button } from 'react-native-elements';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { RoomCategory } from '@chat-app/shared-types';
 import { theme } from '@/constants/theme';
+import { useMailbox } from '@/hooks/useMailbox';
 import { AvatarDrawer } from '../components/AvatarDrawer';
 import { ChatInput } from '../components/ChatInput';
 import { EmoteDrawer } from '../components/EmoteDrawer';
+import { MailboxButton } from '../components/MailboxButton';
+import { MailboxModal } from '../components/MailboxModal';
 import { TypingIndicator } from '../components/TypingIndicator';
 import { EditModeButton } from '../EditMode/EditModeButton';
 import { EditModeToolbar } from '../EditMode/EditModeToolbar';
@@ -41,6 +45,14 @@ const styles = StyleSheet.create({
     padding: 8,
     alignItems: 'center',
   },
+  fabColumn: {
+    position: 'absolute',
+    bottom: 100,
+    right: 20,
+    left: 20,
+    alignItems: 'flex-end',
+    gap: 12,
+  },
 });
 
 interface Props {
@@ -65,8 +77,18 @@ export function RoomShell({ session, children }: Readonly<Props>) {
   const bottomInset = keyboardOpen ? 0 : insets.bottom;
   const {
     roomDetails, isLoading, error, isOwner, isSaving, mode, edit, scene, typingNames, intents, canEmote, isSeated,
+    isAlone, userId,
   } = session;
   const isEditMode = mode === 'edit';
+  const [mailboxOpen, setMailboxOpen] = useState(false);
+  // The empty-room hint goes once the user has opened the postbox.
+  const [hintSeen, setHintSeen] = useState(false);
+  const { data: mailbox } = useMailbox(roomDetails?._id);
+  const openMailbox = () => {
+    setMailboxOpen(true);
+    setHintSeen(true);
+  };
+  const mailHint = isAlone && mailbox?.canPost && !hintSeen ? 'No one is here. Leave a mail' : null;
 
   if (isLoading) {
     return (
@@ -105,13 +127,16 @@ export function RoomShell({ session, children }: Readonly<Props>) {
             <Ionicons name="chevron-back" size={24} color={theme.colors.text} />
           </TouchableOpacity>
           <Text style={styles.roomHeaderTitle} numberOfLines={1}>{roomDetails.name}</Text>
-          <TouchableOpacity
-            style={styles.headerBtn}
-            onPress={() => router.push({ pathname: '/room-members', params: { roomId: roomDetails._id } })}
-            accessibilityLabel="Members"
-          >
-            <Ionicons name="people-outline" size={22} color={theme.colors.text} />
-          </TouchableOpacity>
+          {/* A personal room has no members: it's open to its owner's friends. */}
+          {roomDetails.category !== RoomCategory.PERSONAL && (
+            <TouchableOpacity
+              style={styles.headerBtn}
+              onPress={() => router.push({ pathname: '/room-members', params: { roomId: roomDetails._id } })}
+              accessibilityLabel="Members"
+            >
+              <Ionicons name="people-outline" size={22} color={theme.colors.text} />
+            </TouchableOpacity>
+          )}
           {canEmote && (
             <TouchableOpacity
               style={styles.headerBtn}
@@ -142,10 +167,15 @@ export function RoomShell({ session, children }: Readonly<Props>) {
       <View style={{ flex: 1 }}>
         {children}
 
-        {isOwner && !isEditMode && (
-          <EditModeButton onPress={intents.enterEdit} />
+        {!isEditMode && (
+          <View style={styles.fabColumn} pointerEvents="box-none">
+            <MailboxButton unread={mailbox?.unread ?? 0} hint={mailHint} onPress={openMailbox} />
+            {isOwner && <EditModeButton onPress={intents.enterEdit} />}
+          </View>
         )}
       </View>
+
+      <MailboxModal room={roomDetails} userId={userId} visible={mailboxOpen} onClose={() => setMailboxOpen(false)} />
 
       {isEditMode && (
         <InventoryDrawer selectedItem={edit.selectedItem} onSelectItem={intents.selectInventoryItem} pendingItems={scene?.items ?? []} />

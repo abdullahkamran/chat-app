@@ -5,7 +5,7 @@ import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, View }
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { io } from 'socket.io-client';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
-import { PaginatedRooms } from '@chat-app/shared-types';
+import { PaginatedRooms, Room, RoomCategory } from '@chat-app/shared-types';
 import { useAuth } from '@/context/auth.context';
 import { useIncomingRequests } from '@/hooks/useFriends';
 import { api } from '@/lib/api';
@@ -15,6 +15,12 @@ import RoomListItem from './RoomListItem';
 import { theme } from '@/constants/theme';
 
 const LIMIT = 20;
+
+/** "Your room" for the user's own personal room, "Friend's room" for a friend's. Group rooms: nothing. */
+function roomKindLabel(room: Room, userId: string | null): string {
+  if (room.category !== RoomCategory.PERSONAL) return '';
+  return room.ownerId === userId ? 'Your room' : "Friend's room";
+}
 
 export default function RoomListScreen(): React.JSX.Element {
   const { userId, selectedAvatar } = useAuth();
@@ -90,7 +96,8 @@ export default function RoomListScreen(): React.JSX.Element {
           renderItem={({ item }) => (
             <RoomListItem
               name={item.name}
-              subtitle={[item.category, item.description].filter(Boolean).join(' · ')}
+              subtitle={[roomKindLabel(item, userId), item.description].filter(Boolean).join(' · ')}
+              isPersonal={item.category === RoomCategory.PERSONAL}
               onPress={() => handleRoomPress(item._id)}
             />
           )}

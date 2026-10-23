@@ -5,10 +5,11 @@ import Item from '../models/item.model';
 import Room, { canManageMembers, IRoom } from '../models/room.model';
 import { announceMemberRemoved, announceMembersAdded, announceRoomItemsChanged } from '../sockets/socketHandler';
 import User, { PUBLIC_USER_FIELDS } from '../models/user.model';
-import { notFriendsAmong } from '../services/friend.service';
+import { friendIdsOf, notFriendsAmong } from '../services/friend.service';
 import { sendPushToUsers } from '../services/notification.service';
+import { findAccessibleRoom, isPersonalRoom } from '../services/room-access.service';
 import { resolveRoomDefaults } from '../services/room-defaults.service';
-import type { PublicUser, RoomMembers, RoomRemovalReason } from '@chat-app/shared-types';
+import { RoomCategory, type PublicUser, type RoomMembers, type RoomRemovalReason } from '@chat-app/shared-types';
 
 /**
  * The people `actorId` asked to add, deduplicated, leaving out `exclude` (the owner, people
@@ -24,10 +25,16 @@ async function idsToAdd(actorId: string, ids: unknown, exclude: string[]): Promi
     return { ids: wanted };
 }
 
-/** Whether the user is the room's owner or one of its members. */
-function belongsTo(room: Pick<IRoom, 'ownerId' | 'members'>, userId: string): boolean {
-    return room.ownerId.toString() === userId || room.members.some((id) => id.toString() === userId);
+/**
+ * Answers 404 or 403 for a `findAccessibleRoom` result that isn't a room, and narrows it when it is.
+ */
+export function sendIfNoAccess(res: Response, room: IRoom | null | false): room is null | false {
+    if (room === null) res.status(404).send({ error: 'Room not found' });
+    else if (room === false) res.status(403).send({ error: 'Forbidden' });
+    return !room;
 }
+
+const NO_MEMBERS_IN_PERSONAL_ROOMS = "Personal rooms don't have members";
 
 /** Tell people they were added: their devices refetch their room list, and get a push. */
 function notifyAdded(req: Request, room: Pick<IRoom, '_id' | 'name'>, userIds: string[]): void {
@@ -48,22 +55,11 @@ async function dropMember(req: Request, roomId: string, userId: string, reason: 
 }
 
 const controller = {
-    // GET /rooms/:id — the room's summary, for its owner and members.
+    // GET /rooms/:id — the room's summary, for anyone who may enter it.
     getByID: async (req: Request, res: Response, id: string): Promise<void> => {
-        if (!mongoose.isValidObjectId(id)) {
-            res.status(404).send({ error: 'Room not found' });
-            return;
-        }
         try {
-            const room = await Room.findById(id).select('-items -doors -theme');
-            if (!room) {
-                res.status(404).send({ error: 'Room not found' });
-                return;
-            }
-            if (!belongsTo(room, req.user!.userId)) {
-                res.status(403).send({ error: 'Forbidden' });
-                return;
-            }
+            const room = await findAccessibleRoom(id, req.user!.userId, 'name description personLimit dimensions createdAt updatedAt');
+            if (sendIfNoAccess(res, room)) return;
             await room.populate([
                 { path: 'ownerId', select: PUBLIC_USER_FIELDS },
                 { path: 'members', select: PUBLIC_USER_FIELDS },
@@ -75,8 +71,9 @@ const controller = {
         }
     },
 
+    // POST /rooms { name, description?, members?, personLimit? } — a group room. Personal rooms are only made at signup.
     createRoom: async (req: Request, res: Response): Promise<void> => {
-        const { name, members, personLimit, ...rest } = req.body;
+        const { name, description, members, personLimit } = req.body;
         if (!name || typeof name !== 'string' || !name.trim()) {
             res.status(400).send({ error: 'name is required' });
             return;
@@ -95,7 +92,14 @@ const controller = {
                 res.status(400).send({ error: `A room holds at most ${roomDefaults.personLimit} people, you included` });
                 return;
             }
-            const room = new Room({ ...rest, ...roomDefaults, name: name.trim(), members: memberIds, ownerId: creatorId });
+            const room = new Room({
+                ...roomDefaults,
+                name: name.trim(),
+                description: typeof description === 'string' ? description.trim() : '',
+                category: RoomCategory.GROUP,
+                members: memberIds,
+                ownerId: creatorId,
+            });
             const addedRoom = await Room.createRoom(room);
             await User.findByIdAndUpdate(
                 new mongoose.Types.ObjectId(creatorId),
@@ -120,30 +124,15 @@ const controller = {
         const userId = req.user!.userId;
 
         try {
-            const user = await User.findById(new mongoose.Types.ObjectId(userId)).select('rooms ownedRooms');
-            if (!user) {
-                res.status(404).send({ error: 'User not found' });
-                return;
-            }
-
-            const memberRoomIds = [...user.rooms, ...user.ownedRooms].map((id) => id.toString());
-            if (!memberRoomIds.includes(roomId)) {
-                res.status(403).send({ error: 'Forbidden' });
-                return;
-            }
-
-            const room = await Room.findById(new mongoose.Types.ObjectId(roomId))
-                .populate('members', PUBLIC_USER_FIELDS)
-                .populate('items.itemId')
-                .populate('theme.floor')
-                .populate('theme.leftWall')
-                .populate('theme.rightWall');
-
-            if (!room) {
-                res.status(404).send({ error: 'Room not found' });
-                return;
-            }
-
+            const room = await findAccessibleRoom(roomId, userId);
+            if (sendIfNoAccess(res, room)) return;
+            await room.populate([
+                { path: 'members', select: PUBLIC_USER_FIELDS },
+                { path: 'items.itemId' },
+                { path: 'theme.floor' },
+                { path: 'theme.leftWall' },
+                { path: 'theme.rightWall' },
+            ]);
             res.send(room);
         } catch (e) {
             console.log(`Error: ${e}`);
@@ -224,10 +213,19 @@ const controller = {
                 ...user.rooms.map((id) => id.toString()),
                 ...user.ownedRooms.map((id) => id.toString()),
             ])].map((id) => new mongoose.Types.ObjectId(id));
+            const friendIds = (await friendIdsOf(userId)).map((id) => new mongoose.Types.ObjectId(id));
 
+            // The user's own rooms (their personal room among them) and rooms they're in, plus every
+            // friend's personal room: those are open to them like a DM.
+            const filter = {
+                $or: [
+                    { _id: { $in: allRoomIds } },
+                    { category: RoomCategory.PERSONAL, ownerId: { $in: friendIds } },
+                ],
+            };
             const [rooms, total] = await Promise.all([
-                Room.find({ _id: { $in: allRoomIds } }).skip(skip).limit(limit).sort({ updatedAt: -1 }),
-                Room.countDocuments({ _id: { $in: allRoomIds } }),
+                Room.find(filter).select('-items -doors -theme').sort({ updatedAt: -1, _id: 1 }).skip(skip).limit(limit),
+                Room.countDocuments(filter),
             ]);
 
             res.send({
@@ -243,24 +241,13 @@ const controller = {
         }
     },
 
-    // GET /rooms/:roomId/members — owner and members, for anyone in the room.
+    // GET /rooms/:roomId/members — owner and members, for anyone who may enter the room.
     getMembers: async (req: Request, res: Response): Promise<void> => {
         const { roomId } = req.params;
         const userId = req.user!.userId;
-        if (!mongoose.isValidObjectId(roomId)) {
-            res.status(404).send({ error: 'Room not found' });
-            return;
-        }
         try {
-            const room = await Room.findById(roomId).select('ownerId members personLimit');
-            if (!room) {
-                res.status(404).send({ error: 'Room not found' });
-                return;
-            }
-            if (!belongsTo(room, userId)) {
-                res.status(403).send({ error: 'Forbidden' });
-                return;
-            }
+            const room = await findAccessibleRoom(roomId, userId, 'personLimit');
+            if (sendIfNoAccess(res, room)) return;
             const canManage = canManageMembers(room, userId);
             await room.populate<{ ownerId: PublicUser; members: PublicUser[] }>([
                 { path: 'ownerId', select: PUBLIC_USER_FIELDS },
@@ -289,9 +276,13 @@ const controller = {
             return;
         }
         try {
-            const room = await Room.findById(roomId).select('ownerId members personLimit name');
+            const room = await Room.findById(roomId).select('ownerId members personLimit name category');
             if (!room) {
                 res.status(404).send({ error: 'Room not found' });
+                return;
+            }
+            if (isPersonalRoom(room)) {
+                res.status(400).send({ error: NO_MEMBERS_IN_PERSONAL_ROOMS });
                 return;
             }
             if (!canManageMembers(room, userId)) {
@@ -340,9 +331,13 @@ const controller = {
             return;
         }
         try {
-            const room = await Room.findById(roomId).select('ownerId members');
+            const room = await Room.findById(roomId).select('ownerId members category');
             if (!room) {
                 res.status(404).send({ error: 'Room not found' });
+                return;
+            }
+            if (isPersonalRoom(room)) {
+                res.status(400).send({ error: NO_MEMBERS_IN_PERSONAL_ROOMS });
                 return;
             }
             if (!canManageMembers(room, userId)) {

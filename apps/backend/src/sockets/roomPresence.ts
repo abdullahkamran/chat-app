@@ -90,6 +90,11 @@ export const roomPresence = {
         return undefined;
     },
 
+    /** Whether the user is in the room now. */
+    has(roomId: string, userId: string): boolean {
+        return !!rooms.get(roomId)?.has(userId);
+    },
+
     /** Everyone in the room, for changes that touch them all (a new layout). */
     entries(roomId: string): [string, Presence][] {
         return [...(rooms.get(roomId) ?? [])];

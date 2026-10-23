@@ -1,8 +1,25 @@
 import express from "express";
 import roomController from '../controllers/room.controller';
+import mailController from '../controllers/mail.controller';
 import { requireAuth } from '../middleware/auth.middleware';
 
 const roomRouter = express.Router();
+
+roomRouter.get('/:roomId/mail', requireAuth, (req, res) => {
+    mailController.getMailbox(req, res);
+});
+
+roomRouter.post('/:roomId/mail', requireAuth, (req, res) => {
+    mailController.postMail(req, res);
+});
+
+roomRouter.post('/:roomId/mail/read', requireAuth, (req, res) => {
+    mailController.markRead(req, res);
+});
+
+roomRouter.delete('/:roomId/mail/:mailId', requireAuth, (req, res) => {
+    mailController.deleteMail(req, res);
+});
 
 roomRouter.get('/', requireAuth, (req, res) => {
     roomController.getRooms(req, res);

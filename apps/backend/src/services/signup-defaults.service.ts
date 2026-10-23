@@ -1,26 +1,26 @@
 import mongoose from 'mongoose';
 import { SIGNUP_DEFAULTS } from '../config/signup-defaults.config';
 import User from '../models/user.model';
-import RoomModel from '../models/room.model';
 import AnimationModel from '../models/animation.model';
 import AvatarItemModel from '../models/avatar-item.model';
 import ItemModel from '../models/item.model';
 import { logTransaction } from '../controllers/transaction.controller';
-import { resolveRoomDefaults } from './room-defaults.service';
+import { createPersonalRoom } from './personal-room.service';
 
 /**
- * Grants all configured default resources to a newly created user.
- * Errors are caught and logged per step — a missing catalog item never
- * blocks signup from completing.
+ * Sets up a newly created user. Their personal room comes first and is required: if it can't be
+ * made this throws, and the caller undoes the signup. The other defaults are extras, caught and
+ * logged per step, so a missing catalog item never blocks signup from completing.
  */
 export async function applySignupDefaults(userId: mongoose.Types.ObjectId, username: string): Promise<void> {
+    await createPersonalRoom(userId, username);
+
     const userIdStr = userId.toString();
 
     await grantWallet(userIdStr);
     await grantAnimations(userId);
     await grantAvatarItems(userId);
     await grantInventoryItems(userId);
-    await createDefaultRoom(userId, username);
 }
 
 // ── Steps ──────────────────────────────────────────────────────────────────────
@@ -147,22 +147,5 @@ async function grantInventoryItems(userId: mongoose.Types.ObjectId): Promise<voi
         }
     } catch (e) {
         console.error('[signup-defaults] Failed to grant room items:', e);
-    }
-}
-
-async function createDefaultRoom(userId: mongoose.Types.ObjectId, username: string): Promise<void> {
-    try {
-        const { description, category, dimensions } = SIGNUP_DEFAULTS.defaultRoom;
-        const name = `${username}'s Room`;
-
-        const roomDefaults = await resolveRoomDefaults();
-        const room = new RoomModel({ ownerId: userId, name, description, category, dimensions, ...roomDefaults });
-        const saved = await room.save();
-
-        await User.findByIdAndUpdate(userId, {
-            $push: { ownedRooms: saved._id, rooms: saved._id },
-        });
-    } catch (e) {
-        console.error('[signup-defaults] Failed to create default room:', e);
     }
 }

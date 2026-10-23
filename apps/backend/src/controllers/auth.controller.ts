@@ -45,7 +45,13 @@ const authController = {
             // Only these fields: the rest (coins, level, rooms...) start at their defaults.
             const user = new User({ username, password: hashed, email, phoneNumber, city, state, country });
             const saved = await user.save();
-            await applySignupDefaults(saved._id as any, saved.username);
+            try {
+                await applySignupDefaults(saved._id as any, saved.username);
+            } catch (e) {
+                // Every user must have a personal room. Without one the signup fails, so it can be retried.
+                await User.deleteOne({ _id: saved._id });
+                throw e;
+            }
             res.status(201).send(saved);
         } catch (e) {
             console.error(e);
