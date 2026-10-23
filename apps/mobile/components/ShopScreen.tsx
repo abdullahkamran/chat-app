@@ -10,6 +10,7 @@ import {
     View,
 } from 'react-native';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Animation, AvatarInventoryEntry, AvatarItem, Item, PaginatedAnimations, PaginatedAvatarItems, PaginatedItems } from '@chat-app/shared-types';
 import { useAuth } from '@/context/auth.context';
 import { api } from '@/lib/api';
@@ -26,6 +27,7 @@ type ShopTab = 'items' | 'outfits' | 'animations';
 export default function ShopScreen(): React.JSX.Element {
     const { userId } = useAuth();
     const queryClient = useQueryClient();
+    const insets = useSafeAreaInsets();
 
     const [shopTab, setShopTab] = useState<ShopTab>('items');
 
@@ -173,7 +175,7 @@ export default function ShopScreen(): React.JSX.Element {
     });
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { paddingTop: insets.top }]}>
             {/* ── Tab switcher ── */}
             <View style={styles.tabSwitcher}>
                 <TouchableOpacity
@@ -406,6 +408,7 @@ const styles = StyleSheet.create({
     pillTextActive: { color: theme.colors.primaryText },
     categoryBar: {
         flexGrow: 0,
+        flexShrink: 0,
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: theme.colors.border,
     },

@@ -11,6 +11,7 @@ import {
     View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Avatar } from '@chat-app/shared-types';
 import { useAuth } from '@/context/auth.context';
@@ -125,6 +126,7 @@ function AvatarCard({
 export default function ProfileScreen() {
     const { userId, selectedAvatar, logout } = useAuth();
     const router = useRouter();
+    const insets = useSafeAreaInsets();
     const queryClient = useQueryClient();
     const [logoutModalVisible, setLogoutModalVisible] = useState(false);
 
@@ -180,7 +182,7 @@ export default function ProfileScreen() {
         <>
         <ScrollView
             style={styles.container}
-            contentContainerStyle={styles.content}
+            contentContainerStyle={[styles.content, { paddingTop: insets.top + 24 }]}
             showsVerticalScrollIndicator={false}
         >
             {/* Header */}
@@ -313,7 +315,6 @@ const styles = StyleSheet.create({
     },
     content: {
         paddingHorizontal: 16,
-        paddingTop: 60,
         paddingBottom: 40,
         gap: 24,
     },

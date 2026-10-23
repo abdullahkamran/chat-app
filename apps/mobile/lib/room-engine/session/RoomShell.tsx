@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState, type ReactNode } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useState, type ReactNode } from 'react';
+import { ActivityIndicator, Keyboard, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Button } from 'react-native-elements';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -60,6 +60,9 @@ export function RoomShell({ session, children }: Readonly<Props>) {
   const [drawer, setDrawer] = useState<'avatars' | 'emotes' | null>(null);
   const toggleDrawer = (next: 'avatars' | 'emotes') => setDrawer(open => (open === next ? null : next));
   const closeDrawer = () => setDrawer(null);
+  // The bottom chrome clears the system nav bar, except while the keyboard covers it.
+  const keyboardOpen = useKeyboardOpen();
+  const bottomInset = keyboardOpen ? 0 : insets.bottom;
   const {
     roomDetails, isLoading, error, isOwner, isSaving, mode, edit, scene, typingNames, intents, canEmote, isSeated,
   } = session;
@@ -84,7 +87,7 @@ export function RoomShell({ session, children }: Readonly<Props>) {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: bottomInset }]}>
       {isEditMode ? (
         <EditModeToolbar
           topInset={insets.top}
@@ -159,4 +162,17 @@ export function RoomShell({ session, children }: Readonly<Props>) {
       )}
     </View>
   );
+}
+
+function useKeyboardOpen(): boolean {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => setOpen(true));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setOpen(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+  return open;
 }

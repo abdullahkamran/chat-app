@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useQuery } from '@tanstack/react-query';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Animation, AvatarItem, Item } from '@chat-app/shared-types';
 import { useAuth } from '@/context/auth.context';
 import { api } from '@/lib/api';
@@ -25,6 +26,7 @@ const ANIMATION_CATEGORY_LABEL: Record<string, string> = {
 
 export default function InventoryScreen(): React.JSX.Element {
     const { userId } = useAuth();
+    const insets = useSafeAreaInsets();
     const [inventoryTab, setInventoryTab] = useState<InventoryTab>('items');
 
     const { data: items = [], isLoading: isLoadingItems } = useQuery<Item[]>({
@@ -60,7 +62,7 @@ export default function InventoryScreen(): React.JSX.Element {
     const [modalVisible, setModalVisible] = useState(false);
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { paddingTop: insets.top }]}>
             {/* ── Tab switcher ── */}
             <View style={styles.tabSwitcher}>
                 <TouchableOpacity
