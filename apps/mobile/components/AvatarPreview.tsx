@@ -27,13 +27,15 @@ interface Props {
   size?: number;
   /** Show a button that turns the avatar through the four facings. */
   rotatable?: boolean;
+  /** Play the idle animation. Pass false for lists of cards: each animated preview runs its own frame loop. */
+  animated?: boolean;
 }
 
 /**
  * The Skia rigged avatar exactly as rooms draw it, idling, for screens outside rooms.
  * Shows the programmer-art placeholder until the outfit's atlases are composed.
  */
-export default function AvatarPreview({ avatar, size = 220, rotatable = false }: Props) {
+export default function AvatarPreview({ avatar, size = 220, rotatable = false, animated = true }: Props) {
   const [facingIndex, setFacingIndex] = useState(0);
   const outfits = useMemo(() => ({ [PREVIEW_ID]: avatar }), [avatar]);
   const { arts, artKeys } = useOutfitArts(outfits);
@@ -47,6 +49,7 @@ export default function AvatarPreview({ avatar, size = 220, rotatable = false }:
     feetX: width / 2,
     feetY: size - FEET_MARGIN * scale,
     scale,
+    animated,
   });
 
   return (

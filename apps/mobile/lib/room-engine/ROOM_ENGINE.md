@@ -181,71 +181,16 @@ When changing `WALL_HEIGHT`, verify that `WALL_HEIGHT + (roomX + roomY) * TILE_H
 
 ---
 
-## 2D avatar previews
+## Avatar previews outside rooms (`components/AvatarPreview.tsx`)
 
-### Skia preview (`components/AvatarPreview.tsx`)
-
-The avatar editor (`components/AvatarEditorScreen.tsx`) previews the rigged Skia avatar exactly as rooms draw it, playing the `idle` clip. `<AvatarPreview avatar size rotatable />` takes an `AvatarOutfit` (see `wearables/useAvatarArts.ts`: per part, the selected variant first in `variants`, of which only `rigAsset` and `color` are read; a saved `Avatar` fits as is).
+Every avatar shown outside a room is the rigged Skia avatar exactly as rooms draw it: the avatar editor (`components/AvatarEditorScreen.tsx`, animated, size 220, rotatable), Profile's avatar cards (`components/ProfileScreen.tsx`, still, size 140) and the room's Avatars drawer (`lib/room-engine/components/AvatarDrawer.tsx`, still, size 60). The old SVG `UserCharacter` was removed on 2026-10-24. `<AvatarPreview avatar size rotatable animated />` takes an `AvatarOutfit` (see `wearables/useAvatarArts.ts`: per part, the selected variant first in `variants`, of which only `rigAsset` and `color` are read; a saved `Avatar` fits as is).
 
 - **Outfit:** the editor keeps each part's chosen variant (`previewVariants`), seeded from the avatar being edited, or in create mode from `GET /api/v1/avatar/defaults` (which returns each default's `rigAsset`), and replaced as the user picks variants from the catalog. Unsaved picks show as soon as they compose.
 - **Art:** `useOutfitArts({ preview: outfit })`, the same hook and caches rooms use (`useAvatarArts` wraps it, mapping actors to outfits), so an outfit composed in the editor is ready in the room and vice versa. The programmer-art placeholder shows until the outfit composes; a failed compose keeps the placeholder.
-- **Drawing:** `engines/skia/useAvatarPreviewPicture.ts` runs a frame callback that records one `SkPicture` per frame calling the room's `drawAvatar` (`engines/skia/drawAvatar.ts`, shared with `useWorldPicture`) with the canvas translated to the feet and scaled by `size / 100` (100 rig px fill the height: the 80 px avatar plus headroom). The canvas is `0.75 × size` wide; the editor uses `size = 220`.
+- **Drawing:** `engines/skia/useAvatarPreviewPicture.ts` records an `SkPicture` with the room's `drawAvatar`. Animated previews (the default) redraw every frame on the UI thread, playing `idle`; `animated={false}` draws one idle pose on the JS thread and redraws only when the art, facing or size changes, so a list of cards doesn't run a frame loop per card. Either way it calls the room's `drawAvatar` (`engines/skia/drawAvatar.ts`, shared with `useWorldPicture`) with the canvas translated to the feet and scaled by `size / 100` (100 rig px fill the height: the 80 px avatar plus headroom). The canvas is `0.75 × size` wide; the editor uses `size = 220`.
 - **Facing:** `rotatable` adds a small button that cycles SE → SW → NW → NE (front right, front left, back left, back right).
 
 Every outfit composed in the editor is cached for the app's lifetime (like rooms), so trying many combinations holds one atlas each.
-
-### SVG preview (`UserCharacter.tsx`)
-
-The profile screen and the room's Avatars drawer still draw avatars as stacked SVG layers by `components/ui/UserCharacter.tsx`.
-
-
-All avatar parts are rendered inside a single character container of size `(w × size)` where `w = Math.round(size * 2/3)`. Default `size = 200` → **133 × 200 px**.
-
-Rendering happens in four ordered passes:
-
-```
-Pass 1 — body       skin, face, bottoms, tops, footwear, wristwear
-Pass 2 — face feats facialHair, nose, eye, mouth   ← nested in face container
-Pass 3 — hair       hair, headwear
-Pass 4 — top overlay facewear (glasses/masks — above hair)
-```
-
-### Body layers (`LAYER_LAYOUT`) — % of character container
-
-| Part        | top  | left | width | height |
-|-------------|------|------|-------|--------|
-| `skin`      | 4%   | 20%  | 60%   | 38%    |
-| `face`      | 2%   | 10%  | 80%   | 46%    |
-| `hair`      | 0%   | 10%  | 80%   | 48%    |
-| `headwear`  | 0%   | 6%   | 88%   | 40%    |
-| `tops`      | 38%  | 2%   | 96%   | 42%    |
-| `wristwear` | 52%  | 2%   | 36%   | 20%    |
-| `bottoms`   | 62%  | 4%   | 92%   | 36%    |
-| `footwear`  | 86%  | 8%   | 84%   | 14%    |
-| `facewear`  | 12%  | 6%   | 88%   | 18%    |
-
-### Face feature container (Pass 2)
-
-The face feature container is a `position: 'absolute'` View placed at the `face` layer bounds (`top: 2%, left: 10%, width: 80%, height: 46%`). `overflow: 'visible'` allows features to extend slightly beyond its edges.
-
-### Face feature layers (`FACE_FEATURE_LAYOUT`) — % of face container
-
-Derived from body-relative values via:
-```
-new_top%  = (char_top%  − 2)  / 46 × 100
-new_left% = (char_left% − 10) / 80 × 100
-new_w%    = char_w%  / 80 × 100
-new_h%    = char_h%  / 46 × 100
-```
-
-| Part         | top  | left | width | height | Notes                       |
-|--------------|------|------|-------|--------|-----------------------------|
-| `eye`        | 28%  | -8%  | 115%  | 30%    | Extends beyond face sides   |
-| `nose`       | 46%  | 23%  | 55%   | 39%    |                             |
-| `mouth`      | 63%  | -5%  | 110%  | 24%    | Slightly wider than face    |
-| `facialHair` | 59%  | 10%  | 80%   | 30%    |                             |
-
-To tune feature positions, edit `FACE_FEATURE_LAYOUT` in [UserCharacter.tsx](../../../components/ui/UserCharacter.tsx). If the face shape changes, update `FACE_BOUNDS` (and `LAYER_LAYOUT['face']`) to match — they must stay in sync.
 
 ---
 

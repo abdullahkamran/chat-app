@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import UserCharacter from '@/components/ui/UserCharacter';
+import AvatarPreview from '@/components/AvatarPreview';
 import { theme } from '@/constants/theme';
 import { useAuth } from '@/context/auth.context';
 import { useMyAvatars, useWearAvatar } from '@/hooks/useMyAvatars';
@@ -70,7 +70,7 @@ export function AvatarDrawer({ onClose }: Readonly<Props>) {
                 activeOpacity={isWorn ? 1 : 0.8}
                 accessibilityLabel={isWorn ? 'Current avatar' : 'Wear this avatar'}
               >
-                <UserCharacter avatar={card} size={60} />
+                <AvatarPreview avatar={card} size={60} animated={false} />
                 {isWearing && (
                   <View style={styles.wearing}>
                     <ActivityIndicator size="small" color={theme.colors.primary} />

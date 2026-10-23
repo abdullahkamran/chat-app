@@ -19,7 +19,7 @@ import { api } from '@/lib/api';
 import { useMe } from '@/hooks/useMe';
 import { MY_AVATARS_KEY, useMyAvatars, useWearAvatar } from '@/hooks/useMyAvatars';
 import { theme } from '@/constants/theme';
-import UserCharacter from '@/components/ui/UserCharacter';
+import AvatarPreview from '@/components/AvatarPreview';
 
 // ── Stat chip ─────────────────────────────────────────────────────────────────
 
@@ -82,7 +82,7 @@ function AvatarCard({
                 </View>
             )}
             <View style={styles.avatarPreview}>
-                <UserCharacter avatar={avatar} size={140} />
+                <AvatarPreview avatar={avatar} size={140} animated={false} />
             </View>
             <Text style={styles.avatarName}>Avatar {index + 1}</Text>
 
