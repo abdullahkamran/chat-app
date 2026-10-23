@@ -1,6 +1,6 @@
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { theme } from '@/constants/theme';
-import type { RoomItem } from '@chat-app/shared-types';
+import { ItemPlacement, type RoomItem } from '@chat-app/shared-types';
 
 interface Props {
   isSaving: boolean;
@@ -8,6 +8,7 @@ interface Props {
   onCancel: () => void;
   selectedPlacedItem?: RoomItem | null;
   onRemovePlacedItem?: () => void;
+  onRotatePlacedItem?: () => void;
   /** Whether an inventory item is chosen for placement, for the hint. */
   isPlacing?: boolean;
   topInset?: number;
@@ -15,7 +16,8 @@ interface Props {
 
 /** Save / Cancel bar shown at the top while in edit mode. */
 export function EditModeToolbar({
-  isSaving, onSave, onCancel, selectedPlacedItem, onRemovePlacedItem, isPlacing = false, topInset = 0,
+  isSaving, onSave, onCancel, selectedPlacedItem, onRemovePlacedItem, onRotatePlacedItem, isPlacing = false,
+  topInset = 0,
 }: Props) {
   const hint = selectedPlacedItem
     ? 'Tap the floor to move it'
@@ -30,9 +32,16 @@ export function EditModeToolbar({
 
       <View style={styles.center}>
         {selectedPlacedItem ? (
-          <TouchableOpacity style={styles.removeBtn} onPress={onRemovePlacedItem} disabled={isSaving}>
-            <Text style={styles.removeText}>🗑 Remove</Text>
-          </TouchableOpacity>
+          <View style={styles.actions}>
+            {selectedPlacedItem.itemId.placement === ItemPlacement.FLOOR && (
+              <TouchableOpacity style={styles.rotateBtn} onPress={onRotatePlacedItem} disabled={isSaving}>
+                <Text style={styles.rotateText}>↻ Rotate</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={styles.removeBtn} onPress={onRemovePlacedItem} disabled={isSaving}>
+              <Text style={styles.removeText}>🗑 Remove</Text>
+            </TouchableOpacity>
+          </View>
         ) : (
           <Text style={styles.label}>Edit Room</Text>
         )}
@@ -93,6 +102,22 @@ const styles = StyleSheet.create({
     color: theme.colors.primaryText,
     fontWeight: '700',
     fontSize: 15,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  rotateBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.borderSubtle,
+  },
+  rotateText: {
+    color: theme.colors.text,
+    fontWeight: '600',
+    fontSize: 14,
   },
   removeBtn: {
     paddingHorizontal: 12,

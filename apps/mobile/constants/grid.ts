@@ -99,6 +99,16 @@ export function getEffectiveDimensions(
 }
 
 /**
+ * Whether an item's art is drawn flipped left-to-right. Items have one view, so NINETY /
+ * TWO_SEVENTY mirror it about the item's anchor, which swaps the grid x and y axes, as
+ * getEffectiveDimensions does for the footprint. ONE_EIGHTY draws as ZERO until items
+ * have back views.
+ */
+export function isMirrored(orientation: Orientiation): boolean {
+  return orientation === Orientiation.NINETY || orientation === Orientiation.TWO_SEVENTY;
+}
+
+/**
  * Depth-sort key for the painter's algorithm.
  * Objects with a higher sum render in front of those with a lower sum.
  */

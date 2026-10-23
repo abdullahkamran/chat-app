@@ -61,7 +61,7 @@ export function RoomShell({ session, children }: Readonly<Props>) {
   const toggleDrawer = (next: 'avatars' | 'emotes') => setDrawer(open => (open === next ? null : next));
   const closeDrawer = () => setDrawer(null);
   const {
-    roomDetails, isLoading, error, isOwner, isSaving, mode, edit, scene, typingUserIds, intents, canEmote, isSeated,
+    roomDetails, isLoading, error, isOwner, isSaving, mode, edit, scene, typingNames, intents, canEmote, isSeated,
   } = session;
   const isEditMode = mode === 'edit';
 
@@ -93,6 +93,7 @@ export function RoomShell({ session, children }: Readonly<Props>) {
           onCancel={intents.cancelEdit}
           selectedPlacedItem={edit.selectedPlaced}
           onRemovePlacedItem={intents.removeSelectedPlaced}
+          onRotatePlacedItem={intents.rotateSelectedPlaced}
           isPlacing={edit.selectedItem !== null}
         />
       ) : (
@@ -145,8 +146,8 @@ export function RoomShell({ session, children }: Readonly<Props>) {
       )}
       {!isEditMode && drawer === null && (
         <>
-          <TypingIndicator typingUserIds={typingUserIds} />
-          <ChatInput onTyping={intents.sendTyping} onSubmit={intents.submitMessage} />
+          <TypingIndicator names={typingNames} />
+          <ChatInput onTyping={intents.typing} onSubmit={intents.submitMessage} />
         </>
       )}
     </View>

@@ -1,6 +1,9 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
+import type { Server } from 'socket.io';
+import Item from '../models/item.model';
 import Room from '../models/room.model';
+import { announceRoomItemsChanged } from '../sockets/socketHandler';
 import User from '../models/user.model';
 import { resolveRoomDefaults } from '../services/room-defaults.service';
 
@@ -110,8 +113,9 @@ const controller = {
             return;
         }
 
+        let room;
         try {
-            const room = await Room.findById(new mongoose.Types.ObjectId(roomId));
+            room = await Room.findById(new mongoose.Types.ObjectId(roomId));
             if (!room) {
                 res.status(404).send({ error: 'Room not found' });
                 return;
@@ -128,10 +132,30 @@ const controller = {
                 state: i.state,
             }));
             await room.save();
-            res.sendStatus(204);
         } catch (e) {
             console.log(`Error: ${e}`);
             res.sendStatus(500);
+            return;
+        }
+        res.sendStatus(204);
+
+        try {
+            // Footprints, so the room can stand people off furniture (see announceRoomItemsChanged).
+            const defs = await Item.find({ _id: { $in: room.items.map(i => i.itemId) } }).select('dimensions isOverlappable');
+            const byId = new Map(defs.map(d => [d._id.toString(), d]));
+            const door = room.doors.find(d => d.isEntry)?.position ?? { x: 0, y: 0 };
+            announceRoomItemsChanged(req.app.get('io') as Server, roomId, {
+                dimensions: room.dimensions,
+                door: { x: door.x, y: door.y },
+                items: room.items.flatMap(i => {
+                    const def = byId.get(i.itemId.toString());
+                    return def
+                        ? [{ position: i.position, orientation: i.orientation, dimensions: def.dimensions, isOverlappable: def.isOverlappable }]
+                        : [];
+                }),
+            });
+        } catch (e) {
+            console.error('Failed to announce the new layout', e);
         }
     },
 

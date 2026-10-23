@@ -13,7 +13,7 @@ import type { Camera } from './useCamera';
 const DEFAULT_BUBBLE_MS = 3500;
 /** Wide enough for the widest bubble, so the column can centre over the actor. */
 const COLUMN_W = 200;
-const HEAD_GAP = 8;
+const HEAD_GAP = 4;
 
 interface Props {
   actor: ActorState;
@@ -44,12 +44,22 @@ export function ActorOverlay({ actor, motion, camera, origin, canvasHeight, onAc
 
   if (!actor.isTyping && bubbles.items.length === 0) return null;
 
+  // Oldest message on top, newest below it, and the typing bubble last, nearest the head;
+  // only that bottom bubble points at the speaker.
+  const last = bubbles.items.length - 1;
   return (
     <Animated.View pointerEvents="none" style={[styles.column, style]}>
-      {actor.isTyping && <Bubble isTyping />}
-      {bubbles.items.map(b => (
-        <Bubble key={b.id} message={b.text} sentAt={b.sentAt} duration={duration} close={bubbles.closeOldest} />
+      {bubbles.items.map((b, i) => (
+        <Bubble
+          key={b.id}
+          message={b.text}
+          sentAt={b.sentAt}
+          duration={duration}
+          close={bubbles.closeOldest}
+          tail={!actor.isTyping && i === last}
+        />
       ))}
+      {actor.isTyping && <Bubble isTyping tail />}
     </Animated.View>
   );
 }
@@ -80,6 +90,6 @@ const styles = StyleSheet.create({
     width: COLUMN_W,
     alignItems: 'center',
     flexDirection: 'column',
-    gap: 8,
+    gap: 4,
   },
 });

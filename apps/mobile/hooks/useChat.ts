@@ -16,9 +16,11 @@ interface ReceiveHandlers {
   onExit: (payload: { userId: string }) => void;
   onPoint: (payload: { userId: string; x: number; y: number }) => void;
   onMessage: (payload: { userId: string; message: string }) => void;
-  onTyping?: (payload: { userId: string }) => void;
+  onTyping?: (payload: { userId: string; username?: string }) => void;
   onAvatarChanged?: (payload: { userId: string }) => void;
   onAction?: (payload: { userId: string; action: ActorAction }) => void;
+  /** The owner saved a new layout. `placed`: users the server stood up or moved off furniture, and where to. */
+  onItemsChanged?: (payload: { placed: { userId: string; x: number; y: number }[] }) => void;
 }
 
 interface UseChatParams {
@@ -80,7 +82,7 @@ export function useChat({ roomId, userId, handlers, getMyState, enabled, onEnter
     const handleMessage = (p: RoomPayload<{ userId: string; message: string }>) => {
       if (p.roomId === roomId) handlersRef.current.onMessage(p);
     };
-    const handleTyping = (p: RoomPayload<{ userId: string }>) => {
+    const handleTyping = (p: RoomPayload<{ userId: string; username?: string }>) => {
       if (p.roomId === roomId) handlersRef.current.onTyping?.(p);
     };
     const handleAvatarChanged = (p: RoomPayload<{ userId: string }>) => {
@@ -88,6 +90,9 @@ export function useChat({ roomId, userId, handlers, getMyState, enabled, onEnter
     };
     const handleAction = (p: RoomPayload<{ userId: string; action: ActorAction }>) => {
       if (p.roomId === roomId) handlersRef.current.onAction?.(p);
+    };
+    const handleItemsChanged = (p: RoomPayload<{ placed: { userId: string; x: number; y: number }[] }>) => {
+      if (p.roomId === roomId) handlersRef.current.onItemsChanged?.(p);
     };
 
     // Fires only on reconnection, not the first connect. Emits made before the
@@ -107,6 +112,7 @@ export function useChat({ roomId, userId, handlers, getMyState, enabled, onEnter
     socket.on(SocketEvent.RECEIVE_TYPING, handleTyping);
     socket.on(SocketEvent.RECEIVE_AVATAR_CHANGED, handleAvatarChanged);
     socket.on(SocketEvent.RECEIVE_ACTION, handleAction);
+    socket.on(SocketEvent.RECEIVE_ROOM_ITEMS_CHANGED, handleItemsChanged);
     socket.io.on('reconnect', handleReconnect);
 
     if (userId) {
@@ -125,6 +131,7 @@ export function useChat({ roomId, userId, handlers, getMyState, enabled, onEnter
       socket.off(SocketEvent.RECEIVE_TYPING, handleTyping);
       socket.off(SocketEvent.RECEIVE_AVATAR_CHANGED, handleAvatarChanged);
       socket.off(SocketEvent.RECEIVE_ACTION, handleAction);
+      socket.off(SocketEvent.RECEIVE_ROOM_ITEMS_CHANGED, handleItemsChanged);
       socket.io.off('reconnect', handleReconnect);
     };
   }, [roomId, userId, enabled]);

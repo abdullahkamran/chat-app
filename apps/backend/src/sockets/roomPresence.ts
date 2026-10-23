@@ -90,6 +90,11 @@ export const roomPresence = {
         return undefined;
     },
 
+    /** Everyone in the room, for changes that touch them all (a new layout). */
+    entries(roomId: string): [string, Presence][] {
+        return [...(rooms.get(roomId) ?? [])];
+    },
+
     /**
      * Remove the user if this socket owns their entry. False when they re-entered from
      * another socket since (a reconnect whose old socket only now timed out), so they stay.

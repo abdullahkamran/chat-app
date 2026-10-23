@@ -6,10 +6,11 @@ import { useUserInfo } from '@/context/user.context';
 import { useChat } from '@/hooks/useChat';
 import { useInventory } from '@/hooks/useInventory';
 import { api } from '@/lib/api';
-import type { GridPoint } from '@/constants/grid';
+import { isMirrored, type GridPoint } from '@/constants/grid';
 import {
   Facing,
   ItemAction,
+  ItemPlacement,
   ItemState,
   Orientiation,
   type ActorAction,
@@ -26,12 +27,17 @@ import {
 import type { ActorState, EditState, EngineCapabilities, RoomMode, RoomScene } from '../core/contract';
 import { fitsAt, itemCovering } from '../core/editLayout';
 import { facingFromDelta } from '../core/facing';
-import { findSeat, sameSeat, seatApproach, seatPosition, type SitAction } from '../core/seats';
+import { findSeat, itemSeats, sameSeat, seatApproach, seatPosition, type SitAction } from '../core/seats';
 import { findPath, isLineClear, smoothPath } from '../core/usePathfinding';
 import { useWalkabilityGrid } from '../core/useWalkabilityGrid';
 import { useRoomDetails } from '../hooks/useRoomDetails';
 
 type EmoteAction = Extract<ActorAction, { kind: 'emote' }>;
+
+/** A typing bubble stays this long after the last keystroke report. */
+const TYPING_SHOW_MS = 2500;
+/** At most one typing report per this interval while the user types. */
+const TYPING_SEND_MS = 1500;
 
 /**
  * Engine-agnostic room state: socket events, characters, chat and edit mode.
@@ -63,6 +69,10 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
 
   const [typingUserIds, setTypingUserIds] = useState<Set<string>>(new Set());
   const typingTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  // Usernames from typing events, for the "is typing" line.
+  const [typingNames, setTypingNames] = useState<Record<User['_id'], string>>({});
+  // Whether a typing report went out within the last TYPING_SEND_MS.
+  const typingSentRef = useRef(false);
   const bubbleIdRef = useRef(0);
 
   // Edit mode
@@ -99,6 +109,7 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
       onTyping: receiveTyping,
       onAvatarChanged: receiveAvatarChanged,
       onAction: receiveAction,
+      onItemsChanged: receiveItemsChanged,
     },
     // Doors and seats must be known before occupants can be placed.
     enabled: !!roomDetails,
@@ -161,6 +172,29 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     moveMe(spot.gx, spot.gy);
   }
 
+  /**
+   * The owner saved a new layout. The server stood everyone up and moved anyone furniture
+   * now covers (see announceRoomItemsChanged); `placed` is where. They appear there at
+   * once, standing, us included: a walk would be planned on the old layout still on
+   * screen. Then load the new layout.
+   */
+  function receiveItemsChanged({ placed }: { placed: { userId: string; x: number; y: number }[] }) {
+    const at = new Map(placed.map(p => [p.userId, { x: p.x, y: p.y, z: 0 }]));
+    for (const uid of at.keys()) {
+      delete pendingSitRef.current[uid];
+      delete pendingEmoteRef.current[uid];
+    }
+    setActors(current => {
+      const next = { ...current };
+      for (const [uid, position] of at) {
+        const actor = current[uid];
+        if (actor) next[uid] = { ...actor, position, action: { kind: 'idle' } };
+      }
+      return next;
+    });
+    queryClient.invalidateQueries({ queryKey: ['roomDetails', roomId] });
+  }
+
   function receiveExit({ userId }: { userId: string }) {
     exitCharacter(userId);
   }
@@ -216,20 +250,31 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
 
   function receiveMessage({ userId, message }: { userId: string; message: string }) {
     enterCharacter(userId);
+    stopTyping(userId);
     pushChatMessage(userId, message);
   }
 
-  function receiveTyping({ userId }: { userId: string }) {
+  function receiveTyping({ userId, username }: { userId: string; username?: string }) {
     enterCharacter(userId);
-    setTypingUserIds(prev => new Set(prev).add(userId));
-    clearTimeout(typingTimeoutRef.current[userId]);
-    typingTimeoutRef.current[userId] = setTimeout(() => {
-      setTypingUserIds(prev => {
-        const next = new Set(prev);
-        next.delete(userId);
-        return next;
-      });
-    }, 2000);
+    if (username) setTypingNames(names => (names[userId] === username ? names : { ...names, [userId]: username }));
+    markTyping(userId);
+  }
+
+  /** Show someone's typing bubble until TYPING_SHOW_MS after their last keystroke report. */
+  function markTyping(uid: string) {
+    setTypingUserIds(prev => (prev.has(uid) ? prev : new Set(prev).add(uid)));
+    clearTimeout(typingTimeoutRef.current[uid]);
+    typingTimeoutRef.current[uid] = setTimeout(() => stopTyping(uid), TYPING_SHOW_MS);
+  }
+
+  function stopTyping(uid: string) {
+    clearTimeout(typingTimeoutRef.current[uid]);
+    setTypingUserIds(prev => {
+      if (!prev.has(uid)) return prev;
+      const next = new Set(prev);
+      next.delete(uid);
+      return next;
+    });
   }
 
   /** Where people come in: the entry door. */
@@ -256,7 +301,9 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     if (actors[uid]) return;
     fetchAvatar(uid);
     const actor = newActor(uid, doorPosition());
-    setActors(current => ({ ...current, [uid]: actor }));
+    // `actors` is from the last render: an actor placed since (say by the presence snapshot,
+    // just before this event in the same batch) must not be replaced by one at the door.
+    setActors(current => (current[uid] ? current : { ...current, [uid]: actor }));
   }
 
   /**
@@ -410,7 +457,7 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     });
     let best: SitAction | null = null;
     let bestDistance = Infinity;
-    (roomItem.itemId.seats ?? []).forEach((seat, seatIndex) => {
+    itemSeats(roomItem).forEach((seat, seatIndex) => {
       const action: SitAction = { kind: 'sit', itemId: roomItem.itemId._id, at, seatIndex };
       if (taken.some(t => sameSeat(t, action))) return;
       const p = seatPosition(roomItem, seat);
@@ -532,7 +579,20 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
 
   function submitMessage(message: string) {
     sendMessage(message);
+    stopTyping(userId);
     pushChatMessage(userId, message);
+  }
+
+  /**
+   * The user typed. Their own bubble shows at once; the room hears at most once per
+   * TYPING_SEND_MS, which keeps others' bubbles up (they clear after TYPING_SHOW_MS).
+   */
+  function typing() {
+    markTyping(userId);
+    if (typingSentRef.current) return;
+    typingSentRef.current = true;
+    sendTyping();
+    setTimeout(() => { typingSentRef.current = false; }, TYPING_SEND_MS);
   }
 
   // ── Edit-mode intents ─────────────────────────────────────────────────────
@@ -577,6 +637,20 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
   function selectInventoryItem(item: Item | null) {
     setSelectedItem(item);
     setSelectedPlacedItem(null);
+  }
+
+  /**
+   * Turn the picked-up item between its two drawn facings (see isMirrored). It stays
+   * picked up. Ignored for wall items, which would flip onto the other wall, and when the
+   * turned footprint wouldn't fit.
+   */
+  function rotateSelectedPlaced() {
+    if (selectedPlacedItem?.itemId.placement !== ItemPlacement.FLOOR) return;
+    const orientation = isMirrored(selectedPlacedItem.orientation) ? Orientiation.ZERO : Orientiation.NINETY;
+    const turned: RoomItem = { ...selectedPlacedItem, orientation };
+    if (!fitsAt(pendingItems, turned, roomDimensions, selectedPlacedItem)) return;
+    setPendingItems(current => current.map(ri => (ri === selectedPlacedItem ? turned : ri)));
+    setSelectedPlacedItem(turned);
   }
 
   function removeSelectedPlaced() {
@@ -671,6 +745,8 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     localActorId: userId,
     edit,
     typingUserIds,
+    /** Names of the others typing, for the line above the chat input. */
+    typingNames: [...typingUserIds].filter(id => id !== userId).map(id => typingNames[id] ?? 'Someone'),
     onActionComplete,
     /** Whether this device's engine plays emotes; the shell hides the emote button otherwise. */
     canEmote,
@@ -681,11 +757,12 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
       interactWith,
       emote,
       submitMessage,
-      sendTyping,
+      typing,
       enterEdit,
       cancelEdit,
       saveEdit,
       selectInventoryItem,
+      rotateSelectedPlaced,
       removeSelectedPlaced,
       editCell,
     },

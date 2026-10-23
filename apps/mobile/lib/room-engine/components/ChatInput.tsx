@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Keyboard, StyleSheet, TextInput, View } from 'react-native';
 import { Button } from 'react-native-elements';
 
@@ -36,12 +36,11 @@ const styles = StyleSheet.create({
 export function ChatInput({ onTyping, onSubmit }: Readonly<ChatInputProps>) {
   const [inputHeight, setInputHeight] = useState(42);
   const [message, setMessage] = useState('');
-  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout>>(0);
 
+  // Every keystroke reports typing; the session shows it at once and throttles what it sends.
   const handleMessageChange = useCallback((text: string) => {
     setMessage(text);
-    clearTimeout(typingTimeoutRef.current);
-    typingTimeoutRef.current = setTimeout(() => onTyping(), 300);
+    if (text.trim()) onTyping();
   }, [onTyping]);
 
   function handleSubmit() {

@@ -78,6 +78,11 @@ export const theme = {
     tabIconDefault: palette.neutral600,
     tabIconSelected: palette.yellow,
 
+    // Room speech bubbles: light on the dark room so they read over any floor
+    bubble: palette.white,
+    bubbleText: palette.black,
+    bubbleTyping: palette.neutral600,
+
     // Placeholder avatar parts (Skia room engine programmer art)
     avatarPlaceholderSkin: palette.avatarSkin,
     avatarPlaceholderHair: palette.avatarHair,

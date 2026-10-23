@@ -1,4 +1,4 @@
-import type { GridPoint } from '@/constants/grid';
+import { isMirrored, type GridPoint } from '@/constants/grid';
 import { Facing, type ActorAction, type ItemSeat, type Position, type RoomItem } from '@chat-app/shared-types';
 
 export type SitAction = Extract<ActorAction, { kind: 'sit' }>;
@@ -11,15 +11,34 @@ const FACING_STEP: Record<Facing, GridPoint> = {
   [Facing.NW]: { gx: -1, gy: 0 },
 };
 
+/** A facing seen in the mirror isMirrored draws: x and y swap, so SE ↔ SW and NE ↔ NW. */
+const MIRRORED_FACING: Record<Facing, Facing> = {
+  [Facing.SE]: Facing.SW,
+  [Facing.SW]: Facing.SE,
+  [Facing.NE]: Facing.NW,
+  [Facing.NW]: Facing.NE,
+};
+
 /**
- * The placed item and seat a sit action points at, or null when the item has gone.
- * Seats are taken as authored; item orientation doesn't rotate them yet, as item art
- * doesn't rotate either.
+ * A placed item's seats as they stand in the room. Mirrored items (see isMirrored) swap
+ * each seat's x and y and mirror its facing, so sitters follow the flipped art.
+ * Indexes match the authored `seats`.
  */
+export function itemSeats(item: RoomItem): ItemSeat[] {
+  const seats = item.itemId.seats ?? [];
+  if (!isMirrored(item.orientation)) return seats;
+  return seats.map(({ cell, facing, offset }) => ({
+    cell: { x: cell.y, y: cell.x },
+    facing: MIRRORED_FACING[facing],
+    offset: { x: offset.y, y: offset.x, z: offset.z },
+  }));
+}
+
+/** The placed item and seat (as it stands, see itemSeats) a sit action points at, or null when the item has gone. */
 export function findSeat(items: readonly RoomItem[], action: SitAction): { item: RoomItem; seat: ItemSeat } | null {
   const item = items.find(ri =>
     ri.itemId._id === action.itemId && ri.position.x === action.at.x && ri.position.y === action.at.y);
-  const seat = item?.itemId.seats?.[action.seatIndex];
+  const seat = item && itemSeats(item)[action.seatIndex];
   return item && seat ? { item, seat } : null;
 }
 

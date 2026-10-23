@@ -16,11 +16,11 @@ import {
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
-import { gridToScreen, type GridOrigin } from '@/constants/grid';
+import { gridToScreen, isMirrored, type GridOrigin } from '@/constants/grid';
 import { theme } from '@/constants/theme';
 import type { ActorAction, ActorActionKind, Facing, RoomItem } from '@chat-app/shared-types';
 import type { ActorState } from '../../core/contract';
-import { facingFromDelta } from '../../core/facing';
+import { steadyFacingFromDelta } from '../../core/facing';
 import { findSeat } from '../../core/seats';
 import type { ActorMotion } from './actorMotion';
 import { drawAvatar, placeholderTints, type AvatarPlayhead } from './drawAvatar';
@@ -84,6 +84,8 @@ interface ItemDraw {
   dst: number[];
   rect: number[];
   selected: boolean;
+  /** Drawn flipped left-to-right about the rect's centre line (see isMirrored). */
+  mirrored: boolean;
 }
 
 /** Per-actor animation playhead, carried across frames on the UI thread. */
@@ -158,7 +160,7 @@ function advance(prev: AnimRuntime | undefined, a: ActorDraw, gx: number, gy: nu
   const dgx = gx - st.lastGx;
   const dgy = gy - st.lastGy;
   if (a.sitting) st.facing = a.facing;
-  else if (Math.abs(dgx) + Math.abs(dgy) > MOVE_EPSILON) st.facing = facingFromDelta(dgx, dgy);
+  else if (Math.abs(dgx) + Math.abs(dgy) > MOVE_EPSILON) st.facing = steadyFacingFromDelta(st.facing, dgx, dgy);
   else if (a.facing !== st.propFacing) st.facing = a.facing;
   st.propFacing = a.facing;
   st.lastGx = gx;
@@ -269,6 +271,7 @@ export function useWorldPicture({
       dst: containDst(image, rect),
       rect: [rect.x, rect.y, rect.width, rect.height],
       selected: ri === selectedPlaced,
+      mirrored: isMirrored(ri.orientation),
     }];
   }), [items, itemImages, selectedPlaced, origin]);
 
@@ -339,6 +342,11 @@ export function useWorldPicture({
             canvas.scale(SELECTED_SCALE, SELECTED_SCALE);
             canvas.translate(-(x + w / 2), -(y + h / 2));
             paint.setAlphaf(SELECTED_ALPHA);
+          }
+          if (it.mirrored) {
+            canvas.translate(x + w / 2, 0);
+            canvas.scale(-1, 1);
+            canvas.translate(-(x + w / 2), 0);
           }
           const image = e.front && it.front ? it.front : it.image;
           const src = e.front ? it.frontSrc : it.src;

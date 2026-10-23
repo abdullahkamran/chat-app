@@ -19,6 +19,8 @@ export const SocketEvent = {
   RECEIVE_ROOM_PRESENCE: "receive_room_presence",
   /** Sent only to a user whose sit was for a seat someone else holds. */
   RECEIVE_SIT_REFUSED: "receive_sit_refused",
+  /** The owner saved a new layout. Carries everyone the server stood up or moved off furniture, and where to. */
+  RECEIVE_ROOM_ITEMS_CHANGED: "receive_room_items_changed",
 } as const;
 
 export type SocketEvent = typeof SocketEvent[keyof typeof SocketEvent];

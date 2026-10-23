@@ -1,10 +1,12 @@
-import { Socket } from 'socket.io';
+import { Server, Socket } from 'socket.io';
 import mongoose from 'mongoose';
 import { SocketEvent } from '@chat-app/socket-constants';
 import { AnimationCategory, type RoomPresenceState } from '@chat-app/shared-types';
 import Animation from '../models/animation.model';
+import Room from '../models/room.model';
 import User from '../models/user.model';
 import { sendPushToRoom } from '../services/notification.service';
+import { blockedCells, cellOf, nearestFreeCell, type RoomLayout } from './roomLayout';
 import { roomPresence, type EmoteAction, type Presence, type SitAction } from './roomPresence';
 
 /** A grid point with finite coordinates, or null. */
@@ -22,12 +24,58 @@ function parseSit(action: unknown): SitAction | null {
 }
 
 /**
- * Actions clients may broadcast: sitting, and emotes the user owns. Walks are sent as points.
- * Returns the action to relay, or null.
+ * Whether the room has the sit's item at the sit's cell. A client still showing an old
+ * layout could otherwise claim a seat on furniture that has moved or gone.
  */
-async function allowedAction(userId: string, action: unknown): Promise<SitAction | EmoteAction | null> {
+async function seatExists(roomId: string, sit: SitAction): Promise<boolean> {
+    if (!mongoose.isValidObjectId(sit.itemId)) return false;
+    return !!(await Room.exists({
+        _id: roomId,
+        items: { $elemMatch: { itemId: sit.itemId, 'position.x': sit.at.x, 'position.y': sit.at.y } },
+    }));
+}
+
+/**
+ * The owner saved a new layout. Everyone sitting (or walking to a seat) stands up, and no
+ * one is left inside furniture. People standing on free floor stay put. The rest (sitters,
+ * and anyone whose cell furniture now covers) go to their own cell (a sitter's is where the
+ * seat's item stood) when it is free, else the nearest free cell, never one someone else
+ * stands on, and to the door when the floor is full. The server places everyone so all
+ * clients agree; the room (owner included) gets each changed position and refetches.
+ */
+export function announceRoomItemsChanged(io: Server, roomId: string, layout: RoomLayout): void {
+    const blocked = blockedCells(layout);
+    const taken = new Set<string>();
+    const toPlace: [string, Presence][] = [];
+    for (const [uid, p] of roomPresence.entries(roomId)) {
+        const cell = cellOf(p.position ?? layout.door, layout);
+        if (!p.sit && !blocked.has(`${cell.x},${cell.y}`)) taken.add(`${cell.x},${cell.y}`);
+        else toPlace.push([uid, p]);
+    }
+    const placed: { userId: string; x: number; y: number }[] = [];
+    for (const [uid, p] of toPlace) {
+        const from = cellOf(p.sit?.at ?? p.position ?? layout.door, layout);
+        const to = nearestFreeCell(from, layout, blocked, taken) ?? layout.door;
+        taken.add(`${to.x},${to.y}`);
+        p.sit = undefined;
+        p.emote = undefined;
+        p.position = { x: to.x, y: to.y };
+        placed.push({ userId: uid, ...p.position });
+    }
+    console.log(SocketEvent.RECEIVE_ROOM_ITEMS_CHANGED, { roomId, placed });
+    io.to(roomId).emit(SocketEvent.RECEIVE_ROOM_ITEMS_CHANGED, { roomId, placed });
+}
+
+/**
+ * Actions clients may broadcast: sitting on furniture in the room, and emotes the user owns.
+ * Walks are sent as points. Returns the action to relay, or null.
+ */
+async function allowedAction(userId: string, roomId: string, action: unknown): Promise<SitAction | EmoteAction | null> {
     const a = action as Partial<Record<string, unknown>> | null;
-    if (a?.kind === 'sit') return parseSit(a);
+    if (a?.kind === 'sit') {
+        const sit = parseSit(a);
+        return sit && (await seatExists(roomId, sit)) ? sit : null;
+    }
     if (a?.kind === 'emote' && typeof a.animation === 'string') {
         const emote = await Animation.findOne({ name: a.animation, category: AnimationCategory.EMOTE }).select('_id');
         const owned = !!emote && !!(await User.exists({ _id: userId, animations: emote._id }));
@@ -44,6 +92,8 @@ async function canEnter(userId: string, roomId: unknown): Promise<boolean> {
 
 interface ClientSocketData {
     userId: string;
+    /** Looked up once at connect, so typing events can name the user without a query each. */
+    username: string;
 }
 
 const handler = {
@@ -55,13 +105,13 @@ const handler = {
         try {
             const userId = socket.handshake.auth.id as string;
 
-            const user = await User.exists({ _id: new mongoose.Types.ObjectId(userId) });
+            const user = await User.findById(new mongoose.Types.ObjectId(userId)).select('username');
             if (!user) {
                 next(new Error('Unknown user'));
                 return;
             }
 
-            const data: ClientSocketData = { userId };
+            const data: ClientSocketData = { userId, username: user.username };
             socket.data = data;
             next();
         } catch (e) {
@@ -71,7 +121,7 @@ const handler = {
     },
 
     clientConnected: (socket: Socket): void => {
-        const { userId } = socket.data as ClientSocketData;
+        const { userId, username } = socket.data as ClientSocketData;
 
         // Rooms this socket is currently standing in (entered and not yet exited). The socket
         // is joined to exactly these channels, so it only hears the rooms it shows, and room
@@ -136,7 +186,9 @@ const handler = {
             const presence: Presence = { socketId: socket.id };
             const point = parsePoint(position);
             if (point) presence.position = point;
-            const sit = parseSit(action);
+            // A re-entry's seat may have moved or gone while the client was away; it then stands.
+            const claimed = parseSit(action);
+            const sit = claimed && (await seatExists(roomId, claimed)) ? claimed : null;
             const holder = sit && roomPresence.seatHolder(roomId, sit);
             if (sit && holder && holder !== userId) {
                 socket.emit(SocketEvent.RECEIVE_SIT_REFUSED, { roomId, action: sit });
@@ -180,14 +232,14 @@ const handler = {
 
         socket.on(SocketEvent.SEND_TYPING, inRoom(SocketEvent.SEND_TYPING, ({ roomId, isTyping }: { roomId: string; isTyping: boolean }) => {
             console.log(SocketEvent.SEND_TYPING, { userId, roomId, isTyping });
-            socket.to(roomId).emit(SocketEvent.RECEIVE_TYPING, { roomId, userId, isTyping });
+            socket.to(roomId).emit(SocketEvent.RECEIVE_TYPING, { roomId, userId, username, isTyping });
         }));
 
         // A room action other than walking (sitting, emotes). Walks still travel as SEND_POINT.
         // The server decides who gets a seat: a sit for a seat someone else holds is refused,
         // and only the sender hears about it.
         socket.on(SocketEvent.SEND_ACTION, inRoom(SocketEvent.SEND_ACTION, async ({ roomId, action }: { roomId: string; action: unknown }) => {
-            const allowed = await allowedAction(userId, action);
+            const allowed = await allowedAction(userId, roomId, action);
             if (!allowed) return;
             // Nothing below awaits, so the seat check and the claim can't interleave with another sit.
             const me = roomPresence.own(roomId, userId, socket.id);

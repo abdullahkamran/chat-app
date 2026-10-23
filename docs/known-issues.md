@@ -13,7 +13,8 @@ staying silent until a reconnect) were fixed on 2026-10-22 by joining a room's c
 after a membership check. A third (people already in a room appearing at the door and walking to their spot,
 replies broadcast to the whole room, emotes in progress not sent, two users taking one seat) was fixed on
 2026-10-23 in `df4f4c8` by server-side presence: the server sends a newcomer a snapshot and arbitrates seats
-(`apps/backend/src/sockets/roomPresence.ts`).
+(`apps/backend/src/sockets/roomPresence.ts`). Visitors not seeing a saved layout, staying seated on furniture that moved, and ending up inside
+furniture was fixed on 2026-10-23 by `RECEIVE_ROOM_ITEMS_CHANGED` (`announceRoomItemsChanged` in `socketHandler.ts`).
 
 ### 1. One user on two devices in the same room shows as one character
 
@@ -25,6 +26,21 @@ exit or disconnect is ignored so it can't remove the user (this is what keeps re
 
 **Fix:** key presence by socket and draw one character per device, or refuse a second device in the same room.
 Decide this before moving presence to Redis (scaling issue 2): the choice sets the Redis key layout.
+
+### 2. A tap made just as the owner saves a layout can still use the old one
+
+**Seen:** rarely. A visitor taps a chair the moment the owner saves a layout that moves it, and sits on the
+chair's old spot. Or a visitor walks during the second before their client has loaded the new layout, and
+stops inside furniture that just arrived there. Either lasts until they walk again.
+
+**Why:** the server stands people up and moves them off furniture once, when the layout is saved. A sit is
+checked against the room (a DB read) and then claimed, so a save landing between the two misses it (a
+check-then-write race). Walk points are never checked against furniture at all; clients plan walks on the
+layout they have, which is the old one until the refetch finishes. Found on 2026-10-23.
+
+**Fix:** keep each room's blocked cells and seats in memory next to presence (`roomLayout.ts` already
+computes them), refreshed on every save; check sits against them in the same synchronous step as the
+claim, and move a walk point that lands on a blocked cell to the nearest free one before relaying it.
 
 ---
 
@@ -125,7 +141,7 @@ take the same seat.
 
 **Why:** two things live in one process's memory. Room presence (`apps/backend/src/sockets/roomPresence.ts`)
 is a `Map` per process, so each instance only knows its own sockets. And Socket.IO's default adapter only
-broadcasts to sockets on the same instance, so relays (`socket.to(roomId)`) never cross instances.
+broadcasts to sockets on the same instance, so relays (`socket.to(roomId)`) never cross instances. The same goes for layout saves: `announceRoomItemsChanged` only places the people this instance knows and tells only its own sockets.
 
 **Fix:** add Redis, decide room presence issue 1 first, and keep `roomPresence`'s API (made async) so the
 handlers barely change:

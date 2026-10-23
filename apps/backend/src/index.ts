@@ -54,6 +54,8 @@ const io = new Server(server, {
     // ...
 });
 
+// For REST handlers that announce changes to a room (see announceRoomItemsChanged).
+app.set('io', io);
 io.use(socketHandler.authenticate);
 io.on('connection', socketHandler.clientConnected);
 
