@@ -14,7 +14,8 @@ import { type Item, type RoomItem } from '@chat-app/shared-types';
 
 interface Props {
   selectedItem: Item | null;
-  onSelectItem: (item: Item) => void;
+  /** Null when the selected card is tapped again, to go back to picking up placed items. */
+  onSelectItem: (item: Item | null) => void;
   pendingItems: RoomItem[];
 }
 
@@ -52,8 +53,11 @@ export function InventoryDrawer({ selectedItem, onSelectItem, pendingItems }: Pr
           return (
             <TouchableOpacity
               style={[styles.itemCard, isSelected && styles.itemCardSelected, exhausted && styles.itemCardExhausted]}
-              onPress={() => !exhausted && onSelectItem(item)}
-              activeOpacity={exhausted ? 1 : 0.8}
+              onPress={() => {
+                if (isSelected) onSelectItem(null);
+                else if (!exhausted) onSelectItem(item);
+              }}
+              activeOpacity={exhausted && !isSelected ? 1 : 0.8}
             >
               <View style={styles.imageWrapper}>
                 <Image

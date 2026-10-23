@@ -93,6 +93,7 @@ export function RoomShell({ session, children }: Readonly<Props>) {
           onCancel={intents.cancelEdit}
           selectedPlacedItem={edit.selectedPlaced}
           onRemovePlacedItem={intents.removeSelectedPlaced}
+          isPlacing={edit.selectedItem !== null}
         />
       ) : (
         <View style={[styles.roomHeader, { paddingTop: insets.top }]}>

@@ -24,6 +24,7 @@ import {
   type User,
 } from '@chat-app/shared-types';
 import type { ActorState, EditState, EngineCapabilities, RoomMode, RoomScene } from '../core/contract';
+import { fitsAt, itemCovering } from '../core/editLayout';
 import { facingFromDelta } from '../core/facing';
 import { findSeat, sameSeat, seatApproach, seatPosition, type SitAction } from '../core/seats';
 import { findPath, isLineClear, smoothPath } from '../core/usePathfinding';
@@ -584,58 +585,53 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     setSelectedPlacedItem(null);
   }
 
-  function editCell({ gx, gy }: GridPoint) {
-    // A placed item is "picked up" — move it to the tapped cell
+  /**
+   * `hit` is the item whose art was tapped; `onFloor` the one standing on the tapped
+   * cell. Nothing is ever replaced: a tap on taken floor picks that item up instead.
+   */
+  function editCell({ gx, gy }: GridPoint, hit: RoomItem | null) {
+    const onFloor = itemCovering(pendingItems, gx, gy);
+
+    // A placed item is picked up: move it to the tapped cell
     if (selectedPlacedItem) {
-      // Tap the same cell → deselect without moving
-      if (selectedPlacedItem.position.x === gx && selectedPlacedItem.position.y === gy) {
+      const { x, y } = selectedPlacedItem.position;
+      // Tap it again (its art or its own cell) → put it down where it was
+      if (hit === selectedPlacedItem || (x === gx && y === gy)) {
         setSelectedPlacedItem(null);
         return;
       }
       const moved: RoomItem = { ...selectedPlacedItem, position: { x: gx, y: gy, z: 0 } };
-      setPendingItems(current => {
-        const filtered = current.filter(
-          ri => ri !== selectedPlacedItem && !(ri.position.x === gx && ri.position.y === gy),
-        );
-        return [...filtered, moved];
-      });
-      setSelectedPlacedItem(null);
+      if (fitsAt(pendingItems, moved, roomDimensions, selectedPlacedItem)) {
+        setPendingItems(current => [...current.filter(ri => ri !== selectedPlacedItem), moved]);
+        setSelectedPlacedItem(null);
+      } else if (onFloor && onFloor !== selectedPlacedItem) {
+        setSelectedPlacedItem(onFloor);
+      }
       return;
     }
 
-    // An inventory item is selected — place it
+    // An inventory item is selected: place a copy, as many as are owned
     if (selectedItem) {
-      // Enforce placement limit: can only place as many copies as owned
       const ownedCount = inventoryItems.filter(i => i._id === selectedItem._id).length;
-      const alreadyPlacedCount = pendingItems.filter(
-        ri => ri.itemId._id === selectedItem._id,
-      ).length;
-      // If placing on a cell already occupied by THIS item, it's a move not a new placement
-      const isReplace = pendingItems.some(
-        ri => ri.position.x === gx && ri.position.y === gy && ri.itemId._id === selectedItem._id,
-      );
-      if (!isReplace && alreadyPlacedCount >= ownedCount) return;
-
+      const placedCount = pendingItems.filter(ri => ri.itemId._id === selectedItem._id).length;
       const newItem: RoomItem = {
         itemId: selectedItem,
         position: { x: gx, y: gy, z: 0 },
         orientation: Orientiation.ZERO,
         state: ItemState.NONE,
       };
-      setPendingItems(current => {
-        const filtered = current.filter(
-          ri => !(ri.position.x === gx && ri.position.y === gy),
-        );
-        return [...filtered, newItem];
-      });
+      if (fitsAt(pendingItems, newItem, roomDimensions)) {
+        if (placedCount < ownedCount) setPendingItems(current => [...current, newItem]);
+      } else if (onFloor) {
+        setSelectedItem(null);
+        setSelectedPlacedItem(onFloor);
+      }
       return;
     }
 
-    // Nothing selected — tap an occupied cell to select that placed item
-    const itemAtCell = pendingItems.find(ri => ri.position.x === gx && ri.position.y === gy);
-    if (itemAtCell) {
-      setSelectedPlacedItem(itemAtCell);
-    }
+    // Nothing selected: pick up the tapped item
+    const target = hit ?? onFloor;
+    if (target) setSelectedPlacedItem(target);
   }
 
   // ── Derived state for engines ─────────────────────────────────────────────

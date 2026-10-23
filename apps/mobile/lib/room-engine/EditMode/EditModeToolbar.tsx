@@ -8,24 +8,36 @@ interface Props {
   onCancel: () => void;
   selectedPlacedItem?: RoomItem | null;
   onRemovePlacedItem?: () => void;
+  /** Whether an inventory item is chosen for placement, for the hint. */
+  isPlacing?: boolean;
   topInset?: number;
 }
 
 /** Save / Cancel bar shown at the top while in edit mode. */
-export function EditModeToolbar({ isSaving, onSave, onCancel, selectedPlacedItem, onRemovePlacedItem, topInset = 0 }: Props) {
+export function EditModeToolbar({
+  isSaving, onSave, onCancel, selectedPlacedItem, onRemovePlacedItem, isPlacing = false, topInset = 0,
+}: Props) {
+  const hint = selectedPlacedItem
+    ? 'Tap the floor to move it'
+    : isPlacing
+      ? 'Tap the floor to place'
+      : 'Tap furniture to move it';
   return (
     <View style={[styles.toolbar, { paddingTop: topInset + 10 }]}>
       <TouchableOpacity style={styles.cancelBtn} onPress={onCancel} disabled={isSaving}>
         <Text style={styles.cancelText}>Cancel</Text>
       </TouchableOpacity>
 
-      {selectedPlacedItem ? (
-        <TouchableOpacity style={styles.removeBtn} onPress={onRemovePlacedItem} disabled={isSaving}>
-          <Text style={styles.removeText}>🗑 Remove</Text>
-        </TouchableOpacity>
-      ) : (
-        <Text style={styles.label}>Edit Room</Text>
-      )}
+      <View style={styles.center}>
+        {selectedPlacedItem ? (
+          <TouchableOpacity style={styles.removeBtn} onPress={onRemovePlacedItem} disabled={isSaving}>
+            <Text style={styles.removeText}>🗑 Remove</Text>
+          </TouchableOpacity>
+        ) : (
+          <Text style={styles.label}>Edit Room</Text>
+        )}
+        <Text style={styles.hint}>{hint}</Text>
+      </View>
 
       <TouchableOpacity style={styles.saveBtn} onPress={onSave} disabled={isSaving}>
         {isSaving
@@ -48,10 +60,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
   },
+  center: {
+    alignItems: 'center',
+    gap: 4,
+  },
   label: {
     color: theme.colors.text,
     fontWeight: '600',
     fontSize: 15,
+  },
+  hint: {
+    color: theme.colors.textSecondary,
+    fontSize: 12,
   },
   cancelBtn: {
     paddingHorizontal: 8,

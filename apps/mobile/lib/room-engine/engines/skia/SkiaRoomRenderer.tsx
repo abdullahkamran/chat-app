@@ -74,7 +74,9 @@ function Room({
 
     if (isEditMode) {
       const cell = cellAt(point.gx, point.gy, scene.dimensions);
-      if (cell) onCellTap(cell);
+      const hit = hitTestItems(scene.items, { x, y }, origin, true);
+      if (cell) onCellTap(cell, hit);
+      else if (hit) onCellTap({ gx: hit.position.x, gy: hit.position.y }, hit);
       return;
     }
 

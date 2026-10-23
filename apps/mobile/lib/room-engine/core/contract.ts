@@ -83,8 +83,12 @@ export interface RoomRendererProps {
   onFloorTap(point: GridPoint): void;
   /** An interactive item tapped in play mode. */
   onItemTap(item: RoomItem): void;
-  /** A grid cell tapped in edit mode. Integer grid coordinates. */
-  onCellTap(cell: GridPoint): void;
+  /**
+   * A grid cell tapped in edit mode. Integer grid coordinates. `item` is the front-most
+   * placed item whose art is under the tap, interactive or not: tall art covers cells
+   * behind its own, so the floor cell alone can't tell which item was meant.
+   */
+  onCellTap(cell: GridPoint, item: RoomItem | null): void;
   /** The engine finished playing a non-looping action (e.g. a walk reached its destination). */
   /** `finished` is the action object that ended, so the session can ignore a report for one it has since replaced. */
   onActionComplete(actorId: string, action: ActorActionKind, finished?: ActorAction): void;

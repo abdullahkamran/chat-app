@@ -38,14 +38,18 @@ function contains(rect: ScreenRect, p: ScreenPoint): boolean {
   return p.x >= rect.x && p.x <= rect.x + rect.width && p.y >= rect.y && p.y <= rect.y + rect.height;
 }
 
-/** Front-most interactive item whose image rectangle contains the point, if any. */
+/**
+ * Front-most item whose image rectangle contains the point, if any. Only interactive
+ * items unless `includeDecor` (edit mode picks up anything).
+ */
 export function hitTestItems(
   items: readonly RoomItem[],
   point: ScreenPoint,
   origin: GridOrigin,
+  includeDecor = false,
 ): RoomItem | null {
   const frontToBack = items
-    .filter(ri => ri.itemId.action !== ItemAction.NONE)
+    .filter(ri => includeDecor || ri.itemId.action !== ItemAction.NONE)
     .sort((a, b) => itemDepth(b) - itemDepth(a));
   return frontToBack.find(ri => contains(itemRect(ri, origin), point)) ?? null;
 }
