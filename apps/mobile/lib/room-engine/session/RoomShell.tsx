@@ -102,6 +102,13 @@ export function RoomShell({ session, children }: Readonly<Props>) {
             <Ionicons name="chevron-back" size={24} color={theme.colors.text} />
           </TouchableOpacity>
           <Text style={styles.roomHeaderTitle} numberOfLines={1}>{roomDetails.name}</Text>
+          <TouchableOpacity
+            style={styles.headerBtn}
+            onPress={() => router.push({ pathname: '/room-members', params: { roomId: roomDetails._id } })}
+            accessibilityLabel="Members"
+          >
+            <Ionicons name="people-outline" size={22} color={theme.colors.text} />
+          </TouchableOpacity>
           {canEmote && (
             <TouchableOpacity
               style={styles.headerBtn}

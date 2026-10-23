@@ -52,7 +52,8 @@ instances make them more likely or more costly.
 ### 1. Sockets trust the user ID the client sends
 
 **Seen:** a socket connecting with `auth: { id: '<any user id>' }` is accepted as that user and can enter
-their rooms, chat, walk and sit as them.
+their rooms, chat, walk and sit as them. It also joins their own channel (`user:<id>`), so it hears which
+rooms they are added to and removed from.
 
 **Why:** `authenticate` in `apps/backend/src/sockets/socketHandler.ts` reads `socket.handshake.auth.id` and
 only checks that the user exists. No token is verified, unlike the REST routes (`requireAuth`).
@@ -108,7 +109,35 @@ user per minute), and with more traffic move sending to a queue (BullMQ on the s
 **Fix:** a per-socket token bucket in the handler for socket events, and `express-rate-limit` on auth routes.
 Past one instance the limits must be shared; see scaling issue 5.
 
-### 7. Smaller items
+### 7. Room membership can be left half-written, and room limits can be dodged
+
+Found on 2026-10-23 while adding search-and-pick on Create Room, adding and removing members, and leaving.
+
+**Seen:**
+- If the server fails between two writes, a user can show as a member of a room in its member list but
+  be refused at the door, or the other way round.
+- A user removed at the same moment they enter can stay visible in the room until they walk out.
+- A client can create a room with any `personLimit` and as many rooms as it likes.
+
+**Why:**
+- Membership is stored twice: `Room.members` and `User.rooms`. Create, add, remove and leave
+  (`room.controller.ts`) write one, then the other, with no transaction. Entering checks `User.rooms`,
+  while the member list and `getDetails` read `Room.members` or `User.rooms` depending on the route.
+- `SEND_ENTER` checks membership in the DB, then awaits a seat check before it adds the user to presence.
+  A removal that lands in that gap evicts nothing (`announceMemberRemoved`), and the enter adds them after.
+  Nothing more is relayed to them once the client exits, and they can't re-enter.
+- `createRoom` passes the client's `personLimit` to `resolveRoomDefaults` unchecked, and never checks
+  `User.maxRooms`. The new member limit is only as strict as that number.
+
+**Fix:**
+- Write both sides in one Mongo transaction, or keep one source of truth: drop `User.rooms` and query
+  `Room.members` for the room list and the door check.
+- In `SEND_ENTER`, check membership again after the last await, or have removals mark the
+  room/user pair so a pending enter is refused.
+- Clamp `personLimit` to a server maximum, or ignore it until rooms can be upgraded, and refuse
+  `createRoom` once `ownedRooms.length >= maxRooms`.
+
+### 8. Smaller items
 
 - **Logging:** every `SEND_POINT` and other room event is `console.log`ged, and morgan defaults to `dev`
   format. Under load that's slow and costly to store. Use a levelled logger (pino) and log room events at debug.
@@ -141,7 +170,7 @@ take the same seat.
 
 **Why:** two things live in one process's memory. Room presence (`apps/backend/src/sockets/roomPresence.ts`)
 is a `Map` per process, so each instance only knows its own sockets. And Socket.IO's default adapter only
-broadcasts to sockets on the same instance, so relays (`socket.to(roomId)`) never cross instances. The same goes for layout saves: `announceRoomItemsChanged` only places the people this instance knows and tells only its own sockets.
+broadcasts to sockets on the same instance, so relays (`socket.to(roomId)`) never cross instances. The same goes for layout saves: `announceRoomItemsChanged` only places the people this instance knows and tells only its own sockets. And for membership: the added, removed and members-changed events only reach this instance's sockets, and `announceMemberRemoved` only takes out a removed user standing in the room on this instance. On another instance, the removed user stays and is still relayed to until they exit. With the Redis adapter, evict with `io.in(userChannel).socketsLeave(roomId)` plus a broadcast that tells each instance to drop the user from presence and its sockets' `presentRoomIds`.
 
 **Fix:** add Redis, decide room presence issue 1 first, and keep `roomPresence`'s API (made async) so the
 handlers barely change:
@@ -194,15 +223,14 @@ in-memory `Map`, cache or timer for the same problem.
 **Fix:** with more traffic, put the atlases on object storage behind a CDN. They're already versioned
 (`?v=<atlasVersion>`) and served as immutable, so the move only changes the base URL.
 
----
+### 7. Username search reads every user
 
-## Dev tooling
+**Seen (with many users):** `GET /api/v1/users/search` gets slower as the user count grows, and the load
+grows with every keystroke from every client searching.
 
-### Adding someone to a room needs their raw user ID
+**Why:** it matches `^<query>` case-insensitively (`$options: 'i'`). MongoDB can't use the `username`
+index's bounds for a case-insensitive regex, so it scans the whole index. Found on 2026-10-23.
 
-Create Room's member field takes MongoDB user IDs, and no screen shows a user's ID. Members can only be set
-when a room is created, and there's no way to add them later. To test with two users, get the second user's
-ID from the `userId` field of the `POST /api/v1/auth/login` response (test accounts are in
-`apps/backend/src/catalog/test-users.catalog.ts`).
-
-**Fix:** accept usernames in the member field, or add a dev-only "invite test users" action.
+**Fix:** store a lowercased `usernameLower` with an index (set on signup, backfill once) and match
+`^<lowercased query>` against it without `i`. That's an index range scan. Rate-limit search per user
+(scaling issue 5).

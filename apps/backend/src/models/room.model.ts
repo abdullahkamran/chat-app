@@ -3,7 +3,7 @@ import { Room, RoomDetails } from '@chat-app/shared-types';
 import { Orientiation, ItemState } from '@chat-app/shared-types';
 
 // Override ownerId to use ObjectId since mongoose stores a reference, not a plain string
-export interface IRoom extends Omit<Room, '_id' | 'ownerId'>, Omit<RoomDetails, '_id' | 'ownerId' | 'users' | 'items' | 'theme'>, Document {
+export interface IRoom extends Omit<Room, '_id' | 'ownerId'>, Omit<RoomDetails, '_id' | 'ownerId' | 'members' | 'items' | 'theme'>, Document {
     ownerId: mongoose.Types.ObjectId;
     members: mongoose.Types.ObjectId[];
     items: Array<{
@@ -86,6 +86,14 @@ RoomSchema.statics.createRoom = function (room: IRoom) {
 RoomSchema.statics.deleteByID = function (room: { _id: mongoose.Types.ObjectId }) {
     return this.deleteOne({ _id: room._id });
 };
+
+/**
+ * Whether the user may add and remove the room's members. Only the owner today. Room admins,
+ * when they come, are checked here, so the routes that call this don't change.
+ */
+export function canManageMembers(room: Pick<IRoom, 'ownerId'>, userId: string): boolean {
+    return room.ownerId.toString() === userId;
+}
 
 const RoomModel = mongoose.model<IRoom, IRoomModel>('Room', RoomSchema);
 

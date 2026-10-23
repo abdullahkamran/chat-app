@@ -2,12 +2,12 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { io } from 'socket.io-client';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { PaginatedRooms } from '@chat-app/shared-types';
 import { useAuth } from '@/context/auth.context';
 import { api } from '@/lib/api';
 import { SERVER_ORIGIN } from '../utils/config';
-import { socketUtils } from '../utils/socketUtils';
+import { listenForMembershipChanges, socketUtils } from '../utils/socketUtils';
 import RoomListItem from './RoomListItem';
 import { theme } from '@/constants/theme';
 
@@ -16,6 +16,7 @@ const LIMIT = 20;
 export default function RoomListScreen(): React.JSX.Element {
   const { userId, selectedAvatar } = useAuth();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [showAvatarDialog, setShowAvatarDialog] = useState(!selectedAvatar);
 
   const {
@@ -50,14 +51,17 @@ export default function RoomListScreen(): React.JSX.Element {
     if (socketUtils.socket) {
       socketUtils.socket.disconnect();
     }
-    socketUtils.socket = io(SERVER_ORIGIN, { autoConnect: false });
-    socketUtils.socket.auth = { id: userId };
-    socketUtils.socket.connect();
+    const socket = io(SERVER_ORIGIN, { autoConnect: false });
+    socketUtils.socket = socket;
+    socket.auth = { id: userId };
+    const stopListening = listenForMembershipChanges(socket, queryClient);
+    socket.connect();
 
     return () => {
-      socketUtils.socket?.disconnect();
+      stopListening();
+      socket.disconnect();
     };
-  }, [userId]);
+  }, [userId, queryClient]);
 
   return (
     <View style={styles.container}>

@@ -1,7 +1,7 @@
 import { Server, Socket } from 'socket.io';
 import mongoose from 'mongoose';
 import { SocketEvent } from '@chat-app/socket-constants';
-import { AnimationCategory, type RoomPresenceState } from '@chat-app/shared-types';
+import { AnimationCategory, type RoomPresenceState, type RoomRemovalReason } from '@chat-app/shared-types';
 import Animation from '../models/animation.model';
 import Room from '../models/room.model';
 import User from '../models/user.model';
@@ -94,6 +94,46 @@ interface ClientSocketData {
     userId: string;
     /** Looked up once at connect, so typing events can name the user without a query each. */
     username: string;
+    /**
+     * Rooms this socket is currently standing in (entered and not yet exited). The socket
+     * is joined to exactly these channels, so it only hears the rooms it shows, and room
+     * events are only relayed for them. Also used to announce an exit when the connection
+     * drops without SEND_EXIT, and to take a removed member out (announceMemberRemoved).
+     */
+    presentRoomIds: Set<string>;
+}
+
+/** A user's own channel, joined by every socket of theirs: events about them rather than a room. */
+function userChannel(userId: string): string {
+    return `user:${userId}`;
+}
+
+/** Users were added to a room. Their room lists refetch, and so does the room's member list. */
+export function announceMembersAdded(io: Server, roomId: string, userIds: string[]): void {
+    if (userIds.length) io.to(userIds.map(userChannel)).emit(SocketEvent.RECEIVE_ADDED_TO_ROOM, { roomId });
+    io.to(roomId).emit(SocketEvent.RECEIVE_ROOM_MEMBERS_CHANGED, { roomId });
+}
+
+/**
+ * The user is no longer a member: removed by a manager, or left. Every socket of theirs standing
+ * in the room is taken out (their character leaves, and nothing more is relayed for them), their
+ * devices are told so a room on screen closes, and the room's member list refetches.
+ * Entering checks membership, so they can't come back in.
+ *
+ * Only this instance's sockets are taken out; see docs/known-issues.md.
+ */
+export function announceMemberRemoved(io: Server, roomId: string, userId: string, reason: RoomRemovalReason): void {
+    for (const socketId of io.of('/').adapter.rooms.get(userChannel(userId)) ?? []) {
+        const socket = io.sockets.sockets.get(socketId);
+        if (!socket || !(socket.data as ClientSocketData).presentRoomIds.delete(roomId)) continue;
+        socket.leave(roomId);
+        if (roomPresence.leave(roomId, userId, socket.id)) {
+            io.to(roomId).emit(SocketEvent.RECEIVE_EXIT, { roomId, userId });
+        }
+    }
+    console.log(SocketEvent.RECEIVE_REMOVED_FROM_ROOM, { userId, roomId, reason });
+    io.to(userChannel(userId)).emit(SocketEvent.RECEIVE_REMOVED_FROM_ROOM, { roomId, reason });
+    io.to(roomId).emit(SocketEvent.RECEIVE_ROOM_MEMBERS_CHANGED, { roomId });
 }
 
 const handler = {
@@ -111,7 +151,7 @@ const handler = {
                 return;
             }
 
-            const data: ClientSocketData = { userId, username: user.username };
+            const data: ClientSocketData = { userId, username: user.username, presentRoomIds: new Set() };
             socket.data = data;
             next();
         } catch (e) {
@@ -121,13 +161,8 @@ const handler = {
     },
 
     clientConnected: (socket: Socket): void => {
-        const { userId, username } = socket.data as ClientSocketData;
-
-        // Rooms this socket is currently standing in (entered and not yet exited). The socket
-        // is joined to exactly these channels, so it only hears the rooms it shows, and room
-        // events are only relayed for them. Also used to announce an exit when the connection
-        // drops without SEND_EXIT.
-        const presentRoomIds = new Set<string>();
+        const { userId, username, presentRoomIds } = socket.data as ClientSocketData;
+        socket.join(userChannel(userId));
 
         // Entering checks membership in the DB, so handlers run one at a time in arrival order:
         // a point sent right after SEND_ENTER must not be dropped while that check is pending.

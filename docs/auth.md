@@ -144,7 +144,7 @@ export function ProfileButton() {
 import { api } from '@/lib/api';
 
 // The Bearer token is attached automatically
-const rooms = await api.get<Room[]>('/api/v1/rooms/all');
+const { rooms } = await api.get<PaginatedRooms>('/api/v1/rooms');
 ```
 
 The `api` client automatically:

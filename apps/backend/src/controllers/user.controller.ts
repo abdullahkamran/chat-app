@@ -1,23 +1,36 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
-import User from '../models/user.model';
+import User, { PUBLIC_USER_FIELDS } from '../models/user.model';
 import AvatarModel from '../models/avatar.model';
 import { populateAvatar } from './avatar.controller';
 
+/** Most users one search returns. */
+const SEARCH_LIMIT = 20;
+
+/** `text` with regex metacharacters escaped, to match it literally. */
+function escapeRegex(text: string): string {
+    return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 const controller = {
-    getAll: async (_req: Request, res: Response): Promise<void> => {
+    // GET /users/me — the signed-in user's own profile, private fields included.
+    getMe: async (req: Request, res: Response): Promise<void> => {
         try {
-            const users = await User.getAll();
-            res.send(users);
+            const user = await User.findById(req.user!.userId);
+            if (!user) { res.sendStatus(404); return; }
+            res.send(user);
         } catch (e) {
             console.error(`Error: ${e}`);
             res.sendStatus(500);
         }
     },
 
+    // GET /users/:id — another user's public profile.
     getByID: async (_req: Request, res: Response, id: string): Promise<void> => {
+        if (!mongoose.isValidObjectId(id)) { res.sendStatus(404); return; }
         try {
-            const user = await User.findById(new mongoose.Types.ObjectId(id));
+            const user = await User.findById(id).select(PUBLIC_USER_FIELDS);
+            if (!user) { res.sendStatus(404); return; }
             res.send(user);
         } catch (e) {
             console.error(`Error: ${e}`);
@@ -25,31 +38,19 @@ const controller = {
         }
     },
 
-    getByUsername: async (req: Request, res: Response): Promise<void> => {
+    // GET /users/search?q= — users whose username starts with q, ignoring case. Leaves out the caller.
+    search: async (req: Request, res: Response): Promise<void> => {
+        const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+        if (!q) { res.send([]); return; }
         try {
-            const user = await User.find({ username: req.query.username });
-            res.send(user);
-        } catch (e) {
-            console.error(`Error: ${e}`);
-            res.sendStatus(500);
-        }
-    },
-
-    deleteUser: async (req: Request, res: Response): Promise<void> => {
-        const user = req.body;
-        try {
-            await User.deleteByID(user);
-            res.sendStatus(200);
-        } catch (e) {
-            console.error(`Error: ${e}`);
-            res.sendStatus(500);
-        }
-    },
-
-    getRooms: async (_req: Request, res: Response, id: string): Promise<void> => {
-        try {
-            const user = await User.findById(new mongoose.Types.ObjectId(id)).populate('rooms');
-            res.send(user?.rooms);
+            const users = await User.find({
+                _id: { $ne: req.user!.userId },
+                username: { $regex: `^${escapeRegex(q)}`, $options: 'i' },
+            })
+                .select(PUBLIC_USER_FIELDS)
+                .sort({ username: 1 })
+                .limit(SEARCH_LIMIT);
+            res.send(users);
         } catch (e) {
             console.error(`Error: ${e}`);
             res.sendStatus(500);

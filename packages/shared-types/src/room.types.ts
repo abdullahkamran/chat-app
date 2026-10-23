@@ -1,7 +1,7 @@
 import { Animation } from "./animation.types";
 import { Dimensions, Orientiation, Position } from "./dimensions.types";
 import { Item, ItemState } from "./item.types";
-import { User } from "./user.types";
+import { PublicUser, User } from "./user.types";
 
 export interface Room {
     _id: string;
@@ -15,7 +15,7 @@ export interface Room {
 }
 
 export interface RoomDetails extends Room {
-    users: Array<User>;
+    members: Array<PublicUser>;
     dimensions: Dimensions;
     items: Array<RoomItem>;
     doors: Array<Door>;
@@ -78,6 +78,19 @@ export interface RoomTheme {
     leftWall: Item;
     rightWall: Item;
 }
+
+/** `GET /rooms/:roomId/members`: the owner, everyone else, and what the caller may do. */
+export interface RoomMembers {
+    owner: PublicUser;
+    members: Array<PublicUser>;
+    /** Most people the room holds, owner included. */
+    personLimit: number;
+    /** Whether the caller may add and remove members (the owner today; room admins later). */
+    canManageMembers: boolean;
+}
+
+/** Why a user stopped being a member (`RECEIVE_REMOVED_FROM_ROOM`). */
+export type RoomRemovalReason = 'removed' | 'left';
 
 export interface PaginatedRooms {
     rooms: Array<Room>;

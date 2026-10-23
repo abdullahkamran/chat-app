@@ -74,6 +74,7 @@ function AppNavigator() {
                 <Stack.Screen name="(avatar)" options={{ headerShown: false }} />
                 <Stack.Screen name="room" options={{ headerShown: false }} />
                 <Stack.Screen name="create-room" options={{ headerShown: false, presentation: 'modal' }} />
+                <Stack.Screen name="room-members" options={{ headerShown: false, presentation: 'modal' }} />
                 <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
               </Stack.Protected>
               <Stack.Protected guard={!isAuthenticated}>

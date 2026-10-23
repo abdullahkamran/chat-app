@@ -12,11 +12,23 @@ roomRouter.get('/:roomId/details', requireAuth, (req, res) => {
     roomController.getDetails(req, res);
 });
 
-roomRouter.get('/all', (req, res) => {
-    roomController.getAll(req, res);
+roomRouter.get('/:roomId/members', requireAuth, (req, res) => {
+    roomController.getMembers(req, res);
 });
 
-roomRouter.get('/:id', (req, res) => {
+roomRouter.post('/:roomId/members', requireAuth, (req, res) => {
+    roomController.addMembers(req, res);
+});
+
+roomRouter.delete('/:roomId/members/:userId', requireAuth, (req, res) => {
+    roomController.removeMember(req, res);
+});
+
+roomRouter.post('/:roomId/leave', requireAuth, (req, res) => {
+    roomController.leave(req, res);
+});
+
+roomRouter.get('/:id', requireAuth, (req, res) => {
     roomController.getByID(req, res, req.params.id);
 });
 
@@ -27,10 +39,5 @@ roomRouter.post('/', requireAuth, (req, res) => {
 roomRouter.patch('/:roomId/items', requireAuth, (req, res) => {
     roomController.updateItems(req, res);
 });
-
-roomRouter.delete('/delete', (req, res) => {
-    roomController.deleteRoom(req, res);
-});
-
 
 export default roomRouter;

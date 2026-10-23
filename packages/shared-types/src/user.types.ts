@@ -36,6 +36,9 @@ export interface User {
     badges: Array<Badge>;
 }
 
+/** What any signed-in user may see about another: search results, room member lists. */
+export type PublicUser = Pick<User, '_id' | 'username' | 'level'>;
+
 export interface UserAttributes {
     speed: number;
     maxSpeed: number;

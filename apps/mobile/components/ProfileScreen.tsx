@@ -20,8 +20,8 @@ import UserCharacter from '@/components/ui/UserCharacter';
 
 // ── Data fetching helpers ──────────────────────────────────────────────────────
 
-function fetchUser(userId: string) {
-    return api.get<User>(`/api/v1/users/${userId}`);
+function fetchMe() {
+    return api.get<User>('/api/v1/users/me');
 }
 
 // ── Stat chip ─────────────────────────────────────────────────────────────────
@@ -134,7 +134,7 @@ export default function ProfileScreen() {
 
     const userQuery = useQuery({
         queryKey: ['user', userId],
-        queryFn: () => fetchUser(userId!),
+        queryFn: fetchMe,
         enabled: !!userId,
     });
 

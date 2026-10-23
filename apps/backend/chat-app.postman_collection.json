@@ -49,6 +49,11 @@
             "key": "avatarVariantId",
             "value": "",
             "type": "string"
+        },
+        {
+            "key": "otherUserId",
+            "value": "",
+            "type": "string"
         }
     ],
     "item": [
@@ -188,71 +193,47 @@
             "name": "Users",
             "item": [
                 {
-                    "name": "Get All Users",
+                    "name": "Get Me",
                     "request": {
                         "method": "GET",
+                        "header": [
+                            { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                        ],
                         "url": {
-                            "raw": "{{baseUrl}}/api/v1/users/all",
+                            "raw": "{{baseUrl}}/api/v1/users/me",
                             "host": ["{{baseUrl}}"],
-                            "path": ["api", "v1", "users", "all"]
+                            "path": ["api", "v1", "users", "me"]
                         }
                     }
                 },
                 {
-                    "name": "Get User by Username",
+                    "name": "Search Users by Username",
                     "request": {
                         "method": "GET",
+                        "header": [
+                            { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                        ],
                         "url": {
-                            "raw": "{{baseUrl}}/api/v1/users?username=johndoe",
+                            "raw": "{{baseUrl}}/api/v1/users/search?q=as",
                             "host": ["{{baseUrl}}"],
-                            "path": ["api", "v1", "users"],
+                            "path": ["api", "v1", "users", "search"],
                             "query": [
-                                {
-                                    "key": "username",
-                                    "value": "johndoe"
-                                }
+                                { "key": "q", "value": "as" }
                             ]
                         }
                     }
                 },
                 {
-                    "name": "Get User by ID",
+                    "name": "Get User by ID (public profile)",
                     "request": {
                         "method": "GET",
-                        "url": {
-                            "raw": "{{baseUrl}}/api/v1/users/{{userId}}",
-                            "host": ["{{baseUrl}}"],
-                            "path": ["api", "v1", "users", "{{userId}}"]
-                        }
-                    }
-                },
-                {
-                    "name": "Get User Rooms",
-                    "request": {
-                        "method": "GET",
-                        "url": {
-                            "raw": "{{baseUrl}}/api/v1/users/{{userId}}/rooms",
-                            "host": ["{{baseUrl}}"],
-                            "path": ["api", "v1", "users", "{{userId}}", "rooms"]
-                        }
-                    }
-                },
-                {
-                    "name": "Delete User",
-                    "request": {
-                        "method": "DELETE",
                         "header": [
-                            { "key": "Content-Type", "value": "application/json" }
+                            { "key": "Authorization", "value": "Bearer {{accessToken}}" }
                         ],
                         "url": {
-                            "raw": "{{baseUrl}}/api/v1/users/delete",
+                            "raw": "{{baseUrl}}/api/v1/users/{{otherUserId}}",
                             "host": ["{{baseUrl}}"],
-                            "path": ["api", "v1", "users", "delete"]
-                        },
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"_id\": \"{{userId}}\"\n}",
-                            "options": { "raw": { "language": "json" } }
+                            "path": ["api", "v1", "users", "{{otherUserId}}"]
                         }
                     }
                 },
@@ -318,20 +299,12 @@
                     }
                 },
                 {
-                    "name": "Get All Rooms",
-                    "request": {
-                        "method": "GET",
-                        "url": {
-                            "raw": "{{baseUrl}}/api/v1/rooms/all",
-                            "host": ["{{baseUrl}}"],
-                            "path": ["api", "v1", "rooms", "all"]
-                        }
-                    }
-                },
-                {
                     "name": "Get Room by ID",
                     "request": {
                         "method": "GET",
+                        "header": [
+                            { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                        ],
                         "url": {
                             "raw": "{{baseUrl}}/api/v1/rooms/{{roomId}}",
                             "host": ["{{baseUrl}}"],
@@ -386,21 +359,64 @@
                     }
                 },
                 {
-                    "name": "Delete Room",
+                    "name": "Get Room Members",
                     "request": {
-                        "method": "DELETE",
+                        "method": "GET",
                         "header": [
-                            { "key": "Content-Type", "value": "application/json" }
+                            { "key": "Authorization", "value": "Bearer {{accessToken}}" }
                         ],
                         "url": {
-                            "raw": "{{baseUrl}}/api/v1/rooms/delete",
+                            "raw": "{{baseUrl}}/api/v1/rooms/{{roomId}}/members",
                             "host": ["{{baseUrl}}"],
-                            "path": ["api", "v1", "rooms", "delete"]
+                            "path": ["api", "v1", "rooms", "{{roomId}}", "members"]
+                        }
+                    }
+                },
+                {
+                    "name": "Add Room Members (owner)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Content-Type", "value": "application/json" },
+                            { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/rooms/{{roomId}}/members",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "rooms", "{{roomId}}", "members"]
                         },
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"_id\": \"{{roomId}}\"\n}",
+                            "raw": "{\n    \"userIds\": [\"{{otherUserId}}\"]\n}",
                             "options": { "raw": { "language": "json" } }
+                        }
+                    }
+                },
+                {
+                    "name": "Remove Room Member (owner)",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/rooms/{{roomId}}/members/{{otherUserId}}",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "rooms", "{{roomId}}", "members", "{{otherUserId}}"]
+                        }
+                    }
+                },
+                {
+                    "name": "Leave Room",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/rooms/{{roomId}}/leave",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["api", "v1", "rooms", "{{roomId}}", "leave"]
                         }
                     }
                 }

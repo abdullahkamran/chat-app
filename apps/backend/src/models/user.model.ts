@@ -18,6 +18,9 @@ export interface IUser
     refreshTokens: string[]; // backend-only, for auth session management
 }
 
+/** The fields of a `PublicUser`, for `select` and `populate` wherever one user sees another. */
+export const PUBLIC_USER_FIELDS = 'username level';
+
 interface IUserModel extends Model<IUser> {
     getAll(): Promise<IUser[]>;
     createUser(user: IUser): Promise<IUser>;
