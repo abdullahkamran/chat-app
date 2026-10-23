@@ -95,4 +95,5 @@ Do **not** skip straight to adding a hex code in a component stylesheet.
 - Shared TypeScript types live in `packages/shared-types` — use them instead of redefining locally.
 - Backend is TypeScript (`apps/backend/src`).
 - Keep components in `apps/mobile/components/`, screens in `apps/mobile/app/`.
+- When adding or changing a backend feature, check it against running more than one backend instance: in-memory state (`Map`s, caches, timers, counters), socket broadcasts, check-then-write races, work done on every boot, and anything else that breaks or costs more with several instances or more load. Log each problem you find in `docs/known-issues.md` (under "Scaling past one backend instance", or "Backend: affects the single instance we run today" if it hurts now) with what you'd see, why, and the suggested fix, and mention it to the user. We run one instance for now, so log these rather than fixing them unless asked.
 - After completing every task, ask the user whether to commit and push the changes. Do not commit or push without their confirmation.
