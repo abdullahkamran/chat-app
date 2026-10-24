@@ -55,6 +55,10 @@ export function ChatInput({ onTyping, onSubmit }: Readonly<ChatInputProps>) {
       <TextInput
         style={[styles.chatInput, { height: inputHeight }]}
         multiline
+        // Multiline keeps long messages wrapping, but Enter sends instead of adding a newline.
+        submitBehavior="submit"
+        returnKeyType="send"
+        onSubmitEditing={handleSubmit}
         placeholder="Type a message..."
         value={message}
         onChangeText={handleMessageChange}
