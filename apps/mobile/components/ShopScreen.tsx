@@ -246,7 +246,7 @@ export default function ShopScreen(): React.JSX.Element {
                             ListFooterComponent={
                                 isFetchingNextPage
                                     ? <ActivityIndicator style={styles.footer} color={theme.colors.primary} />
-                                    : null
+                                    : undefined
                             }
                             ListEmptyComponent={
                                 <Text style={styles.empty}>No items available.</Text>
@@ -298,7 +298,7 @@ export default function ShopScreen(): React.JSX.Element {
                             ListFooterComponent={
                                 isFetchingNextOutfitsPage
                                     ? <ActivityIndicator style={styles.footer} color={theme.colors.primary} />
-                                    : null
+                                    : undefined
                             }
                             ListEmptyComponent={
                                 <Text style={styles.empty}>No outfits available.</Text>
@@ -366,7 +366,7 @@ export default function ShopScreen(): React.JSX.Element {
                             ListFooterComponent={
                                 isFetchingNextAnimationsPage
                                     ? <ActivityIndicator style={styles.footer} color={theme.colors.primary} />
-                                    : null
+                                    : undefined
                             }
                             ListEmptyComponent={
                                 <Text style={styles.empty}>No animations available.</Text>

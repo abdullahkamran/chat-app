@@ -29,7 +29,14 @@
     },
     "plugins": [
       "expo-notifications",
-      "expo-router",
+      [
+        "expo-router",
+        {
+          "asyncRoutes": {
+            "web": false
+          }
+        }
+      ],
       [
         "expo-splash-screen",
         {
@@ -50,6 +57,16 @@
         "expo-contacts",
         {
           "contactsPermission": "Allow $(PRODUCT_NAME) to find friends from your contacts. Only numbers are checked, and your contacts aren't saved."
+        }
+      ],
+      "expo-image",
+      "expo-status-bar",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": false
+          }
         }
       ]
     ],

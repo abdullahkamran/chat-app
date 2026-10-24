@@ -168,7 +168,7 @@ export default function AddFriendsScreen() {
         />
       )}
       ListEmptyComponent={
-        search.isFetching ? null : <Text style={styles.empty}>{`No one found for "${query}".`}</Text>
+        search.isFetching ? undefined : <Text style={styles.empty}>{`No one found for "${query}".`}</Text>
       }
     />
   );
@@ -205,7 +205,7 @@ export default function AddFriendsScreen() {
             </View>
             <Ionicons name="chevron-forward" size={18} color={theme.colors.textSecondary} />
           </Pressable>
-        ) : null
+        ) : undefined
       }
       ListFooterComponent={
         <>

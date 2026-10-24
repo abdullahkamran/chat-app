@@ -1,6 +1,6 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 // import * as Notifications from 'expo-notifications';
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider, useRouter } from 'expo-router';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider, enableLegacyHeaderAppearance, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -14,6 +14,9 @@ import { UserContext } from '@/context/user.context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 // import { registerForPushNotificationsAsync, savePushTokenToServer } from '@/utils/notifications';
 import { queryClient } from '@/utils/queryClient';
+
+// Keep the opaque, theme-styled stack header on iOS 26+ instead of SDK 58's Liquid Glass default.
+enableLegacyHeaderAppearance();
 
 // // Smart foreground suppression: suppress notifications for the room the user is currently viewing
 // Notifications.setNotificationHandler({

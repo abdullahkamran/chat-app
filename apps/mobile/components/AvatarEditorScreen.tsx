@@ -295,7 +295,7 @@ export default function AvatarEditorScreen({ mode, avatarId, initialSelections, 
                 <Text style={styles.gridItemName}>None</Text>
               </Pressable>
             </View>
-          ) : null}
+          ) : undefined}
           renderItem={({ item }) => {
             const isChosen = selections[activeCategory]?.itemId === item._id;
             const source = resolveAvatarSource(item.variants[0]?.sourceUrl ?? '');

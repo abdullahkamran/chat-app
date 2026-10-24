@@ -104,7 +104,7 @@ export default function RoomListScreen(): React.JSX.Element {
           onEndReached={() => { if (hasNextPage && !isFetchingNextPage) fetchNextPage(); }}
           onEndReachedThreshold={0.4}
           ListFooterComponent={
-            isFetchingNextPage ? <ActivityIndicator style={styles.footer} color="#FFFC00" /> : null
+            isFetchingNextPage ? <ActivityIndicator style={styles.footer} color={theme.colors.primary} /> : undefined
           }
         />
       )}

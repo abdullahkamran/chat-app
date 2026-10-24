@@ -19,7 +19,7 @@ const failed = new Set<string>();
 function uriFor(assetUrl: string): string | null {
   const source = resolveItemSource(assetUrl);
   if (source == null) return null;
-  if (typeof source === 'number') return RNImage.resolveAssetSource(source).uri;
+  if (typeof source === 'number') return RNImage.resolveAssetSource(source)?.uri ?? null;
   if (typeof source === 'string') return source;
   return 'uri' in source && typeof source.uri === 'string' ? source.uri : null;
 }
