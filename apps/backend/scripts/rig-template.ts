@@ -5,7 +5,8 @@
  *
  * One SVG per view and side in art/rig-template/. Each shows the export frame, the
  * ground line, a ghost of the bare body, and every bone with its origin (the joint
- * a piece rotates about) and name. See art/README.md for the drawing rules.
+ * a piece rotates about) and name. Follower bones are dashed and say what they follow.
+ * See art/README.md for the drawing rules.
  */
 import { mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
@@ -21,6 +22,7 @@ const S = WEARABLE_ART_SCALE;
 const GHOST_FILL = '#e8e8e8';
 const GHOST_STROKE = '#b0b0b0';
 const BONE = '#2f80ed';
+const FOLLOWER = '#9b51e0';
 const JOINT = '#eb5757';
 const GROUND = '#27ae60';
 const LABEL = '#333333';
@@ -49,14 +51,19 @@ function template(view: RigView, side: Side): string {
   for (const bone of HUMANOID_V1.bones) {
     if (bone.name === 'root') continue;
     const o = origins[bone.name];
+    // Followers share a joint with the bone they follow, so their line and label are offset.
+    const follower = bone.follow !== undefined;
     if (bone.length !== 0) {
-      parts.push(`<line x1="${o.x}" y1="${o.y}" x2="${o.x}" y2="${o.y + bone.length * S}" stroke="${BONE}" stroke-width="1.5"/>`);
+      const dash = follower ? ' stroke-dasharray="3 2"' : '';
+      parts.push(`<line x1="${o.x}" y1="${o.y}" x2="${o.x}" y2="${o.y + bone.length * S}" stroke="${follower ? FOLLOWER : BONE}" stroke-width="1.5"${dash}/>`);
     }
     parts.push(`<circle cx="${o.x}" cy="${o.y}" r="2.5" fill="${JOINT}"/>`);
     const near = bone.name.endsWith(view === 'front' ? '.L' : '.R');
     const dx = (near ? 6 : -6) * flip;
+    const label = follower ? `${bone.name} (${bone.follow!.weight} × ${bone.follow!.bone})` : bone.name;
+    const y = follower ? o.y + 10 : o.y + 2;
     parts.push(
-      `<text x="${o.x + dx}" y="${o.y + 2}" font-family="sans-serif" font-size="6" fill="${LABEL}" text-anchor="${dx > 0 ? 'start' : 'end'}">${bone.name}</text>`,
+      `<text x="${o.x + dx}" y="${y}" font-family="sans-serif" font-size="6" fill="${follower ? FOLLOWER : LABEL}" text-anchor="${dx > 0 ? 'start' : 'end'}">${label}</text>`,
     );
   }
 

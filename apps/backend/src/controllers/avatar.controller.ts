@@ -6,7 +6,7 @@ import User from '../models/user.model';
 import { AVATAR_DEFAULTS_CATALOG } from '../catalog/avatar-defaults.catalog';
 
 const REQUIRED_PARTS = ['eye', 'face', 'nose', 'skin', 'mouth', 'tops', 'bottoms'] as const;
-const OPTIONAL_PARTS = ['hair', 'facialHair', 'headwear', 'facewear', 'wristwear', 'footwear'] as const;
+const OPTIONAL_PARTS = ['hair', 'facialHair', 'headwear', 'facewear', 'wristwear', 'neckwear', 'footwear'] as const;
 const ALL_PARTS = [...REQUIRED_PARTS, ...OPTIONAL_PARTS] as const;
 
 type AvatarPartKey = (typeof ALL_PARTS)[number];

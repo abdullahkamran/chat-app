@@ -367,6 +367,11 @@ export const AVATAR_ITEMS_CATALOG: CatalogAvatarItem[] = [
     colored('wristwear', '', 'Beaded Bracelet', 'Handmade beads', 'wrist-beads', 30, pick(CLOTHING, ['Brown', 'Blue', 'Pink', 'Purple'])),
     colored('wristwear', '', 'Sweatband', 'For serious workouts', 'wrist-sweatband', 25, pick(CLOTHING, ['White', 'Red', 'Blue', 'Yellow'])),
 
+    // ── Neckwear ──────────────────────────────────────────────────────────────
+    colored('neckwear', 'jewellery', 'Necklace', 'Fine chain necklace', 'neck-necklace', 40, pick(METALS, ['Gold', 'Silver'])),
+    colored('neckwear', 'jewellery', 'Pendant', 'Chain with a pendant', 'neck-pendant', 60, pick(METALS, ['Gold', 'Silver'])),
+    colored('neckwear', 'scarves', 'Scarf', 'Cosy knitted scarf', 'neck-scarf', 45, pick(CLOTHING, ['Red', 'Navy', 'Grey', 'Yellow', 'Green'])),
+
     // ── Footwear ──────────────────────────────────────────────────────────────
     // Sneakers' first variant is free and given to everyone at signup.
     {
@@ -397,6 +402,7 @@ export const AVATAR_ITEMS_CATALOG: CatalogAvatarItem[] = [
     colored('tops', 'formal', 'Button-Up Shirt', 'Crisp collared shirt', 'top-button-up', 90, pick(CLOTHING, ['White', 'Blue', 'Pink', 'Black'])),
     colored('tops', 'formal', 'Blazer', 'Sharp tailored blazer', 'top-blazer', 120, pick(CLOTHING, ['Black', 'Navy', 'Grey', 'Khaki'])),
     colored('tops', 'outerwear', 'Puffer Jacket', 'Warm and puffy', 'top-puffer', 130, pick(CLOTHING, ['Black', 'Red', 'Yellow', 'Navy', 'Purple'])),
+    colored('tops', 'outerwear', 'Long Coat', 'Knee-length overcoat', 'top-long-coat', 150, pick(CLOTHING, ['Black', 'Khaki', 'Navy', 'Grey', 'Brown'])),
 
     // ── Bottoms ───────────────────────────────────────────────────────────────
     colored('bottoms', 'casual', 'Shorts', 'Summer shorts', 'bottoms-shorts', 40, pick(CLOTHING, ['Denim', 'Khaki', 'Black', 'Navy'])),

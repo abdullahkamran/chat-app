@@ -28,6 +28,7 @@ export interface Avatar {
     headwear?: AvatarHeadwear;
     facewear?: AvatarFacewear;
     wristwear?: AvatarWristwear;
+    neckwear?: AvatarNeckwear;
     footwear?: AvatarFootwear;
 }
 
@@ -74,5 +75,7 @@ export interface AvatarHeadwear extends AvatarItem {}
 export interface AvatarFacewear extends AvatarItem {}
 
 export interface AvatarWristwear extends AvatarItem {}
+
+export interface AvatarNeckwear extends AvatarItem {}
 
 export interface AvatarFootwear extends AvatarItem {}

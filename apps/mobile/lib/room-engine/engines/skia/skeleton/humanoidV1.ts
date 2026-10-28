@@ -23,6 +23,9 @@ export interface RigArrays {
   bindX: Record<RigView, number[]>;
   bindY: number[];
   bindRotation: number[];
+  /** Follower bones: the bone whose animated rotation they add (-1 for none), and how much of it. */
+  followBone: number[];
+  followWeight: number[];
 }
 
 export const RIG_ARRAYS: RigArrays = {
@@ -30,4 +33,6 @@ export const RIG_ARRAYS: RigArrays = {
   bindX: { front: BONES.map(b => b.x), back: BONES.map(b => -b.x) },
   bindY: BONES.map(b => b.y),
   bindRotation: BONES.map(b => b.rotation),
+  followBone: BONES.map(b => (b.follow ? BONE_INDEX[b.follow.bone] : -1)),
+  followWeight: BONES.map(b => b.follow?.weight ?? 0),
 };

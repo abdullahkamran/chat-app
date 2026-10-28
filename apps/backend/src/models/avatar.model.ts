@@ -21,6 +21,7 @@ export interface IAvatar extends Document {
     headwear?: IAvatarPart;
     facewear?: IAvatarPart;
     wristwear?: IAvatarPart;
+    neckwear?: IAvatarPart;
     footwear?: IAvatarPart;
 }
 
@@ -46,6 +47,7 @@ const AvatarSchema = new Schema<IAvatar>(
         headwear:   { type: AvatarPartSchema },
         facewear:   { type: AvatarPartSchema },
         wristwear:  { type: AvatarPartSchema },
+        neckwear:   { type: AvatarPartSchema },
         footwear:   { type: AvatarPartSchema },
     },
     { timestamps: true, collection: 'avatars' }

@@ -10,7 +10,10 @@ export type RigId = 'humanoid-v1';
 /** Drawn 3/4 views. SE/SW use `front`, NE/NW use `back`; the west pair is mirrored. */
 export type RigView = 'front' | 'back';
 
-/** humanoid-v1 bones, parents before children. */
+/**
+ * humanoid-v1 bones, parents before children. `skirt.*` and `hairBack` are follower
+ * bones (see `RigBone.follow`): clips never need to key them.
+ */
 export const HUMANOID_V1_BONES = [
   'root',
   'hip',
@@ -30,6 +33,9 @@ export const HUMANOID_V1_BONES = [
   'thigh.R',
   'shin.R',
   'foot.R',
+  'skirt.L',
+  'skirt.R',
+  'hairBack',
 ] as const;
 
 export type BoneName = (typeof HUMANOID_V1_BONES)[number];
@@ -41,6 +47,7 @@ export type SlotLayer =
   | 'tops'
   | 'footwear'
   | 'wristwear'
+  | 'neckwear'
   | 'face'
   | 'eye'
   | 'nose'
@@ -62,6 +69,12 @@ export interface RigBone {
   rotation: number;
   /** Signed length along the bone's local y axis: positive hangs down, negative points up. */
   length: number;
+  /**
+   * Follower bone: adds `weight` times `bone`'s animated rotation to its own, so a coat
+   * tail swings part way with the thigh and long hair lags the head. Same parent as
+   * `bone` (or its parent's), so the two rotations are measured alike.
+   */
+  follow?: { bone: BoneName; weight: number };
 }
 
 export interface RigDefinition {
@@ -69,7 +82,10 @@ export interface RigDefinition {
   /** Parents before children. */
   bones: RigBone[];
   slots: Array<{ name: SlotName; bone: BoneName }>;
-  /** Back to front. The far arm draws behind the torso, and near/far swap between views. */
+  /**
+   * Back to front within a draw band. The far arm draws behind the torso, and near/far
+   * swap between views. Stack pieces with `drawRank`, which puts the bands first.
+   */
   drawOrder: Record<RigView, SlotName[]>;
 }
 
@@ -119,6 +135,17 @@ export interface AtlasSprite {
 }
 
 /**
+ * Where a piece stacks against the whole body, not just its own bone. Every `behind`
+ * piece draws before the body and every `front` piece after it, each band in rig draw
+ * order: long hair behind the shoulders, a cape, a scarf end over the near arm.
+ * Chosen per view, so the same hair is `behind` from the front and `body` from the back.
+ */
+export type DrawBand = 'behind' | 'body' | 'front';
+
+/** Bands back to front. */
+export const DRAW_BANDS: readonly DrawBand[] = ['behind', 'body', 'front'];
+
+/**
  * One piece of a wearable, attached to a slot. Views face screen right; `west` is
  * what the mirrored facings (SW, NW) draw, because a drawAtlas transform can't flip.
  * The packer makes it a flipped copy of `east`, or the item's own west art when the
@@ -126,6 +153,8 @@ export interface AtlasSprite {
  */
 export interface Attachment {
   slot: SlotName;
+  /** Draw band; absent means `body`. */
+  band?: DrawBand;
   east: AtlasSprite;
   west: AtlasSprite;
   /** Drawn in white and tinted at runtime: skin and face layers by skin tone, others by the variant colour. */

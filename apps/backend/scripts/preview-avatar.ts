@@ -11,8 +11,8 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import sharp, { type OverlayOptions } from 'sharp';
 import {
-  HUMANOID_V1,
   bindOrigins,
+  drawRank,
   type RigView,
   type WearableAsset,
 } from '@chat-app/shared-types';
@@ -55,37 +55,38 @@ async function main() {
 
   frames.forEach(({ view, mirror }, f) => {
     const origins = bindOrigins(view);
-    for (const slot of HUMANOID_V1.drawOrder[view]) {
-      assets.forEach((asset, a) => {
-        const att = asset.views[view].find(x => x.slot === slot);
-        if (!att) return;
-        const sprite = mirror ? att.west : att.east;
-        const bone = origins[slot.slice(0, slot.lastIndexOf('/')) as keyof typeof origins];
-        const s = asset.scale;
-        const { region, pivot } = sprite;
+    // Every worn piece, band first and then rig draw order, as the app stacks them.
+    const worn = assets
+      .flatMap((asset, a) => asset.views[view].map(att => ({ asset, a, att, rank: drawRank(view, att.slot, att.band) })))
+      .sort((x, y) => x.rank - y.rank);
+    worn.forEach(({ asset, a, att }) => {
+      const { slot } = att;
+      const sprite = mirror ? att.west : att.east;
+      const bone = origins[slot.slice(0, slot.lastIndexOf('/')) as keyof typeof origins];
+      const s = asset.scale;
+      const { region, pivot } = sprite;
 
-        const px = Buffer.alloc(region.w * region.h * 4);
-        const src = atlases[a];
-        for (let y = 0; y < region.h; y++) {
-          for (let x = 0; x < region.w; x++) {
-            const i = ((region.y + y) * src.width + region.x + x) * 4;
-            const o = (y * region.w + x) * 4;
-            const tint = att.tintable ? SKIN : { r: 255, g: 255, b: 255 };
-            px[o] = (src.data[i] * tint.r) / 255;
-            px[o + 1] = (src.data[i + 1] * tint.g) / 255;
-            px[o + 2] = (src.data[i + 2] * tint.b) / 255;
-            px[o + 3] = src.data[i + 3];
-          }
+      const px = Buffer.alloc(region.w * region.h * 4);
+      const src = atlases[a];
+      for (let y = 0; y < region.h; y++) {
+        for (let x = 0; x < region.w; x++) {
+          const i = ((region.y + y) * src.width + region.x + x) * 4;
+          const o = (y * region.w + x) * 4;
+          const tint = att.tintable ? SKIN : { r: 255, g: 255, b: 255 };
+          px[o] = (src.data[i] * tint.r) / 255;
+          px[o + 1] = (src.data[i + 1] * tint.g) / 255;
+          px[o + 2] = (src.data[i + 2] * tint.b) / 255;
+          px[o + 3] = src.data[i + 3];
         }
-        const boneX = (ROOT_X + (mirror ? -bone.x : bone.x)) * s;
-        layers.push({
-          input: px,
-          raw: { width: region.w, height: region.h, channels: 4 },
-          left: Math.round(f * FRAME_PX_W + boneX - pivot.x),
-          top: Math.round((ROOT_Y + bone.y) * s - pivot.y),
-        });
+      }
+      const boneX = (ROOT_X + (mirror ? -bone.x : bone.x)) * s;
+      layers.push({
+        input: px,
+        raw: { width: region.w, height: region.h, channels: 4 },
+        left: Math.round(f * FRAME_PX_W + boneX - pivot.x),
+        top: Math.round((ROOT_Y + bone.y) * s - pivot.y),
       });
-    }
+    });
   });
 
   await sharp({ create: { width: FRAME_PX_W * frames.length, height: FRAME_PX_H, channels: 4, background: BACKDROP } })

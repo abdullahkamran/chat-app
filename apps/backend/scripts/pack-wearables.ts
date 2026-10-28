@@ -6,8 +6,8 @@
  *
  * Input, per wearable, in art/wearables/<id>/ (see art/README.md):
  *   asset.json             { "mirrorable"?: boolean, "tintable"?: boolean }
- *   front/<bone>.<layer>.(png|svg)   pieces exported at the full template frame size
- *   back/<bone>.<layer>.(png|svg)
+ *   front/<bone>.<layer>[.<band>].(png|svg)   pieces exported at the full template frame size;
+ *   back/<bone>.<layer>[.<band>].(png|svg)    band is behind or front (default: body)
  *   front-west/, back-west/          own west art, only when mirrorable is false
  *
  * Output: public/wearables/<id>.png and its entry in src/catalog/wearables.generated.json.
@@ -19,11 +19,13 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import { extname, join } from 'path';
 import sharp from 'sharp';
 import {
+  DRAW_BANDS,
   HUMANOID_V1,
   WEARABLE_ART_SCALE,
   slotBone,
   type AtlasSprite,
   type Attachment,
+  type DrawBand,
   type RigView,
   type SlotName,
   type WearableAsset,
@@ -105,19 +107,35 @@ async function flipped(sprite: Sprite): Promise<Sprite> {
   return { ...sprite, data, pivot: { x: sprite.w - sprite.pivot.x, y: sprite.pivot.y } };
 }
 
-/** Pieces in one folder, keyed by slot. File names are `<bone>.<layer>`, e.g. `shin.L.bottoms.png`. */
-async function loadFolder(dir: string, view: RigView, side: Side): Promise<Map<SlotName, Sprite>> {
-  const out = new Map<SlotName, Sprite>();
+/** A piece's place: its slot and draw band. */
+interface PieceKey {
+  slot: SlotName;
+  band: DrawBand;
+}
+
+/**
+ * Pieces in one folder, keyed by file base name. File names are `<bone>.<layer>`, e.g.
+ * `shin.L.bottoms.png`, with an optional band: `head.hair.behind.svg`.
+ */
+async function loadFolder(dir: string, view: RigView, side: Side): Promise<Map<string, PieceKey & { sprite: Sprite }>> {
+  const out = new Map<string, PieceKey & { sprite: Sprite }>();
   if (!existsSync(dir)) return out;
   for (const name of readdirSync(dir).sort()) {
     const ext = extname(name);
     if (ext !== '.png' && ext !== '.svg') continue;
     const base = name.slice(0, -ext.length);
-    const dot = base.lastIndexOf('.');
-    const slot = `${base.slice(0, dot)}/${base.slice(dot + 1)}` as SlotName;
+    let rest = base;
+    let band: DrawBand = 'body';
+    const suffix = rest.slice(rest.lastIndexOf('.') + 1);
+    if ((DRAW_BANDS as readonly string[]).includes(suffix)) {
+      band = suffix as DrawBand;
+      rest = rest.slice(0, rest.lastIndexOf('.'));
+    }
+    const dot = rest.lastIndexOf('.');
+    const slot = `${rest.slice(0, dot)}/${rest.slice(dot + 1)}` as SlotName;
     if (dot < 0 || !SLOTS.has(slot)) throw new Error(`${join(dir, name)}: no humanoid-v1 slot "${slot}"`);
     const sprite = await loadPiece(join(dir, name), slot, view, side);
-    if (sprite) out.set(slot, sprite);
+    if (sprite) out.set(base, { slot, band, sprite });
   }
   return out;
 }
@@ -154,22 +172,22 @@ async function packWearable(id: string): Promise<WearableAsset> {
 
   // Every sprite in the atlas, in a fixed order, and where each attachment's two sides point.
   const sprites: Sprite[] = [];
-  const pieces: Record<RigView, { slot: SlotName; east: number; west: number }[]> = { front: [], back: [] };
+  const pieces: Record<RigView, (PieceKey & { east: number; west: number })[]> = { front: [], back: [] };
 
   for (const view of VIEWS) {
     const east = await loadFolder(join(dir, view), view, 'east');
     const west = mirrorable ? null : await loadFolder(join(dir, `${view}-west`), view, 'west');
-    for (const [slot, sprite] of east) {
+    for (const [base, { slot, band, sprite }] of east) {
       let westSprite: Sprite;
       if (west) {
-        const own = west.get(slot);
-        if (!own) throw new Error(`${id}: ${view}-west/ has no ${slot}, needed because mirrorable is false`);
-        westSprite = own;
+        const own = west.get(base);
+        if (!own) throw new Error(`${id}: ${view}-west/ has no ${base}, needed because mirrorable is false`);
+        westSprite = own.sprite;
       } else {
         westSprite = await flipped(sprite);
       }
       sprites.push(sprite, westSprite);
-      pieces[view].push({ slot, east: sprites.length - 2, west: sprites.length - 1 });
+      pieces[view].push({ slot, band, east: sprites.length - 2, west: sprites.length - 1 });
     }
   }
   if (sprites.length === 0) throw new Error(`${id}: no pieces found in front/ or back/`);
@@ -199,6 +217,7 @@ async function packWearable(id: string): Promise<WearableAsset> {
   for (const view of VIEWS) {
     views[view] = pieces[view].map(p => ({
       slot: p.slot,
+      ...(p.band !== 'body' ? { band: p.band } : {}),
       east: sprite(p.east),
       west: sprite(p.west),
       ...(config.tintable ? { tintable: true } : {}),

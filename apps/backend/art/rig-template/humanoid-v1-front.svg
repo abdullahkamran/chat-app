@@ -69,4 +69,13 @@
 <line x1="84" y1="258" x2="84" y2="264" stroke="#2f80ed" stroke-width="1.5"/>
 <circle cx="84" cy="258" r="2.5" fill="#eb5757"/>
 <text x="78" y="260" font-family="sans-serif" font-size="6" fill="#333333" text-anchor="end">foot.R</text>
+<line x1="108" y1="162" x2="108" y2="252" stroke="#9b51e0" stroke-width="1.5" stroke-dasharray="3 2"/>
+<circle cx="108" cy="162" r="2.5" fill="#eb5757"/>
+<text x="114" y="172" font-family="sans-serif" font-size="6" fill="#9b51e0" text-anchor="start">skirt.L (0.5 × thigh.L)</text>
+<line x1="84" y1="162" x2="84" y2="252" stroke="#9b51e0" stroke-width="1.5" stroke-dasharray="3 2"/>
+<circle cx="84" cy="162" r="2.5" fill="#eb5757"/>
+<text x="78" y="172" font-family="sans-serif" font-size="6" fill="#9b51e0" text-anchor="end">skirt.R (0.5 × thigh.R)</text>
+<line x1="96" y1="72" x2="96" y2="144" stroke="#9b51e0" stroke-width="1.5" stroke-dasharray="3 2"/>
+<circle cx="96" cy="72" r="2.5" fill="#eb5757"/>
+<text x="90" y="82" font-family="sans-serif" font-size="6" fill="#9b51e0" text-anchor="end">hairBack (0.5 × head)</text>
 </svg>

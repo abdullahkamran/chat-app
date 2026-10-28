@@ -36,6 +36,7 @@ const PART_CATEGORIES = [
   { key: 'headwear',   label: 'Headwear',    required: false },
   { key: 'facewear',   label: 'Facewear',    required: false },
   { key: 'wristwear',  label: 'Wrist',       required: false },
+  { key: 'neckwear',   label: 'Neck',        required: false },
   { key: 'footwear',   label: 'Shoes',       required: false },
 ] as const;
 

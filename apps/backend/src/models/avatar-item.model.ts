@@ -14,6 +14,7 @@ export const AvatarCategory = {
     HEADWEAR: 'headwear',
     FACEWEAR: 'facewear',
     WRISTWEAR: 'wristwear',
+    NECKWEAR: 'neckwear',
     FOOTWEAR: 'footwear',
 } as const;
 

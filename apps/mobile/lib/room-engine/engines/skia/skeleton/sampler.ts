@@ -121,10 +121,10 @@ export function blendPose(from: Pose, to: Pose, w: number): Pose {
   return { rotate: mix(from.rotate, to.rotate), tx: mix(from.tx, to.tx), ty: mix(from.ty, to.ty) };
 }
 
-/** One forward pass over the bone tree (parents precede children). */
+/** One forward pass over the bone tree (parents precede children). Followers add a share of their source's rotation. */
 export function solveWorld(pose: Pose, view: RigView): WorldBones {
   'worklet';
-  const { parent, bindX, bindY, bindRotation } = RIG_ARRAYS;
+  const { parent, bindX, bindY, bindRotation, followBone, followWeight } = RIG_ARRAYS;
   const bx = bindX[view];
   const x: number[] = [];
   const y: number[] = [];
@@ -132,7 +132,8 @@ export function solveWorld(pose: Pose, view: RigView): WorldBones {
   for (let i = 0; i < parent.length; i++) {
     const lx = bx[i] + pose.tx[i];
     const ly = bindY[i] + pose.ty[i];
-    const local = ((bindRotation[i] + pose.rotate[i]) * Math.PI) / 180;
+    const follow = followBone[i] < 0 ? 0 : followWeight[i] * pose.rotate[followBone[i]];
+    const local = ((bindRotation[i] + pose.rotate[i] + follow) * Math.PI) / 180;
     const p = parent[i];
     if (p < 0) {
       x.push(lx);

@@ -16,7 +16,7 @@ export const PLACEHOLDER_ART = 'placeholder';
 /** Avatar parts, back to front where two share a slot layer (they don't today). */
 const PARTS = [
   'skin', 'face', 'eye', 'nose', 'mouth', 'facialHair', 'hair',
-  'headwear', 'facewear', 'tops', 'bottoms', 'footwear', 'wristwear',
+  'headwear', 'facewear', 'tops', 'bottoms', 'footwear', 'wristwear', 'neckwear',
 ] as const satisfies readonly (keyof Avatar)[];
 
 /**

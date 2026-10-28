@@ -5,12 +5,12 @@
  *   pnpm --filter @chat-app/backend art:starter && pnpm --filter @chat-app/backend art:pack
  *
  * Writes art/wearables/<id>/ folders in exactly the format an artist would export:
- * one full-frame SVG per piece, named <bone>.<layer>.svg. Colours follow the legacy
+ * one full-frame SVG per piece, named <bone>.<layer>[.<band>].svg. Colours follow the legacy
  * SVGs so the two engines look alike. Re-running overwrites these folders only.
  */
 import { mkdirSync, rmSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import { WEARABLE_ART_SCALE, type BoneName, type RigView, type SlotLayer } from '@chat-app/shared-types';
+import { WEARABLE_ART_SCALE, type BoneName, type DrawBand, type RigView, type SlotLayer } from '@chat-app/shared-types';
 
 import { ART_DIR, FRAME_PX_H, FRAME_PX_W, frameOrigins } from './wearables/frame';
 import { HEAD_CY, HEAD_R, bodyShapes, capsule, disc, shapeSvg, type Shape } from './wearables/shapes';
@@ -50,6 +50,8 @@ interface Piece {
   bone: BoneName;
   layer: SlotLayer;
   views: RigView[];
+  /** Omitted for the body band. */
+  band?: DrawBand;
   /** Shapes drawn in order, each with its SVG paint attributes. */
   shapes: Array<[Shape, string]>;
 }
@@ -250,9 +252,30 @@ function headPieces(layer: SlotLayer, front: Array<[Shape, string]>, back: Array
   return { tintable: true, pieces };
 }
 
+/**
+ * Long hair: the cap stays on the head and the length hangs from `hairBack`, which turns
+ * half as far as the head. From the front the length is behind the body; from the back
+ * it covers it.
+ */
+function longHair(
+  frontCap: Array<[Shape, string]>, frontLength: Array<[Shape, string]>,
+  backCap: Array<[Shape, string]>, backLength: Array<[Shape, string]>,
+): Wearable {
+  return {
+    tintable: true,
+    pieces: [
+      { bone: 'head', layer: 'hair', views: FRONT, shapes: frontCap },
+      { bone: 'hairBack', layer: 'hair', views: FRONT, band: 'behind', shapes: frontLength },
+      { bone: 'head', layer: 'hair', views: ['back'], shapes: backCap },
+      { bone: 'hairBack', layer: 'hair', views: ['back'], shapes: backLength },
+    ],
+  };
+}
+
 /** Hair styles, all tintable: the catalog gives each one a set of hair colours. */
 function hairStyle(style: string): Wearable {
   const head = circleD(0, CY, R);
+  const cap = circleD(0, CY, R + 1);
   const longFront =
     `M ${R + 1} ${CY} A ${R + 1} ${R + 1} 0 0 0 ${-(R + 1)} ${CY} L ${-(R + 1.5)} ${CY + 24} ` +
     `Q -6 ${CY + 26} -2 ${CY + 23} L -1 ${CY + 8} L ${R + 1} ${CY + 6} Z`;
@@ -292,13 +315,16 @@ function hairStyle(style: string): Wearable {
         [hairMass(`M ${-(R + 1)} ${CY + 10} L ${-(R + 1)} ${CY} A ${R + 1} ${R + 1} 0 0 1 ${R + 1} ${CY} L ${R + 1} ${CY + 10} Z`, CY - 4)],
         tinted(hairBack(10, R + 1)));
     case 'long':
-      return headPieces('hair', [hairMass(longFront, CY - 4)], tinted({ kind: 'path', d: longBack }));
+      return longHair([hairMass(cap, CY - 4)], tinted({ kind: 'path', d: longFront }),
+        tinted(hairBack(4, R + 1)), tinted({ kind: 'path', d: longBack }));
     case 'waves':
-      return headPieces('hair',
-        [hairMass(
-          `M ${R + 1} ${CY} A ${R + 1} ${R + 1} 0 0 0 ${-(R + 1)} ${CY} Q ${-(R + 3)} ${CY + 6} ${-(R + 1)} ${CY + 12} ` +
-          `Q ${-(R - 1)} ${CY + 18} ${-(R + 2)} ${CY + 24} Q -6 ${CY + 27} -2 ${CY + 23} Q -3 ${CY + 15} -1 ${CY + 8} L ${R + 1} ${CY + 6} Z`,
-          CY - 4)],
+      return longHair([hairMass(cap, CY - 4)],
+        tinted({
+          kind: 'path',
+          d: `M ${R + 1} ${CY} A ${R + 1} ${R + 1} 0 0 0 ${-(R + 1)} ${CY} Q ${-(R + 3)} ${CY + 6} ${-(R + 1)} ${CY + 12} ` +
+            `Q ${-(R - 1)} ${CY + 18} ${-(R + 2)} ${CY + 24} Q -6 ${CY + 27} -2 ${CY + 23} Q -3 ${CY + 15} -1 ${CY + 8} L ${R + 1} ${CY + 6} Z`,
+        }),
+        tinted(hairBack(4, R + 1)),
         tinted({
           kind: 'path',
           d: `M ${-(R + 1)} ${CY} A ${R + 1} ${R + 1} 0 0 1 ${R + 1} ${CY} Q ${R + 3} ${CY + 6} ${R + 1} ${CY + 12} ` +
@@ -306,10 +332,9 @@ function hairStyle(style: string): Wearable {
             `Q ${-(R - 1)} ${CY + 18} ${-(R + 1)} ${CY + 12} Q ${-(R + 3)} ${CY + 6} ${-(R + 1)} ${CY} Z`,
         }));
     case 'ponytail':
-      return headPieces('hair', [
-        hairMass(head, CY - 5),
-        [{ kind: 'path', d: `M ${-R + 1} ${CY - 5} Q ${-R - 6} ${CY - 2} ${-R - 3} ${CY + 16} Q ${-R - 1} ${CY + 18} ${-R} ${CY + 15} Q ${-R - 2} ${CY + 2} ${-R + 3} ${CY - 2} Z` }, TINT],
-      ], tinted(hairBack(4), roundRect(-2.5, CY + 2, 5, 16, 2.5)));
+      return longHair([hairMass(head, CY - 5)],
+        tinted({ kind: 'path', d: `M ${-R + 1} ${CY - 5} Q ${-R - 6} ${CY - 2} ${-R - 3} ${CY + 16} Q ${-R - 1} ${CY + 18} ${-R} ${CY + 15} Q ${-R - 2} ${CY + 2} ${-R + 3} ${CY - 2} Z` }),
+        tinted(hairBack(4)), tinted(roundRect(-2.5, CY + 2, 5, 16, 2.5)));
     case 'man-bun':
       return headPieces('hair', [hairMass(head, CY - 5), [disc(-5, CY - R + 0.5, 3.8), TINT]],
         tinted(hairBack(4), disc(0, CY - R, 4)));
@@ -322,8 +347,8 @@ function hairStyle(style: string): Wearable {
       return headPieces('hair', [hairMass(head, CY - 4), ...tinted(...curls(40, 260, R - 1))],
         tinted(hairBack(4), ...curls(-10, 190, R - 1)));
     case 'braids':
-      return headPieces('hair', [hairMass(head, CY - 5), [roundRect(-R - 1.5, CY, 4, 20, 2), TINT]],
-        tinted(hairBack(4), roundRect(-6, CY + 2, 4, 18, 2), roundRect(2, CY + 2, 4, 18, 2)));
+      return longHair([hairMass(head, CY - 5)], tinted(roundRect(-R - 1.5, CY, 4, 20, 2)),
+        tinted(hairBack(4)), tinted(roundRect(-6, CY + 2, 4, 18, 2), roundRect(2, CY + 2, 4, 18, 2)));
     case 'mohawk':
       return headPieces('hair',
         tinted({ kind: 'path', d: `M -6 ${CY - 6} L -7 ${CY - R - 4} L -3 ${CY - R - 1} L -1 ${CY - R - 6} L 2 ${CY - R - 1} L 5 ${CY - R - 5} L 6 ${CY - R + 1} Q 0 ${CY - R + 2} -6 ${CY - 6} Z` }),
@@ -445,6 +470,32 @@ function wristwear(style: 'watch' | 'smartwatch' | 'bracelet' | 'sweatband' | 'b
   return { tintable: true, pieces: arms.map(bone => ({ bone, layer: 'wristwear', views: BOTH, shapes: shapes[style] })) };
 }
 
+/**
+ * Neck pieces. The chain or wrap sits on the neck; what hangs lies on the chest. The
+ * scarf's end is in the front band, so it stays over the near arm as it swings.
+ */
+function neckwear(style: 'necklace' | 'pendant' | 'scarf'): Wearable {
+  const chain: Shape = { kind: 'path', d: 'M -4 -15.5 Q 2.5 -8 6 -15.5' };
+  switch (style) {
+    case 'necklace':
+      return { tintable: true, pieces: [
+        { bone: 'chest', layer: 'neckwear', views: FRONT, shapes: [[chain, ink(C.tintBase, 0.6)]] },
+        { bone: 'neck', layer: 'neckwear', views: ['back'], shapes: [[{ kind: 'path', d: 'M -2.6 -0.6 H 2.6' }, ink(C.tintBase, 0.6)]] },
+      ] };
+    case 'pendant':
+      return { tintable: true, pieces: [
+        { bone: 'chest', layer: 'neckwear', views: FRONT, shapes: [[chain, ink(C.tintBase, 0.4)], [disc(2.3, -10.8, 1.3), TINT]] },
+        { bone: 'neck', layer: 'neckwear', views: ['back'], shapes: [[{ kind: 'path', d: 'M -2.6 -0.6 H 2.6' }, ink(C.tintBase, 0.4)]] },
+      ] };
+    case 'scarf':
+      return { tintable: true, pieces: [
+        { bone: 'neck', layer: 'neckwear', views: BOTH, shapes: [[capsule(7.5, -3.5, 1.5), TINT], [{ kind: 'path', d: 'M -3.7 -1 H 3.7' }, TINT_LINE]] },
+        { bone: 'chest', layer: 'neckwear', views: FRONT, band: 'front', shapes: [[roundRect(1, -15.5, 4, 14, 1.2), TINT], [{ kind: 'path', d: 'M 1 -3.5 H 5' }, TINT_LINE]] },
+        { bone: 'chest', layer: 'neckwear', views: ['back'], shapes: [[roundRect(-4, -15.5, 4, 9, 1.2), TINT]] },
+      ] };
+  }
+}
+
 function footwear(style: 'sneakers' | 'high-tops' | 'boots' | 'sandals' | 'slides' | 'dress'): Wearable {
   const shoe: Shape = { kind: 'path', d: 'M -3.6 -2.6 L 2.5 -2.6 Q 7.5 -1.2 8 2 L 8 3.4 L -3.8 3.4 Z' };
   const sole = roundRect(-3.9, 2.4, 12, 1.4, 0.6);
@@ -467,7 +518,7 @@ function footwear(style: 'sneakers' | 'high-tops' | 'boots' | 'sandals' | 'slide
   return { tintable: true, pieces };
 }
 
-type TopStyle = 'hoodie' | 'tank' | 'polo' | 'sweater' | 'button-up' | 'blazer' | 'jersey' | 'track-jacket' | 'puffer' | 'crop';
+type TopStyle = 'hoodie' | 'tank' | 'polo' | 'sweater' | 'button-up' | 'blazer' | 'jersey' | 'track-jacket' | 'puffer' | 'crop' | 'long-coat';
 
 function tintedTop(style: TopStyle): Wearable {
   const SLEEVES: Partial<Record<TopStyle, 'none' | 'short'>> = { tank: 'none', crop: 'short', polo: 'short', jersey: 'short' };
@@ -526,6 +577,15 @@ function tintedTop(style: TopStyle): Wearable {
       chest.push([{ kind: 'path', d: 'M -8.5 -11 H 8.5 M -8.5 -5 H 8.5' }, TINT_LINE]);
       spine?.push([{ kind: 'path', d: 'M -7.5 -2 H 7.5' }, TINT_LINE]);
       break;
+    case 'long-coat':
+      chest.push([{ kind: 'path', d: 'M -1 -16.5 L 2.5 -6 L 6.5 -16.5' }, TINT_LINE], [{ kind: 'path', d: 'M 2.5 -6 V 2' }, TINT_LINE]);
+      // Waist on the hip, then two tails on the skirt bones down past the knees. They
+      // overlap in the middle, so no gap opens when the legs part.
+      pieces.push({ bone: 'hip', layer: 'tops', views: BOTH, shapes: [[capsule(15, -4, 5), TINT], [{ kind: 'path', d: 'M 2.5 -4 V 5' }, TINT_LINE]] });
+      for (const [bone, d] of [['skirt.L', 'M -5.5 -4 L 3.5 -4 L 6 26 L -5.5 26 Z'], ['skirt.R', 'M -3.5 -4 L 5.5 -4 L 5.5 26 L -6 26 Z']] as const) {
+        pieces.push({ bone, layer: 'tops', views: BOTH, shapes: [[{ kind: 'path', d }, TINT]] });
+      }
+      break;
     case 'tank':
     case 'crop':
     case 'track-jacket':
@@ -542,7 +602,11 @@ function tintedBottoms(style: BottomStyle): Wearable {
   const short = style === 'shorts' || style === 'cargo-shorts';
   const pieces: Piece[] = [{ bone: 'hip', layer: 'bottoms', views: BOTH, shapes: [[capsule(14, -3.5, 5), TINT]] }];
   if (style === 'skirt') {
-    pieces[0].shapes.push([{ kind: 'path', d: 'M -7 -3 L 7 -3 L 10.5 15 Q 0 17 -10.5 15 Z' }, TINT]);
+    // Two overlapping panels on the skirt bones, so the hem swings with the legs.
+    pieces.push(
+      { bone: 'skirt.L', layer: 'bottoms', views: BOTH, shapes: [[{ kind: 'path', d: 'M -5 -3 L 3 -3 L 6.5 15 Q 1 16.5 -5 16 Z' }, TINT]] },
+      { bone: 'skirt.R', layer: 'bottoms', views: BOTH, shapes: [[{ kind: 'path', d: 'M -3 -3 L 5 -3 L 5 16 Q -1 16.5 -6.5 15 Z' }, TINT]] },
+    );
     return { tintable: true, pieces };
   }
   for (const leg of sided('thigh')) {
@@ -676,8 +740,9 @@ const STARTER: Record<string, Wearable> = {
   ...Object.fromEntries((['cap', 'cap-back', 'beanie', 'bucket', 'headphones', 'crown', 'cowboy', 'beret'] as const).map(s => [`headwear-${s}`, headwear(s)])),
   ...Object.fromEntries((['round', 'sunglasses', 'aviators', 'patch', 'mask', 'monocle'] as const).map(s => [`facewear-${s}`, facewear(s)])),
   ...Object.fromEntries((['watch', 'smartwatch', 'bracelet', 'sweatband', 'beads'] as const).map(s => [`wrist-${s}`, wristwear(s)])),
+  ...Object.fromEntries((['necklace', 'pendant', 'scarf'] as const).map(s => [`neck-${s}`, neckwear(s)])),
   ...Object.fromEntries((['sneakers', 'high-tops', 'boots', 'sandals', 'slides', 'dress'] as const).map(s => [`shoes-${s}`, footwear(s)])),
-  ...Object.fromEntries((['hoodie', 'tank', 'polo', 'sweater', 'button-up', 'blazer', 'jersey', 'track-jacket', 'puffer', 'crop'] as const).map(s => [`top-${s}`, tintedTop(s)])),
+  ...Object.fromEntries((['hoodie', 'tank', 'polo', 'sweater', 'button-up', 'blazer', 'jersey', 'track-jacket', 'puffer', 'crop', 'long-coat'] as const).map(s => [`top-${s}`, tintedTop(s)])),
   ...Object.fromEntries((['shorts', 'cargo-shorts', 'joggers', 'chinos', 'track-pants', 'ripped', 'skirt', 'leggings'] as const).map(s => [`bottoms-${s}`, tintedBottoms(s)])),
 };
 
@@ -698,7 +763,8 @@ for (const [id, wearable] of Object.entries(STARTER)) {
   for (const piece of wearable.pieces) {
     for (const view of piece.views) {
       mkdirSync(join(dir, view), { recursive: true });
-      writeFileSync(join(dir, view, `${piece.bone}.${piece.layer}.svg`), pieceSvg(piece, view));
+      const band = piece.band && piece.band !== 'body' ? `.${piece.band}` : '';
+      writeFileSync(join(dir, view, `${piece.bone}.${piece.layer}${band}.svg`), pieceSvg(piece, view));
     }
   }
   writeFileSync(join(dir, 'asset.json'), JSON.stringify({ tintable: wearable.tintable ?? false }, null, 2) + '\n');

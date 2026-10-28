@@ -1,8 +1,8 @@
 import { BlendMode, Skia, type SkColor, type SkImage } from '@shopify/react-native-skia';
 
 import {
-  HUMANOID_V1,
   WEARABLE_ART_SCALE,
+  drawRank,
   slotBone,
   type AtlasSprite,
   type Attachment,
@@ -37,6 +37,7 @@ function tintFor(part: WornPart, att: Attachment): SkColor | null {
 
 interface Entry {
   view: RigView;
+  rank: number;
   slot: SlotName;
   part: WornPart;
   att: Attachment;
@@ -57,17 +58,17 @@ interface Entry {
 export function composeAvatar(parts: WornPart[]): AvatarArt {
   const entries: Entry[] = [];
   for (const view of VIEWS) {
-    for (const slot of HUMANOID_V1.drawOrder[view]) {
-      for (const part of parts) {
-        const att = part.asset.views[view].find(a => a.slot === slot);
-        if (!att) continue;
+    for (const part of parts) {
+      for (const att of part.asset.views[view]) {
         const k = WEARABLE_ART_SCALE / part.asset.scale;
         const w = Math.ceil(Math.max(att.east.region.w, att.west.region.w) * k);
         const h = Math.ceil(Math.max(att.east.region.h, att.west.region.h) * k);
-        entries.push({ view, slot, part, att, k, w, h, x: 0, y: 0 });
+        entries.push({ view, rank: drawRank(view, att.slot, att.band), slot: att.slot, part, att, k, w, h, x: 0, y: 0 });
       }
     }
   }
+  // Band, then rig draw order. The sort is stable, so parts sharing a slot keep their order.
+  entries.sort((a, b) => (a.view === b.view ? a.rank - b.rank : a.view === 'front' ? -1 : 1));
 
   // Shelf layout: each entry takes a cell two sprites wide (east, then west).
   let x = GAP, y = GAP, shelfH = 0, width = 0;

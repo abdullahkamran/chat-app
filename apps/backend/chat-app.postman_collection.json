@@ -660,7 +660,7 @@
                             "host": ["{{baseUrl}}"],
                             "path": ["api", "v1", "shop", "avatar-items"],
                             "query": [
-                                { "key": "category", "value": "tops", "description": "eye | hair | skin | mouth | tops | bottoms | headwear | facewear | wristwear | footwear" },
+                                { "key": "category", "value": "tops", "description": "eye | hair | skin | mouth | tops | bottoms | headwear | facewear | wristwear | neckwear | footwear" },
                                 { "key": "page", "value": "1" },
                                 { "key": "limit", "value": "20" }
                             ]
@@ -783,7 +783,7 @@
                             "host": ["{{baseUrl}}"],
                             "path": ["api", "v1", "avatar", "items"],
                             "query": [
-                                { "key": "category", "value": "skin", "description": "eye | hair | skin | mouth | tops | bottoms | headwear | facewear | wristwear | footwear" }
+                                { "key": "category", "value": "skin", "description": "eye | hair | skin | mouth | tops | bottoms | headwear | facewear | wristwear | neckwear | footwear" }
                             ]
                         }
                     }

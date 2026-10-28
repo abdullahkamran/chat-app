@@ -1,5 +1,7 @@
 import {
+  DRAW_BANDS,
   HUMANOID_V1_BONES,
+  type DrawBand,
   type BoneName,
   type RigBone,
   type RigDefinition,
@@ -37,24 +39,44 @@ const BONES: RigBone[] = [
   { name: 'thigh.R', parent: 'hip', x: -4, y: 0, rotation: 0, length: 17 },
   { name: 'shin.R', parent: 'thigh.R', x: 0, y: 17, rotation: 0, length: 15 },
   { name: 'foot.R', parent: 'shin.R', x: 0, y: 15, rotation: 0, length: 2 },
+  // Followers. Skirt panels hang from the hip at the thighs and swing half as far, so
+  // long coats and skirts move with the legs without splitting at the hip.
+  { name: 'skirt.L', parent: 'hip', x: 4, y: 0, rotation: 0, length: 30, follow: { bone: 'thigh.L', weight: 0.5 } },
+  { name: 'skirt.R', parent: 'hip', x: -4, y: 0, rotation: 0, length: 30, follow: { bone: 'thigh.R', weight: 0.5 } },
+  // Long hair below the head: pivots where the head does but turns only half as far.
+  { name: 'hairBack', parent: 'neck', x: 0, y: -4, rotation: 0, length: 24, follow: { bone: 'head', weight: 0.5 } },
 ];
 
 const BODY_LAYERS: SlotLayer[] = ['skin', 'bottoms', 'tops', 'footwear', 'wristwear'];
+const NECK_LAYERS: SlotLayer[] = [...BODY_LAYERS, 'neckwear'];
+const SKIRT_LAYERS: SlotLayer[] = ['bottoms', 'tops'];
 const HEAD_LAYERS: SlotLayer[] = [
   'skin', 'face', 'eye', 'nose', 'mouth', 'facialHair', 'hair', 'headwear', 'facewear',
 ];
 
 function layersOf(bone: BoneName): SlotLayer[] {
-  if (bone === 'root') return [];
-  return bone === 'head' ? HEAD_LAYERS : BODY_LAYERS;
+  switch (bone) {
+    case 'root': return [];
+    case 'head': return HEAD_LAYERS;
+    case 'hairBack': return ['hair'];
+    case 'neck':
+    case 'chest': return NECK_LAYERS;
+    case 'skirt.L':
+    case 'skirt.R': return SKIRT_LAYERS;
+    default: return BODY_LAYERS;
+  }
 }
 
-/** Bones back to front in the front view: far (right) limbs, legs, torso, head, near (left) arm. */
+/**
+ * Bones back to front in the front view: far (right) limbs, legs, skirt panels, torso,
+ * head, near (left) arm. Within the `body` band only; see `DrawBand`.
+ */
 const FRONT_BONE_ORDER: BoneName[] = [
   'upperArm.R', 'foreArm.R', 'hand.R',
   'thigh.R', 'shin.R', 'foot.R',
   'thigh.L', 'shin.L', 'foot.L',
-  'hip', 'spine', 'chest', 'neck', 'head',
+  'skirt.R', 'skirt.L',
+  'hip', 'spine', 'chest', 'neck', 'hairBack', 'head',
   'upperArm.L', 'foreArm.L', 'hand.L',
 ];
 
@@ -83,6 +105,19 @@ export const HUMANOID_V1: RigDefinition = {
   }))),
   drawOrder: { front: slotsInOrder('front'), back: slotsInOrder('back') },
 };
+
+function rankOf(view: RigView): Partial<Record<SlotName, number>> {
+  const out: Partial<Record<SlotName, number>> = {};
+  HUMANOID_V1.drawOrder[view].forEach((slot, i) => { out[slot] = i; });
+  return out;
+}
+
+const SLOT_RANK: Record<RigView, Partial<Record<SlotName, number>>> = { front: rankOf('front'), back: rankOf('back') };
+
+/** Stacking key for a piece, lowest drawn first: its band, then the rig's draw order. */
+export function drawRank(view: RigView, slot: SlotName, band: DrawBand = 'body'): number {
+  return DRAW_BANDS.indexOf(band) * HUMANOID_V1.slots.length + (SLOT_RANK[view][slot] ?? 0);
+}
 
 /** The bone a slot hangs from: `'shin.L/bottoms'` → `'shin.L'`. */
 export function slotBone(slot: SlotName): BoneName {

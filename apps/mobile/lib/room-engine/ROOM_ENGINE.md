@@ -181,6 +181,14 @@ When changing `WALL_HEIGHT`, verify that `WALL_HEIGHT + (roomX + roomY) * TILE_H
 
 ---
 
+## Avatar layering: draw bands and follower bones
+
+The rig and its draw order are in `packages/shared-types/src/humanoid-v1.ts`; the art workflow is in `apps/backend/art/README.md`.
+
+- **Draw bands.** Each `Attachment` may carry `band: 'behind' | 'front'` (absent means `body`). Pieces stack by `drawRank(view, slot, band)`: every `behind` piece, then the body in the rig's bone order, then every `front` piece. The band is chosen per view by the artist through the file name (`hairBack.hair.behind.svg`), so long hair hangs behind the shoulders from the front and over the back from behind. `composeAvatar` bakes pieces in this order, so an avatar is still one `drawAtlas` call.
+- **Follower bones.** A `RigBone` with `follow: { bone, weight }` adds `weight ×` that bone's animated rotation to its own; the solver (`solveWorld`) does this, and clips never key followers. `skirt.L`/`skirt.R` hang from `hip` at the thighs at 0.5, for skirts and coat tails; `hairBack` hangs from `neck` at the head's joint at 0.5, for long hair. Weights are in the rig data; a seated avatar's coat tails sit at half the thigh angle (40°), which may want tuning once real art exists.
+- **Neckwear.** `neckwear` is an avatar part and a slot layer on `neck` and `chest`, drawn after `tops`.
+
 ## Avatar previews outside rooms (`components/AvatarPreview.tsx`)
 
 Every avatar shown outside a room is the rigged Skia avatar exactly as rooms draw it: the avatar editor (`components/AvatarEditorScreen.tsx`, animated, size 220, rotatable), Profile's avatar cards (`components/ProfileScreen.tsx`, still, size 140) and the room's Avatars drawer (`lib/room-engine/components/AvatarDrawer.tsx`, still, size 60). The old SVG `UserCharacter` was removed on 2026-10-24. `<AvatarPreview avatar size rotatable animated />` takes an `AvatarOutfit` (see `wearables/useAvatarArts.ts`: per part, the selected variant first in `variants`, of which only `rigAsset` and `color` are read; a saved `Avatar` fits as is).
