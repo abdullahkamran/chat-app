@@ -9,7 +9,9 @@ export type Shape =
   | { kind: 'capsule'; w: number; y0: number; y1: number }
   | { kind: 'disc'; cx: number; cy: number; r: number }
   | { kind: 'oval'; x: number; y: number; w: number; h: number }
-  | { kind: 'path'; d: string };
+  | { kind: 'path'; d: string }
+  /** Ready-made SVG markup, for pieces that need masks or clip paths. */
+  | { kind: 'raw'; svg: string };
 
 export function capsule(w: number, y0: number, y1: number): Shape {
   return { kind: 'capsule', w, y0, y1 };
@@ -31,6 +33,8 @@ export function shapeSvg(shape: Shape, attrs: string): string {
       return `<ellipse cx="${shape.x + shape.w / 2}" cy="${shape.y + shape.h / 2}" rx="${shape.w / 2}" ry="${shape.h / 2}" ${attrs}/>`;
     case 'path':
       return `<path d="${shape.d}" ${attrs}/>`;
+    case 'raw':
+      return shape.svg;
   }
 }
 

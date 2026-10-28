@@ -60,7 +60,31 @@ async function syncAvatarItems(): Promise<void> {
 
     console.log(`[catalog-sync] avatar_items: ${inserted} inserted, ${AVATAR_ITEMS_CATALOG.length - inserted} already exist`);
 
+    await syncNewVariants();
     await syncRigAssets();
+}
+
+/**
+ * Appends catalog variants an existing item doesn't have yet (matched by name), such as a
+ * new colour. Existing variants are left alone, so their _ids in inventories stay valid.
+ * The name check and the push are one atomic update, so concurrent boots can't add a
+ * variant twice.
+ */
+async function syncNewVariants(): Promise<void> {
+    const existing = await AvatarItemModel.find({}, { name: 1, 'variants.name': 1 }).lean();
+    const have = new Map(existing.map(i => [i.name, new Set(i.variants.map(v => v.name))]));
+    let added = 0;
+    for (const entry of AVATAR_ITEMS_CATALOG) {
+        for (const { wearable: _wearable, ...variant } of entry.variants) {
+            if (have.get(entry.name)?.has(variant.name)) continue;
+            const result = await AvatarItemModel.updateOne(
+                { name: entry.name, 'variants.name': { $ne: variant.name } },
+                { $push: { variants: variant } },
+            );
+            added += result.modifiedCount;
+        }
+    }
+    if (added > 0) console.log(`[catalog-sync] avatar_items: ${added} new variants added to existing items`);
 }
 
 /**

@@ -14,7 +14,22 @@ const EMOTE_ICONS: Record<string, IconName> = {
   clap: 'hand-right-outline',
   laugh: 'happy-outline',
   dance: 'musical-notes-outline',
+  thumbsUp: 'thumbs-up-outline',
+  shrug: 'help-outline',
+  facepalm: 'sad-outline',
+  cheer: 'trophy-outline',
+  bow: 'ribbon-outline',
+  cry: 'water-outline',
+  jump: 'arrow-up-circle-outline',
+  point: 'arrow-forward-outline',
+  flex: 'barbell-outline',
+  blowKiss: 'heart-outline',
 };
+
+/** Animation names are camelCase ids: `blowKiss` → `blow kiss`. */
+function emoteLabel(name: string): string {
+  return name.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
+}
 
 interface Props {
   /** Seated users can't emote; the drawer explains instead. */
@@ -59,7 +74,7 @@ export function EmoteDrawer({ disabled, onEmote, onClose }: Readonly<Props>) {
             accessibilityLabel={`Play ${emote.name}`}
           >
             <Ionicons name={EMOTE_ICONS[emote.name] ?? 'sparkles-outline'} size={22} color={theme.colors.primary} />
-            <Text style={styles.chipLabel}>{emote.name}</Text>
+            <Text style={styles.chipLabel}>{emoteLabel(emote.name)}</Text>
           </TouchableOpacity>
         )}
       />

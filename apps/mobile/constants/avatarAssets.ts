@@ -52,6 +52,74 @@ const ITEM_ASSET_MAP: Record<string, ImageSource> = {
 
     // ── Wallpapers ────────────────────────────────────────────────────────────
     'items/wallpapers/test-wallpaper.png': require('../assets/items/wallpapers/test-wallpaper.png'),
+
+    // Placeholder images from `pnpm art:items` (apps/backend); real art replaces the files in place.
+    // ── furniture (placeholder art)
+    'items/furniture/stool.png':           require('../assets/items/furniture/stool.png'),
+    'items/furniture/dining-chair.png':    require('../assets/items/furniture/dining-chair.png'),
+    'items/furniture/armchair.png':        require('../assets/items/furniture/armchair.png'),
+    'items/furniture/bean-bag.png':        require('../assets/items/furniture/bean-bag.png'),
+    'items/furniture/gaming-chair.png':    require('../assets/items/furniture/gaming-chair.png'),
+    'items/furniture/throne.png':          require('../assets/items/furniture/throne.png'),
+    'items/furniture/bench.png':           require('../assets/items/furniture/bench.png'),
+    'items/furniture/sofa.png':            require('../assets/items/furniture/sofa.png'),
+    'items/furniture/coffee-table.png':    require('../assets/items/furniture/coffee-table.png'),
+    'items/furniture/dining-table.png':    require('../assets/items/furniture/dining-table.png'),
+    'items/furniture/desk.png':            require('../assets/items/furniture/desk.png'),
+    'items/furniture/bookshelf.png':       require('../assets/items/furniture/bookshelf.png'),
+    'items/furniture/wardrobe.png':        require('../assets/items/furniture/wardrobe.png'),
+    'items/furniture/bed.png':             require('../assets/items/furniture/bed.png'),
+    'items/furniture/kitchen-counter.png': require('../assets/items/furniture/kitchen-counter.png'),
+    'items/furniture/fridge.png':          require('../assets/items/furniture/fridge.png'),
+
+    // ── decor (placeholder art)
+    'items/decor/rug.png':             require('../assets/items/decor/rug.png'),
+    'items/decor/water-dispenser.png': require('../assets/items/decor/water-dispenser.png'),
+    'items/decor/arcade-cabinet.png':  require('../assets/items/decor/arcade-cabinet.png'),
+    'items/decor/speaker.png':         require('../assets/items/decor/speaker.png'),
+    'items/decor/fish-tank.png':       require('../assets/items/decor/fish-tank.png'),
+    'items/decor/trash-can.png':       require('../assets/items/decor/trash-can.png'),
+
+    // ── wall-items (placeholder art)
+    'items/wall-items/poster.png':          require('../assets/items/wall-items/poster.png'),
+    'items/wall-items/framed-painting.png': require('../assets/items/wall-items/framed-painting.png'),
+    'items/wall-items/wall-clock.png':      require('../assets/items/wall-items/wall-clock.png'),
+    'items/wall-items/window.png':          require('../assets/items/wall-items/window.png'),
+    'items/wall-items/wall-shelf.png':      require('../assets/items/wall-items/wall-shelf.png'),
+    'items/wall-items/mirror.png':          require('../assets/items/wall-items/mirror.png'),
+    'items/wall-items/dartboard.png':       require('../assets/items/wall-items/dartboard.png'),
+    'items/wall-items/neon-sign.png':       require('../assets/items/wall-items/neon-sign.png'),
+
+    // ── lighting (placeholder art)
+    'items/lighting/floor-lamp.png': require('../assets/items/lighting/floor-lamp.png'),
+    'items/lighting/lava-lamp.png':  require('../assets/items/lighting/lava-lamp.png'),
+
+    // ── plants (placeholder art)
+    'items/plants/potted-plant.png': require('../assets/items/plants/potted-plant.png'),
+    'items/plants/cactus.png':       require('../assets/items/plants/cactus.png'),
+    'items/plants/monstera.png':     require('../assets/items/plants/monstera.png'),
+
+    // ── seasonal (placeholder art)
+    'items/seasonal/pumpkin-lantern.png': require('../assets/items/seasonal/pumpkin-lantern.png'),
+    'items/seasonal/snowman.png':         require('../assets/items/seasonal/snowman.png'),
+
+    // ── floorings (placeholder art)
+    'items/floorings/wood-planks.png':  require('../assets/items/floorings/wood-planks.png'),
+    'items/floorings/checkerboard.png': require('../assets/items/floorings/checkerboard.png'),
+    'items/floorings/carpet.png':       require('../assets/items/floorings/carpet.png'),
+    'items/floorings/tiles.png':        require('../assets/items/floorings/tiles.png'),
+    'items/floorings/concrete.png':     require('../assets/items/floorings/concrete.png'),
+    'items/floorings/grass.png':        require('../assets/items/floorings/grass.png'),
+
+    // ── wallpapers (placeholder art)
+    'items/wallpapers/brick.png':        require('../assets/items/wallpapers/brick.png'),
+    'items/wallpapers/striped.png':      require('../assets/items/wallpapers/striped.png'),
+    'items/wallpapers/wood-panel.png':   require('../assets/items/wallpapers/wood-panel.png'),
+    'items/wallpapers/cream.png':        require('../assets/items/wallpapers/cream.png'),
+    'items/wallpapers/sage.png':         require('../assets/items/wallpapers/sage.png'),
+    'items/wallpapers/blush.png':        require('../assets/items/wallpapers/blush.png'),
+    'items/wallpapers/charcoal.png':     require('../assets/items/wallpapers/charcoal.png'),
+    'items/wallpapers/starry-night.png': require('../assets/items/wallpapers/starry-night.png'),
 };
 
 // ── Resolvers ─────────────────────────────────────────────────────────────────

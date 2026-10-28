@@ -34,14 +34,22 @@ export const SIGNUP_DEFAULTS = {
         // clothing
         { itemName: 'T-Shirt',      variantName: 'Default' },
         { itemName: 'Jeans',        variantName: 'Default' },
-        // hair (optional — all current styles unlocked by default)
+        // every skin tone is free
+        ...['Porcelain', 'Sand', 'Honey', 'Caramel', 'Bronze', 'Mocha', 'Espresso']
+            .map(variantName => ({ itemName: 'Default Skin', variantName })),
+        { itemName: 'Sneakers',     variantName: 'White' },
+        // hair (optional — the original styles plus a few basics in black)
         { itemName: 'Center Parted', variantName: 'Default' },
         { itemName: 'Puffed',        variantName: 'Default' },
         { itemName: 'Spiked',        variantName: 'Default' },
+        { itemName: 'Buzz Cut',      variantName: 'Black' },
+        { itemName: 'Side Part',     variantName: 'Black' },
+        { itemName: 'Bob',           variantName: 'Black' },
+        { itemName: 'Long Straight', variantName: 'Black' },
     ] as Array<{ itemName: string; variantName: string }>,
 
     /** Room item names (must match Item.name in DB) to add to the user's inventory on signup. */
-    inventoryItemNames: ['Test Chair', 'Test Couch'] as string[],
+    inventoryItemNames: ['Test Chair', 'Test Couch', 'Potted Plant', 'Poster'] as string[],
 
     /**
      * The user's personal room (personal-room.service.ts), named "{username}'s Room".

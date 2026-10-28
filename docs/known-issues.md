@@ -243,6 +243,13 @@ updates them; an exit for someone already gone is ignored).
 
 **Fix:** run it as a one-off job or migration per deploy, or guard it with a Redis lock
 (`SET catalog-sync <id> NX EX 120`).
+
+It is also slow on one instance, and grows with the catalog: every entry is its own sequential round trip
+(`findOneAndUpdate` per item, a second `updateOne` per room item for seats, and an `updateOne` per avatar
+variant in `syncRigAssets()`). With the expanded catalog (2026-10-29) that is roughly 600 queries per boot,
+which adds seconds of startup against a remote database. Batch each pass into one `bulkWrite`, and skip
+`syncRigAssets()` updates whose `atlasVersion` already matches. `syncNewVariants()` reads all items once and
+only writes missing variants, and its `$ne` guard keeps concurrent boots from adding a variant twice.
 ### 4. No health checks or graceful shutdown
 
 **Seen (with rolling deploys):** an orchestrator can't tell a booting or broken instance from a ready one, and

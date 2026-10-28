@@ -963,6 +963,1894 @@
       ]
     }
   },
+  "bottoms-cargo-shorts": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/bottoms-cargo-shorts.png",
+    "atlasVersion": 1192533580,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "hip/bottoms",
+          "east": {
+            "region": {
+              "x": 92,
+              "y": 48,
+              "w": 44,
+              "h": 28
+            },
+            "pivot": {
+              "x": 22,
+              "y": 12
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 94,
+              "w": 44,
+              "h": 28
+            },
+            "pivot": {
+              "x": 22,
+              "y": 12
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "thigh.L/bottoms",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 28,
+              "h": 44
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "west": {
+            "region": {
+              "x": 32,
+              "y": 2,
+              "w": 28,
+              "h": 44
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "thigh.R/bottoms",
+          "east": {
+            "region": {
+              "x": 62,
+              "y": 2,
+              "w": 28,
+              "h": 44
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "west": {
+            "region": {
+              "x": 92,
+              "y": 2,
+              "w": 28,
+              "h": 44
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "hip/bottoms",
+          "east": {
+            "region": {
+              "x": 48,
+              "y": 94,
+              "w": 44,
+              "h": 28
+            },
+            "pivot": {
+              "x": 22,
+              "y": 12
+            }
+          },
+          "west": {
+            "region": {
+              "x": 94,
+              "y": 94,
+              "w": 44,
+              "h": 28
+            },
+            "pivot": {
+              "x": 22,
+              "y": 12
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "thigh.L/bottoms",
+          "east": {
+            "region": {
+              "x": 122,
+              "y": 2,
+              "w": 28,
+              "h": 44
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 48,
+              "w": 28,
+              "h": 44
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "thigh.R/bottoms",
+          "east": {
+            "region": {
+              "x": 32,
+              "y": 48,
+              "w": 28,
+              "h": 44
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "west": {
+            "region": {
+              "x": 62,
+              "y": 48,
+              "w": 28,
+              "h": 44
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "bottoms-chinos": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/bottoms-chinos.png",
+    "atlasVersion": 3605224200,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "hip/bottoms",
+          "east": {
+            "region": {
+              "x": 28,
+              "y": 140,
+              "w": 44,
+              "h": 28
+            },
+            "pivot": {
+              "x": 22,
+              "y": 12
+            }
+          },
+          "west": {
+            "region": {
+              "x": 74,
+              "y": 140,
+              "w": 44,
+              "h": 28
+            },
+            "pivot": {
+              "x": 22,
+              "y": 12
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "shin.L/bottoms",
+          "east": {
+            "region": {
+              "x": 30,
+              "y": 71,
+              "w": 24,
+              "h": 52
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 56,
+              "y": 71,
+              "w": 24,
+              "h": 52
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "shin.R/bottoms",
+          "east": {
+            "region": {
+              "x": 82,
+              "y": 71,
+              "w": 24,
+              "h": 52
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 108,
+              "y": 71,
+              "w": 24,
+              "h": 52
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "thigh.L/bottoms",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 26,
+              "h": 67
+            },
+            "pivot": {
+              "x": 13,
+              "y": 10
+            }
+          },
+          "west": {
+            "region": {
+              "x": 30,
+              "y": 2,
+              "w": 26,
+              "h": 67
+            },
+            "pivot": {
+              "x": 13,
+              "y": 10
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "thigh.R/bottoms",
+          "east": {
+            "region": {
+              "x": 58,
+              "y": 2,
+              "w": 26,
+              "h": 67
+            },
+            "pivot": {
+              "x": 13,
+              "y": 10
+            }
+          },
+          "west": {
+            "region": {
+              "x": 86,
+              "y": 2,
+              "w": 26,
+              "h": 67
+            },
+            "pivot": {
+              "x": 13,
+              "y": 10
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "hip/bottoms",
+          "east": {
+            "region": {
+              "x": 120,
+              "y": 140,
+              "w": 44,
+              "h": 28
+            },
+            "pivot": {
+              "x": 22,
+              "y": 12
+            }
+          },
+          "west": {
+            "region": {
+              "x": 166,
+              "y": 140,
+              "w": 44,
+              "h": 28
+            },
+            "pivot": {
+              "x": 22,
+              "y": 12
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "shin.L/bottoms",
+          "east": {
+            "region": {
+              "x": 134,
+              "y": 71,
+              "w": 24,
+              "h": 52
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 160,
+              "y": 71,
+              "w": 24,
+              "h": 52
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "shin.R/bottoms",
+          "east": {
+            "region": {
+              "x": 186,
+              "y": 71,
+              "w": 24,
+              "h": 52
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 140,
+              "w": 24,
+              "h": 52
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "thigh.L/bottoms",
+          "east": {
+            "region": {
+              "x": 114,
+              "y": 2,
+              "w": 26,
+              "h": 67
+            },
+            "pivot": {
+              "x": 13,
+              "y": 10
+            }
+          },
+          "west": {
+            "region": {
+              "x": 142,
+              "y": 2,
+              "w": 26,
+              "h": 67
+            },
+            "pivot": {
+              "x": 13,
+              "y": 10
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "thigh.R/bottoms",
+          "east": {
+            "region": {
+              "x": 170,
+              "y": 2,
+              "w": 26,
+              "h": 67
+            },
+            "pivot": {
+              "x": 13,
+              "y": 10
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 71,
+              "w": 26,
+              "h": 67
+            },
+            "pivot": {
+              "x": 13,
+              "y": 10
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "bottoms-joggers": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/bottoms-joggers.png",
+    "atlasVersion": 1798202985,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "hip/bottoms",
+          "east": {
+            "region": {
+              "x": 28,
+              "y": 140,
+              "w": 44,
+              "h": 28
+            },
+            "pivot": {
+              "x": 22,
+              "y": 12
+            }
+          },
+          "west": {
+            "region": {
+              "x": 74,
+              "y": 140,
+              "w": 44,
+              "h": 28
+            },
+            "pivot": {
+              "x": 22,
+              "y": 12
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "shin.L/bottoms",
+          "east": {
+            "region": {
+              "x": 32,
+              "y": 71,
+              "w": 24,
+              "h": 52
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 58,
+              "y": 71,
+              "w": 24,
+              "h": 52
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "shin.R/bottoms",
+          "east": {
+            "region": {
+              "x": 84,
+              "y": 71,
+              "w": 24,
+              "h": 52
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 110,
+              "y": 71,
+              "w": 24,
+              "h": 52
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "thigh.L/bottoms",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 28,
+              "h": 67
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "west": {
+            "region": {
+              "x": 32,
+              "y": 2,
+              "w": 28,
+              "h": 67
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "thigh.R/bottoms",
+          "east": {
+            "region": {
+              "x": 62,
+              "y": 2,
+              "w": 28,
+              "h": 67
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "west": {
+            "region": {
+              "x": 92,
+              "y": 2,
+              "w": 28,
+              "h": 67
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "hip/bottoms",
+          "east": {
+            "region": {
+              "x": 120,
+              "y": 140,
+              "w": 44,
+              "h": 28
+            },
+            "pivot": {
+              "x": 22,
+              "y": 12
+            }
+          },
+          "west": {
+            "region": {
+              "x": 166,
+              "y": 140,
+              "w": 44,
+              "h": 28
+            },
+            "pivot": {
+              "x": 22,
+              "y": 12
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "shin.L/bottoms",
+          "east": {
+            "region": {
+              "x": 136,
+              "y": 71,
+              "w": 24,
+              "h": 52
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 162,
+              "y": 71,
+              "w": 24,
+              "h": 52
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "shin.R/bottoms",
+          "east": {
+            "region": {
+              "x": 188,
+              "y": 71,
+              "w": 24,
+              "h": 52
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 140,
+              "w": 24,
+              "h": 52
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "thigh.L/bottoms",
+          "east": {
+            "region": {
+              "x": 122,
+              "y": 2,
+              "w": 28,
+              "h": 67
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "west": {
+            "region": {
+              "x": 152,
+              "y": 2,
+              "w": 28,
+              "h": 67
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "thigh.R/bottoms",
+          "east": {
+            "region": {
+              "x": 182,
+              "y": 2,
+              "w": 28,
+              "h": 67
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 71,
+              "w": 28,
+              "h": 67
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "bottoms-leggings": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/bottoms-leggings.png",
+    "atlasVersion": 2637437379,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "hip/bottoms",
+          "east": {
+            "region": {
+              "x": 26,
+              "y": 140,
+              "w": 44,
+              "h": 28
+            },
+            "pivot": {
+              "x": 22,
+              "y": 12
+            }
+          },
+          "west": {
+            "region": {
+              "x": 72,
+              "y": 140,
+              "w": 44,
+              "h": 28
+            },
+            "pivot": {
+              "x": 22,
+              "y": 12
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "shin.L/bottoms",
+          "east": {
+            "region": {
+              "x": 28,
+              "y": 71,
+              "w": 22,
+              "h": 52
+            },
+            "pivot": {
+              "x": 11,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 52,
+              "y": 71,
+              "w": 22,
+              "h": 52
+            },
+            "pivot": {
+              "x": 11,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "shin.R/bottoms",
+          "east": {
+            "region": {
+              "x": 76,
+              "y": 71,
+              "w": 22,
+              "h": 52
+            },
+            "pivot": {
+              "x": 11,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 100,
+              "y": 71,
+              "w": 22,
+              "h": 52
+            },
+            "pivot": {
+              "x": 11,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "thigh.L/bottoms",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 24,
+              "h": 67
+            },
+            "pivot": {
+              "x": 12,
+              "y": 10
+            }
+          },
+          "west": {
+            "region": {
+              "x": 28,
+              "y": 2,
+              "w": 24,
+              "h": 67
+            },
+            "pivot": {
+              "x": 12,
+              "y": 10
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "thigh.R/bottoms",
+          "east": {
+            "region": {
+              "x": 54,
+              "y": 2,
+              "w": 24,
+              "h": 67
+            },
+            "pivot": {
+              "x": 12,
+              "y": 10
+            }
+          },
+          "west": {
+            "region": {
+              "x": 80,
+              "y": 2,
+              "w": 24,
+              "h": 67
+            },
+            "pivot": {
+              "x": 12,
+              "y": 10
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "hip/bottoms",
+          "east": {
+            "region": {
+              "x": 118,
+              "y": 140,
+              "w": 44,
+              "h": 28
+            },
+            "pivot": {
+              "x": 22,
+              "y": 12
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 194,
+              "w": 44,
+              "h": 28
+            },
+            "pivot": {
+              "x": 22,
+              "y": 12
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "shin.L/bottoms",
+          "east": {
+            "region": {
+              "x": 124,
+              "y": 71,
+              "w": 22,
+              "h": 52
+            },
+            "pivot": {
+              "x": 11,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 148,
+              "y": 71,
+              "w": 22,
+              "h": 52
+            },
+            "pivot": {
+              "x": 11,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "shin.R/bottoms",
+          "east": {
+            "region": {
+              "x": 172,
+              "y": 71,
+              "w": 22,
+              "h": 52
+            },
+            "pivot": {
+              "x": 11,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 140,
+              "w": 22,
+              "h": 52
+            },
+            "pivot": {
+              "x": 11,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "thigh.L/bottoms",
+          "east": {
+            "region": {
+              "x": 106,
+              "y": 2,
+              "w": 24,
+              "h": 67
+            },
+            "pivot": {
+              "x": 12,
+              "y": 10
+            }
+          },
+          "west": {
+            "region": {
+              "x": 132,
+              "y": 2,
+              "w": 24,
+              "h": 67
+            },
+            "pivot": {
+              "x": 12,
+              "y": 10
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "thigh.R/bottoms",
+          "east": {
+            "region": {
+              "x": 158,
+              "y": 2,
+              "w": 24,
+              "h": 67
+            },
+            "pivot": {
+              "x": 12,
+              "y": 10
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 71,
+              "w": 24,
+              "h": 67
+            },
+            "pivot": {
+              "x": 12,
+              "y": 10
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "bottoms-ripped": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/bottoms-ripped.png",
+    "atlasVersion": 4012727228,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "hip/bottoms",
+          "east": {
+            "region": {
+              "x": 28,
+              "y": 140,
+              "w": 44,
+              "h": 28
+            },
+            "pivot": {
+              "x": 22,
+              "y": 12
+            }
+          },
+          "west": {
+            "region": {
+              "x": 74,
+              "y": 140,
+              "w": 44,
+              "h": 28
+            },
+            "pivot": {
+              "x": 22,
+              "y": 12
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "shin.L/bottoms",
+          "east": {
+            "region": {
+              "x": 32,
+              "y": 71,
+              "w": 24,
+              "h": 52
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 58,
+              "y": 71,
+              "w": 24,
+              "h": 52
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "shin.R/bottoms",
+          "east": {
+            "region": {
+              "x": 84,
+              "y": 71,
+              "w": 24,
+              "h": 52
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 110,
+              "y": 71,
+              "w": 24,
+              "h": 52
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "thigh.L/bottoms",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 28,
+              "h": 67
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "west": {
+            "region": {
+              "x": 32,
+              "y": 2,
+              "w": 28,
+              "h": 67
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "thigh.R/bottoms",
+          "east": {
+            "region": {
+              "x": 62,
+              "y": 2,
+              "w": 28,
+              "h": 67
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "west": {
+            "region": {
+              "x": 92,
+              "y": 2,
+              "w": 28,
+              "h": 67
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "hip/bottoms",
+          "east": {
+            "region": {
+              "x": 120,
+              "y": 140,
+              "w": 44,
+              "h": 28
+            },
+            "pivot": {
+              "x": 22,
+              "y": 12
+            }
+          },
+          "west": {
+            "region": {
+              "x": 166,
+              "y": 140,
+              "w": 44,
+              "h": 28
+            },
+            "pivot": {
+              "x": 22,
+              "y": 12
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "shin.L/bottoms",
+          "east": {
+            "region": {
+              "x": 136,
+              "y": 71,
+              "w": 24,
+              "h": 52
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 162,
+              "y": 71,
+              "w": 24,
+              "h": 52
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "shin.R/bottoms",
+          "east": {
+            "region": {
+              "x": 188,
+              "y": 71,
+              "w": 24,
+              "h": 52
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 140,
+              "w": 24,
+              "h": 52
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "thigh.L/bottoms",
+          "east": {
+            "region": {
+              "x": 122,
+              "y": 2,
+              "w": 28,
+              "h": 67
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "west": {
+            "region": {
+              "x": 152,
+              "y": 2,
+              "w": 28,
+              "h": 67
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "thigh.R/bottoms",
+          "east": {
+            "region": {
+              "x": 182,
+              "y": 2,
+              "w": 28,
+              "h": 67
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 71,
+              "w": 28,
+              "h": 67
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "bottoms-shorts": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/bottoms-shorts.png",
+    "atlasVersion": 1988093975,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "hip/bottoms",
+          "east": {
+            "region": {
+              "x": 92,
+              "y": 48,
+              "w": 44,
+              "h": 28
+            },
+            "pivot": {
+              "x": 22,
+              "y": 12
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 94,
+              "w": 44,
+              "h": 28
+            },
+            "pivot": {
+              "x": 22,
+              "y": 12
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "thigh.L/bottoms",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 28,
+              "h": 44
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "west": {
+            "region": {
+              "x": 32,
+              "y": 2,
+              "w": 28,
+              "h": 44
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "thigh.R/bottoms",
+          "east": {
+            "region": {
+              "x": 62,
+              "y": 2,
+              "w": 28,
+              "h": 44
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "west": {
+            "region": {
+              "x": 92,
+              "y": 2,
+              "w": 28,
+              "h": 44
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "hip/bottoms",
+          "east": {
+            "region": {
+              "x": 48,
+              "y": 94,
+              "w": 44,
+              "h": 28
+            },
+            "pivot": {
+              "x": 22,
+              "y": 12
+            }
+          },
+          "west": {
+            "region": {
+              "x": 94,
+              "y": 94,
+              "w": 44,
+              "h": 28
+            },
+            "pivot": {
+              "x": 22,
+              "y": 12
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "thigh.L/bottoms",
+          "east": {
+            "region": {
+              "x": 122,
+              "y": 2,
+              "w": 28,
+              "h": 44
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 48,
+              "w": 28,
+              "h": 44
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "thigh.R/bottoms",
+          "east": {
+            "region": {
+              "x": 32,
+              "y": 48,
+              "w": 28,
+              "h": 44
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "west": {
+            "region": {
+              "x": 62,
+              "y": 48,
+              "w": 28,
+              "h": 44
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "bottoms-skirt": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/bottoms-skirt.png",
+    "atlasVersion": 2430327334,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "hip/bottoms",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 66,
+              "h": 61
+            },
+            "pivot": {
+              "x": 33,
+              "y": 12
+            }
+          },
+          "west": {
+            "region": {
+              "x": 70,
+              "y": 2,
+              "w": 66,
+              "h": 61
+            },
+            "pivot": {
+              "x": 33,
+              "y": 12
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "hip/bottoms",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 65,
+              "w": 66,
+              "h": 61
+            },
+            "pivot": {
+              "x": 33,
+              "y": 12
+            }
+          },
+          "west": {
+            "region": {
+              "x": 70,
+              "y": 65,
+              "w": 66,
+              "h": 61
+            },
+            "pivot": {
+              "x": 33,
+              "y": 12
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "bottoms-track-pants": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/bottoms-track-pants.png",
+    "atlasVersion": 2772410469,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "hip/bottoms",
+          "east": {
+            "region": {
+              "x": 28,
+              "y": 140,
+              "w": 44,
+              "h": 28
+            },
+            "pivot": {
+              "x": 22,
+              "y": 12
+            }
+          },
+          "west": {
+            "region": {
+              "x": 74,
+              "y": 140,
+              "w": 44,
+              "h": 28
+            },
+            "pivot": {
+              "x": 22,
+              "y": 12
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "shin.L/bottoms",
+          "east": {
+            "region": {
+              "x": 32,
+              "y": 71,
+              "w": 24,
+              "h": 52
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 58,
+              "y": 71,
+              "w": 24,
+              "h": 52
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "shin.R/bottoms",
+          "east": {
+            "region": {
+              "x": 84,
+              "y": 71,
+              "w": 24,
+              "h": 52
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 110,
+              "y": 71,
+              "w": 24,
+              "h": 52
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "thigh.L/bottoms",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 28,
+              "h": 67
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "west": {
+            "region": {
+              "x": 32,
+              "y": 2,
+              "w": 28,
+              "h": 67
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "thigh.R/bottoms",
+          "east": {
+            "region": {
+              "x": 62,
+              "y": 2,
+              "w": 28,
+              "h": 67
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "west": {
+            "region": {
+              "x": 92,
+              "y": 2,
+              "w": 28,
+              "h": 67
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "hip/bottoms",
+          "east": {
+            "region": {
+              "x": 120,
+              "y": 140,
+              "w": 44,
+              "h": 28
+            },
+            "pivot": {
+              "x": 22,
+              "y": 12
+            }
+          },
+          "west": {
+            "region": {
+              "x": 166,
+              "y": 140,
+              "w": 44,
+              "h": 28
+            },
+            "pivot": {
+              "x": 22,
+              "y": 12
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "shin.L/bottoms",
+          "east": {
+            "region": {
+              "x": 136,
+              "y": 71,
+              "w": 24,
+              "h": 52
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 162,
+              "y": 71,
+              "w": 24,
+              "h": 52
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "shin.R/bottoms",
+          "east": {
+            "region": {
+              "x": 188,
+              "y": 71,
+              "w": 24,
+              "h": 52
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 140,
+              "w": 24,
+              "h": 52
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "thigh.L/bottoms",
+          "east": {
+            "region": {
+              "x": 122,
+              "y": 2,
+              "w": 28,
+              "h": 67
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "west": {
+            "region": {
+              "x": 152,
+              "y": 2,
+              "w": 28,
+              "h": 67
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "thigh.R/bottoms",
+          "east": {
+            "region": {
+              "x": 182,
+              "y": 2,
+              "w": 28,
+              "h": 67
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 71,
+              "w": 28,
+              "h": 67
+            },
+            "pivot": {
+              "x": 14,
+              "y": 10
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
   "cargo": {
     "rig": "humanoid-v1",
     "atlasUrl": "/wearables/cargo.png",
@@ -1657,6 +3545,446 @@
       "back": []
     }
   },
+  "eyes-cat": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/eyes-cat.png",
+    "atlasVersion": 531963175,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/eye",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 27,
+              "h": 9
+            },
+            "pivot": {
+              "x": 3,
+              "y": 26
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 13,
+              "w": 27,
+              "h": 9
+            },
+            "pivot": {
+              "x": 24,
+              "y": 26
+            }
+          }
+        }
+      ],
+      "back": []
+    }
+  },
+  "eyes-happy": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/eyes-happy.png",
+    "atlasVersion": 448564967,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/eye",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 25,
+              "h": 6
+            },
+            "pivot": {
+              "x": 2,
+              "y": 24
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 10,
+              "w": 25,
+              "h": 6
+            },
+            "pivot": {
+              "x": 23,
+              "y": 24
+            }
+          }
+        }
+      ],
+      "back": []
+    }
+  },
+  "eyes-heart": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/eyes-heart.png",
+    "atlasVersion": 2446241014,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/eye",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 25,
+              "h": 12
+            },
+            "pivot": {
+              "x": 2,
+              "y": 27
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 16,
+              "w": 25,
+              "h": 12
+            },
+            "pivot": {
+              "x": 23,
+              "y": 27
+            }
+          }
+        }
+      ],
+      "back": []
+    }
+  },
+  "eyes-lashes": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/eyes-lashes.png",
+    "atlasVersion": 2342472695,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/eye",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 24,
+              "h": 11
+            },
+            "pivot": {
+              "x": 0,
+              "y": 28
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 15,
+              "w": 24,
+              "h": 11
+            },
+            "pivot": {
+              "x": 24,
+              "y": 28
+            }
+          }
+        }
+      ],
+      "back": []
+    }
+  },
+  "eyes-sleepy": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/eyes-sleepy.png",
+    "atlasVersion": 3590376412,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/eye",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 25,
+              "h": 7
+            },
+            "pivot": {
+              "x": 2,
+              "y": 22
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 11,
+              "w": 25,
+              "h": 7
+            },
+            "pivot": {
+              "x": 23,
+              "y": 22
+            }
+          }
+        }
+      ],
+      "back": []
+    }
+  },
+  "eyes-star": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/eyes-star.png",
+    "atlasVersion": 802855516,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/eye",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 27,
+              "h": 16
+            },
+            "pivot": {
+              "x": 3,
+              "y": 29
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 20,
+              "w": 27,
+              "h": 16
+            },
+            "pivot": {
+              "x": 24,
+              "y": 29
+            }
+          }
+        }
+      ],
+      "back": []
+    }
+  },
+  "eyes-wide": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/eyes-wide.png",
+    "atlasVersion": 183030942,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/eye",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 27,
+              "h": 18
+            },
+            "pivot": {
+              "x": 3,
+              "y": 30
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 22,
+              "w": 27,
+              "h": 18
+            },
+            "pivot": {
+              "x": 24,
+              "y": 30
+            }
+          }
+        }
+      ],
+      "back": []
+    }
+  },
+  "eyes-wink": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/eyes-wink.png",
+    "atlasVersion": 2246533733,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/eye",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 23,
+              "h": 8
+            },
+            "pivot": {
+              "x": 0,
+              "y": 25
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 12,
+              "w": 23,
+              "h": 8
+            },
+            "pivot": {
+              "x": 23,
+              "y": 25
+            }
+          }
+        }
+      ],
+      "back": []
+    }
+  },
+  "face-heart": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/face-heart.png",
+    "atlasVersion": 3341979589,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/face",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 58,
+              "h": 65
+            },
+            "pivot": {
+              "x": 29,
+              "y": 58
+            }
+          },
+          "west": {
+            "region": {
+              "x": 62,
+              "y": 2,
+              "w": 58,
+              "h": 65
+            },
+            "pivot": {
+              "x": 29,
+              "y": 58
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "head/face",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 69,
+              "w": 58,
+              "h": 65
+            },
+            "pivot": {
+              "x": 29,
+              "y": 58
+            }
+          },
+          "west": {
+            "region": {
+              "x": 62,
+              "y": 69,
+              "w": 58,
+              "h": 65
+            },
+            "pivot": {
+              "x": 29,
+              "y": 58
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "face-long": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/face-long.png",
+    "atlasVersion": 202779261,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/face",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 50,
+              "h": 64
+            },
+            "pivot": {
+              "x": 25,
+              "y": 56
+            }
+          },
+          "west": {
+            "region": {
+              "x": 54,
+              "y": 2,
+              "w": 50,
+              "h": 64
+            },
+            "pivot": {
+              "x": 25,
+              "y": 56
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "head/face",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 68,
+              "w": 50,
+              "h": 64
+            },
+            "pivot": {
+              "x": 25,
+              "y": 56
+            }
+          },
+          "west": {
+            "region": {
+              "x": 54,
+              "y": 68,
+              "w": 50,
+              "h": 64
+            },
+            "pivot": {
+              "x": 25,
+              "y": 56
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
   "face-normal": {
     "rig": "humanoid-v1",
     "atlasUrl": "/wearables/face-normal.png",
@@ -1718,6 +4046,74 @@
             "pivot": {
               "x": 28,
               "y": 52
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "face-oval": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/face-oval.png",
+    "atlasVersion": 1127615976,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/face",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 54,
+              "h": 60
+            },
+            "pivot": {
+              "x": 27,
+              "y": 54
+            }
+          },
+          "west": {
+            "region": {
+              "x": 58,
+              "y": 2,
+              "w": 54,
+              "h": 60
+            },
+            "pivot": {
+              "x": 27,
+              "y": 54
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "head/face",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 64,
+              "w": 54,
+              "h": 60
+            },
+            "pivot": {
+              "x": 27,
+              "y": 54
+            }
+          },
+          "west": {
+            "region": {
+              "x": 58,
+              "y": 64,
+              "w": 54,
+              "h": 60
+            },
+            "pivot": {
+              "x": 27,
+              "y": 54
             }
           },
           "tintable": true
@@ -1793,6 +4189,814 @@
       ]
     }
   },
+  "face-square": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/face-square.png",
+    "atlasVersion": 1154461304,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/face",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 56,
+              "h": 56
+            },
+            "pivot": {
+              "x": 28,
+              "y": 52
+            }
+          },
+          "west": {
+            "region": {
+              "x": 60,
+              "y": 2,
+              "w": 56,
+              "h": 56
+            },
+            "pivot": {
+              "x": 28,
+              "y": 52
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "head/face",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 60,
+              "w": 56,
+              "h": 56
+            },
+            "pivot": {
+              "x": 28,
+              "y": 52
+            }
+          },
+          "west": {
+            "region": {
+              "x": 60,
+              "y": 60,
+              "w": 56,
+              "h": 56
+            },
+            "pivot": {
+              "x": 28,
+              "y": 52
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "facewear-aviators": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/facewear-aviators.png",
+    "atlasVersion": 1355505429,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/facewear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 32,
+              "h": 14
+            },
+            "pivot": {
+              "x": 8,
+              "y": 27
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 18,
+              "w": 32,
+              "h": 14
+            },
+            "pivot": {
+              "x": 24,
+              "y": 27
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": []
+    }
+  },
+  "facewear-mask": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/facewear-mask.png",
+    "atlasVersion": 1586551921,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/facewear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 41,
+              "h": 26
+            },
+            "pivot": {
+              "x": 10,
+              "y": 22
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 30,
+              "w": 41,
+              "h": 26
+            },
+            "pivot": {
+              "x": 31,
+              "y": 22
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": []
+    }
+  },
+  "facewear-monocle": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/facewear-monocle.png",
+    "atlasVersion": 2890684949,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/facewear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 18,
+              "h": 36
+            },
+            "pivot": {
+              "x": -6,
+              "y": 29
+            }
+          },
+          "west": {
+            "region": {
+              "x": 22,
+              "y": 2,
+              "w": 18,
+              "h": 36
+            },
+            "pivot": {
+              "x": 24,
+              "y": 29
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": []
+    }
+  },
+  "facewear-patch": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/facewear-patch.png",
+    "atlasVersion": 1589255470,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/facewear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 44,
+              "h": 24
+            },
+            "pivot": {
+              "x": 19,
+              "y": 37
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 28,
+              "w": 44,
+              "h": 24
+            },
+            "pivot": {
+              "x": 25,
+              "y": 37
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": []
+    }
+  },
+  "facewear-round": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/facewear-round.png",
+    "atlasVersion": 1070845017,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/facewear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 32,
+              "h": 16
+            },
+            "pivot": {
+              "x": 8,
+              "y": 29
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 20,
+              "w": 32,
+              "h": 16
+            },
+            "pivot": {
+              "x": 24,
+              "y": 29
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": []
+    }
+  },
+  "facewear-sunglasses": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/facewear-sunglasses.png",
+    "atlasVersion": 1822059520,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/facewear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 32,
+              "h": 12
+            },
+            "pivot": {
+              "x": 8,
+              "y": 27
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 16,
+              "w": 32,
+              "h": 12
+            },
+            "pivot": {
+              "x": 24,
+              "y": 27
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": []
+    }
+  },
+  "facial-hair-chops": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/facial-hair-chops.png",
+    "atlasVersion": 295659980,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/facialHair",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 40,
+              "h": 32
+            },
+            "pivot": {
+              "x": 7,
+              "y": 31
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 36,
+              "w": 40,
+              "h": 32
+            },
+            "pivot": {
+              "x": 33,
+              "y": 31
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": []
+    }
+  },
+  "facial-hair-full": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/facial-hair-full.png",
+    "atlasVersion": 1640968351,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/facialHair",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 37,
+              "h": 31
+            },
+            "pivot": {
+              "x": 6,
+              "y": 19
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 35,
+              "w": 37,
+              "h": 31
+            },
+            "pivot": {
+              "x": 31,
+              "y": 19
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": []
+    }
+  },
+  "facial-hair-goatee": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/facial-hair-goatee.png",
+    "atlasVersion": 2323302752,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/facialHair",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 25,
+              "h": 20
+            },
+            "pivot": {
+              "x": 0,
+              "y": 11
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 24,
+              "w": 25,
+              "h": 20
+            },
+            "pivot": {
+              "x": 25,
+              "y": 11
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": []
+    }
+  },
+  "facial-hair-handlebar": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/facial-hair-handlebar.png",
+    "atlasVersion": 85039667,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/facialHair",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 30,
+              "h": 10
+            },
+            "pivot": {
+              "x": 3,
+              "y": 14
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 14,
+              "w": 30,
+              "h": 10
+            },
+            "pivot": {
+              "x": 27,
+              "y": 14
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": []
+    }
+  },
+  "facial-hair-moustache": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/facial-hair-moustache.png",
+    "atlasVersion": 1497729079,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/facialHair",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 25,
+              "h": 7
+            },
+            "pivot": {
+              "x": 0,
+              "y": 11
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 11,
+              "w": 25,
+              "h": 7
+            },
+            "pivot": {
+              "x": 25,
+              "y": 11
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": []
+    }
+  },
+  "facial-hair-stubble": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/facial-hair-stubble.png",
+    "atlasVersion": 2678288187,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/facialHair",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 35,
+              "h": 29
+            },
+            "pivot": {
+              "x": 5,
+              "y": 18
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 33,
+              "w": 35,
+              "h": 29
+            },
+            "pivot": {
+              "x": 30,
+              "y": 18
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": []
+    }
+  },
+  "hair-afro": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/hair-afro.png",
+    "atlasVersion": 2560111101,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/hair",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 86,
+              "h": 85
+            },
+            "pivot": {
+              "x": 46,
+              "y": 72
+            }
+          },
+          "west": {
+            "region": {
+              "x": 90,
+              "y": 2,
+              "w": 86,
+              "h": 85
+            },
+            "pivot": {
+              "x": 40,
+              "y": 72
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "head/hair",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 89,
+              "w": 86,
+              "h": 85
+            },
+            "pivot": {
+              "x": 43,
+              "y": 72
+            }
+          },
+          "west": {
+            "region": {
+              "x": 90,
+              "y": 89,
+              "w": 86,
+              "h": 85
+            },
+            "pivot": {
+              "x": 43,
+              "y": 72
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "hair-bob": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/hair-bob.png",
+    "atlasVersion": 2317180420,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/hair",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 66,
+              "h": 64
+            },
+            "pivot": {
+              "x": 33,
+              "y": 57
+            }
+          },
+          "west": {
+            "region": {
+              "x": 70,
+              "y": 2,
+              "w": 66,
+              "h": 64
+            },
+            "pivot": {
+              "x": 33,
+              "y": 57
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "head/hair",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 68,
+              "w": 66,
+              "h": 64
+            },
+            "pivot": {
+              "x": 33,
+              "y": 57
+            }
+          },
+          "west": {
+            "region": {
+              "x": 70,
+              "y": 68,
+              "w": 66,
+              "h": 64
+            },
+            "pivot": {
+              "x": 33,
+              "y": 57
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "hair-braids": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/hair-braids.png",
+    "atlasVersion": 3934613185,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/hair",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 65,
+              "h": 91
+            },
+            "pivot": {
+              "x": 35,
+              "y": 54
+            }
+          },
+          "west": {
+            "region": {
+              "x": 69,
+              "y": 2,
+              "w": 65,
+              "h": 91
+            },
+            "pivot": {
+              "x": 30,
+              "y": 54
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "head/hair",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 95,
+              "w": 60,
+              "h": 91
+            },
+            "pivot": {
+              "x": 30,
+              "y": 54
+            }
+          },
+          "west": {
+            "region": {
+              "x": 64,
+              "y": 95,
+              "w": 60,
+              "h": 91
+            },
+            "pivot": {
+              "x": 30,
+              "y": 54
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "hair-buzz": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/hair-buzz.png",
+    "atlasVersion": 2260139657,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/hair",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 58,
+              "h": 58
+            },
+            "pivot": {
+              "x": 29,
+              "y": 53
+            }
+          },
+          "west": {
+            "region": {
+              "x": 62,
+              "y": 2,
+              "w": 58,
+              "h": 58
+            },
+            "pivot": {
+              "x": 29,
+              "y": 53
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "head/hair",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 62,
+              "w": 58,
+              "h": 39
+            },
+            "pivot": {
+              "x": 29,
+              "y": 53
+            }
+          },
+          "west": {
+            "region": {
+              "x": 62,
+              "y": 62,
+              "w": 58,
+              "h": 39
+            },
+            "pivot": {
+              "x": 29,
+              "y": 53
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
   "hair-center-parted": {
     "rig": "humanoid-v1",
     "atlasUrl": "/wearables/hair-center-parted.png",
@@ -1855,6 +5059,482 @@
               "y": 54
             }
           }
+        }
+      ]
+    }
+  },
+  "hair-curly": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/hair-curly.png",
+    "atlasVersion": 2117954532,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/hair",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 68,
+              "h": 74
+            },
+            "pivot": {
+              "x": 37,
+              "y": 61
+            }
+          },
+          "west": {
+            "region": {
+              "x": 72,
+              "y": 2,
+              "w": 68,
+              "h": 74
+            },
+            "pivot": {
+              "x": 31,
+              "y": 61
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "head/hair",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 78,
+              "w": 74,
+              "h": 53
+            },
+            "pivot": {
+              "x": 37,
+              "y": 61
+            }
+          },
+          "west": {
+            "region": {
+              "x": 78,
+              "y": 78,
+              "w": 74,
+              "h": 53
+            },
+            "pivot": {
+              "x": 37,
+              "y": 61
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "hair-fade": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/hair-fade.png",
+    "atlasVersion": 1018930178,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/hair",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 59,
+              "h": 30
+            },
+            "pivot": {
+              "x": 31,
+              "y": 54
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 34,
+              "w": 59,
+              "h": 30
+            },
+            "pivot": {
+              "x": 28,
+              "y": 54
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "head/hair",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 66,
+              "w": 60,
+              "h": 30
+            },
+            "pivot": {
+              "x": 30,
+              "y": 54
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 98,
+              "w": 60,
+              "h": 30
+            },
+            "pivot": {
+              "x": 30,
+              "y": 54
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "hair-long": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/hair-long.png",
+    "atlasVersion": 3785577906,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/hair",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 115,
+              "w": 68,
+              "h": 109
+            },
+            "pivot": {
+              "x": 35,
+              "y": 57
+            }
+          },
+          "west": {
+            "region": {
+              "x": 72,
+              "y": 115,
+              "w": 68,
+              "h": 109
+            },
+            "pivot": {
+              "x": 33,
+              "y": 57
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "head/hair",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 70,
+              "h": 111
+            },
+            "pivot": {
+              "x": 35,
+              "y": 57
+            }
+          },
+          "west": {
+            "region": {
+              "x": 74,
+              "y": 2,
+              "w": 70,
+              "h": 111
+            },
+            "pivot": {
+              "x": 35,
+              "y": 57
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "hair-man-bun": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/hair-man-bun.png",
+    "atlasVersion": 3447685131,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/hair",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 60,
+              "h": 70
+            },
+            "pivot": {
+              "x": 30,
+              "y": 64
+            }
+          },
+          "west": {
+            "region": {
+              "x": 64,
+              "y": 2,
+              "w": 60,
+              "h": 70
+            },
+            "pivot": {
+              "x": 30,
+              "y": 64
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "head/hair",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 74,
+              "w": 60,
+              "h": 55
+            },
+            "pivot": {
+              "x": 30,
+              "y": 66
+            }
+          },
+          "west": {
+            "region": {
+              "x": 64,
+              "y": 74,
+              "w": 60,
+              "h": 55
+            },
+            "pivot": {
+              "x": 30,
+              "y": 66
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "hair-mohawk": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/hair-mohawk.png",
+    "atlasVersion": 2356028821,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/hair",
+          "east": {
+            "region": {
+              "x": 42,
+              "y": 2,
+              "w": 43,
+              "h": 32
+            },
+            "pivot": {
+              "x": 23,
+              "y": 72
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 59,
+              "w": 43,
+              "h": 32
+            },
+            "pivot": {
+              "x": 20,
+              "y": 72
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "head/hair",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 18,
+              "h": 55
+            },
+            "pivot": {
+              "x": 9,
+              "y": 66
+            }
+          },
+          "west": {
+            "region": {
+              "x": 22,
+              "y": 2,
+              "w": 18,
+              "h": 55
+            },
+            "pivot": {
+              "x": 9,
+              "y": 66
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "hair-pixie": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/hair-pixie.png",
+    "atlasVersion": 2688535951,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/hair",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 62,
+              "h": 62
+            },
+            "pivot": {
+              "x": 31,
+              "y": 55
+            }
+          },
+          "west": {
+            "region": {
+              "x": 66,
+              "y": 2,
+              "w": 62,
+              "h": 62
+            },
+            "pivot": {
+              "x": 31,
+              "y": 55
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "head/hair",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 66,
+              "w": 62,
+              "h": 47
+            },
+            "pivot": {
+              "x": 31,
+              "y": 55
+            }
+          },
+          "west": {
+            "region": {
+              "x": 66,
+              "y": 66,
+              "w": 62,
+              "h": 47
+            },
+            "pivot": {
+              "x": 31,
+              "y": 55
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "hair-ponytail": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/hair-ponytail.png",
+    "atlasVersion": 1295517084,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/hair",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 89,
+              "w": 72,
+              "h": 82
+            },
+            "pivot": {
+              "x": 42,
+              "y": 54
+            }
+          },
+          "west": {
+            "region": {
+              "x": 76,
+              "y": 89,
+              "w": 72,
+              "h": 82
+            },
+            "pivot": {
+              "x": 30,
+              "y": 54
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "head/hair",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 60,
+              "h": 85
+            },
+            "pivot": {
+              "x": 30,
+              "y": 54
+            }
+          },
+          "west": {
+            "region": {
+              "x": 64,
+              "y": 2,
+              "w": 60,
+              "h": 85
+            },
+            "pivot": {
+              "x": 30,
+              "y": 54
+            }
+          },
+          "tintable": true
         }
       ]
     }
@@ -1925,6 +5605,210 @@
       ]
     }
   },
+  "hair-quiff": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/hair-quiff.png",
+    "atlasVersion": 2831150584,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/hair",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 61,
+              "h": 72
+            },
+            "pivot": {
+              "x": 30,
+              "y": 66
+            }
+          },
+          "west": {
+            "region": {
+              "x": 65,
+              "y": 2,
+              "w": 61,
+              "h": 72
+            },
+            "pivot": {
+              "x": 31,
+              "y": 66
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "head/hair",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 76,
+              "w": 60,
+              "h": 40
+            },
+            "pivot": {
+              "x": 30,
+              "y": 54
+            }
+          },
+          "west": {
+            "region": {
+              "x": 64,
+              "y": 76,
+              "w": 60,
+              "h": 40
+            },
+            "pivot": {
+              "x": 30,
+              "y": 54
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "hair-side-part": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/hair-side-part.png",
+    "atlasVersion": 3638140414,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/hair",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 63,
+              "h": 60
+            },
+            "pivot": {
+              "x": 30,
+              "y": 54
+            }
+          },
+          "west": {
+            "region": {
+              "x": 67,
+              "y": 2,
+              "w": 63,
+              "h": 60
+            },
+            "pivot": {
+              "x": 33,
+              "y": 54
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "head/hair",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 64,
+              "w": 60,
+              "h": 46
+            },
+            "pivot": {
+              "x": 30,
+              "y": 54
+            }
+          },
+          "west": {
+            "region": {
+              "x": 64,
+              "y": 64,
+              "w": 60,
+              "h": 46
+            },
+            "pivot": {
+              "x": 30,
+              "y": 54
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "hair-space-buns": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/hair-space-buns.png",
+    "atlasVersion": 3921499115,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/hair",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 61,
+              "h": 72
+            },
+            "pivot": {
+              "x": 31,
+              "y": 66
+            }
+          },
+          "west": {
+            "region": {
+              "x": 65,
+              "y": 2,
+              "w": 61,
+              "h": 72
+            },
+            "pivot": {
+              "x": 30,
+              "y": 66
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "head/hair",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 76,
+              "w": 62,
+              "h": 49
+            },
+            "pivot": {
+              "x": 31,
+              "y": 60
+            }
+          },
+          "west": {
+            "region": {
+              "x": 66,
+              "y": 76,
+              "w": 62,
+              "h": 49
+            },
+            "pivot": {
+              "x": 31,
+              "y": 60
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
   "hair-spiked": {
     "rig": "humanoid-v1",
     "atlasUrl": "/wearables/hair-spiked.png",
@@ -1987,6 +5871,618 @@
               "y": 64
             }
           }
+        }
+      ]
+    }
+  },
+  "hair-waves": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/hair-waves.png",
+    "atlasVersion": 2025642975,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/hair",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 116,
+              "w": 69,
+              "h": 110
+            },
+            "pivot": {
+              "x": 36,
+              "y": 57
+            }
+          },
+          "west": {
+            "region": {
+              "x": 73,
+              "y": 116,
+              "w": 69,
+              "h": 110
+            },
+            "pivot": {
+              "x": 33,
+              "y": 57
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "head/hair",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 74,
+              "h": 112
+            },
+            "pivot": {
+              "x": 37,
+              "y": 57
+            }
+          },
+          "west": {
+            "region": {
+              "x": 78,
+              "y": 2,
+              "w": 74,
+              "h": 112
+            },
+            "pivot": {
+              "x": 37,
+              "y": 57
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "headwear-beanie": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/headwear-beanie.png",
+    "atlasVersion": 895255148,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/headwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 66,
+              "h": 43
+            },
+            "pivot": {
+              "x": 33,
+              "y": 70
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 47,
+              "w": 66,
+              "h": 43
+            },
+            "pivot": {
+              "x": 33,
+              "y": 70
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "head/headwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 92,
+              "w": 66,
+              "h": 43
+            },
+            "pivot": {
+              "x": 33,
+              "y": 70
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 137,
+              "w": 66,
+              "h": 43
+            },
+            "pivot": {
+              "x": 33,
+              "y": 70
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "headwear-beret": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/headwear-beret.png",
+    "atlasVersion": 277981407,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/headwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 63,
+              "h": 28
+            },
+            "pivot": {
+              "x": 33,
+              "y": 66
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 32,
+              "w": 63,
+              "h": 28
+            },
+            "pivot": {
+              "x": 30,
+              "y": 66
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "head/headwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 62,
+              "w": 63,
+              "h": 28
+            },
+            "pivot": {
+              "x": 33,
+              "y": 66
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 92,
+              "w": 63,
+              "h": 28
+            },
+            "pivot": {
+              "x": 30,
+              "y": 66
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "headwear-bucket": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/headwear-bucket.png",
+    "atlasVersion": 3392240231,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/headwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 84,
+              "h": 38
+            },
+            "pivot": {
+              "x": 42,
+              "y": 59
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 42,
+              "w": 84,
+              "h": 38
+            },
+            "pivot": {
+              "x": 42,
+              "y": 59
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "head/headwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 82,
+              "w": 84,
+              "h": 38
+            },
+            "pivot": {
+              "x": 42,
+              "y": 59
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 122,
+              "w": 84,
+              "h": 38
+            },
+            "pivot": {
+              "x": 42,
+              "y": 59
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "headwear-cap": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/headwear-cap.png",
+    "atlasVersion": 3544190549,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/headwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 84,
+              "h": 36
+            },
+            "pivot": {
+              "x": 32,
+              "y": 59
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 40,
+              "w": 84,
+              "h": 36
+            },
+            "pivot": {
+              "x": 52,
+              "y": 59
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "head/headwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 78,
+              "w": 64,
+              "h": 33
+            },
+            "pivot": {
+              "x": 32,
+              "y": 59
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 113,
+              "w": 64,
+              "h": 33
+            },
+            "pivot": {
+              "x": 32,
+              "y": 59
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "headwear-cap-back": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/headwear-cap-back.png",
+    "atlasVersion": 361546558,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/headwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 84,
+              "h": 36
+            },
+            "pivot": {
+              "x": 52,
+              "y": 59
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 40,
+              "w": 84,
+              "h": 36
+            },
+            "pivot": {
+              "x": 32,
+              "y": 59
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "head/headwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 78,
+              "w": 84,
+              "h": 36
+            },
+            "pivot": {
+              "x": 52,
+              "y": 59
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 116,
+              "w": 84,
+              "h": 36
+            },
+            "pivot": {
+              "x": 32,
+              "y": 59
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "headwear-cowboy": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/headwear-cowboy.png",
+    "atlasVersion": 799867807,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/headwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 104,
+              "h": 44
+            },
+            "pivot": {
+              "x": 52,
+              "y": 70
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 48,
+              "w": 104,
+              "h": 44
+            },
+            "pivot": {
+              "x": 52,
+              "y": 70
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "head/headwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 94,
+              "w": 104,
+              "h": 44
+            },
+            "pivot": {
+              "x": 52,
+              "y": 70
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 140,
+              "w": 104,
+              "h": 44
+            },
+            "pivot": {
+              "x": 52,
+              "y": 70
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "headwear-crown": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/headwear-crown.png",
+    "atlasVersion": 2174842258,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/headwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 43,
+              "h": 30
+            },
+            "pivot": {
+              "x": 24,
+              "y": 72
+            }
+          },
+          "west": {
+            "region": {
+              "x": 47,
+              "y": 2,
+              "w": 43,
+              "h": 30
+            },
+            "pivot": {
+              "x": 19,
+              "y": 72
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "head/headwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 34,
+              "w": 43,
+              "h": 30
+            },
+            "pivot": {
+              "x": 24,
+              "y": 72
+            }
+          },
+          "west": {
+            "region": {
+              "x": 47,
+              "y": 34,
+              "w": 43,
+              "h": 30
+            },
+            "pivot": {
+              "x": 19,
+              "y": 72
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "headwear-headphones": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/headwear-headphones.png",
+    "atlasVersion": 1361498461,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/headwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 68,
+              "h": 47
+            },
+            "pivot": {
+              "x": 34,
+              "y": 58
+            }
+          },
+          "west": {
+            "region": {
+              "x": 72,
+              "y": 2,
+              "w": 68,
+              "h": 47
+            },
+            "pivot": {
+              "x": 34,
+              "y": 58
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "head/headwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 51,
+              "w": 72,
+              "h": 47
+            },
+            "pivot": {
+              "x": 36,
+              "y": 58
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 100,
+              "w": 72,
+              "h": 47
+            },
+            "pivot": {
+              "x": 36,
+              "y": 58
+            }
+          },
+          "tintable": true
         }
       ]
     }
@@ -2311,6 +6807,44 @@
       "back": []
     }
   },
+  "mouth-grin": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/mouth-grin.png",
+    "atlasVersion": 2556256359,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/mouth",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 20,
+              "h": 14
+            },
+            "pivot": {
+              "x": -2,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 18,
+              "w": 20,
+              "h": 14
+            },
+            "pivot": {
+              "x": 22,
+              "y": 9
+            }
+          }
+        }
+      ],
+      "back": []
+    }
+  },
   "mouth-happy": {
     "rig": "humanoid-v1",
     "atlasUrl": "/wearables/mouth-happy.png",
@@ -2342,6 +6876,272 @@
             "pivot": {
               "x": 21,
               "y": 8
+            }
+          }
+        }
+      ],
+      "back": []
+    }
+  },
+  "mouth-neutral": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/mouth-neutral.png",
+    "atlasVersion": 2300549612,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/mouth",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 17,
+              "h": 3
+            },
+            "pivot": {
+              "x": -4,
+              "y": 5
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 7,
+              "w": 17,
+              "h": 3
+            },
+            "pivot": {
+              "x": 21,
+              "y": 5
+            }
+          }
+        }
+      ],
+      "back": []
+    }
+  },
+  "mouth-sad": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/mouth-sad.png",
+    "atlasVersion": 4143922393,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/mouth",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 17,
+              "h": 7
+            },
+            "pivot": {
+              "x": -4,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 11,
+              "w": 17,
+              "h": 7
+            },
+            "pivot": {
+              "x": 21,
+              "y": 6
+            }
+          }
+        }
+      ],
+      "back": []
+    }
+  },
+  "mouth-smirk": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/mouth-smirk.png",
+    "atlasVersion": 2463408926,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/mouth",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 17,
+              "h": 8
+            },
+            "pivot": {
+              "x": -4,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 12,
+              "w": 17,
+              "h": 8
+            },
+            "pivot": {
+              "x": 21,
+              "y": 9
+            }
+          }
+        }
+      ],
+      "back": []
+    }
+  },
+  "mouth-surprised": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/mouth-surprised.png",
+    "atlasVersion": 1563933671,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/mouth",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 8,
+              "h": 10
+            },
+            "pivot": {
+              "x": -9,
+              "y": 8
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 14,
+              "w": 8,
+              "h": 10
+            },
+            "pivot": {
+              "x": 17,
+              "y": 8
+            }
+          }
+        }
+      ],
+      "back": []
+    }
+  },
+  "mouth-tongue": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/mouth-tongue.png",
+    "atlasVersion": 1198766303,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/mouth",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 18,
+              "h": 14
+            },
+            "pivot": {
+              "x": -3,
+              "y": 8
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 18,
+              "w": 18,
+              "h": 14
+            },
+            "pivot": {
+              "x": 21,
+              "y": 8
+            }
+          }
+        }
+      ],
+      "back": []
+    }
+  },
+  "nose-button": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/nose-button.png",
+    "atlasVersion": 1829593274,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/nose",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 6,
+              "h": 6
+            },
+            "pivot": {
+              "x": -15,
+              "y": 15
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 10,
+              "w": 6,
+              "h": 6
+            },
+            "pivot": {
+              "x": 21,
+              "y": 15
+            }
+          }
+        }
+      ],
+      "back": []
+    }
+  },
+  "nose-freckled": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/nose-freckled.png",
+    "atlasVersion": 2447205405,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/nose",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 25,
+              "h": 11
+            },
+            "pivot": {
+              "x": -3,
+              "y": 19
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 15,
+              "w": 25,
+              "h": 11
+            },
+            "pivot": {
+              "x": 28,
+              "y": 19
             }
           }
         }
@@ -2387,6 +7187,44 @@
       "back": []
     }
   },
+  "nose-pointed": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/nose-pointed.png",
+    "atlasVersion": 2248938005,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/nose",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 10,
+              "h": 13
+            },
+            "pivot": {
+              "x": -15,
+              "y": 21
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 17,
+              "w": 10,
+              "h": 13
+            },
+            "pivot": {
+              "x": 25,
+              "y": 21
+            }
+          }
+        }
+      ],
+      "back": []
+    }
+  },
   "nose-round": {
     "rig": "humanoid-v1",
     "atlasUrl": "/wearables/nose-round.png",
@@ -2423,6 +7261,1012 @@
         }
       ],
       "back": []
+    }
+  },
+  "nose-wide": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/nose-wide.png",
+    "atlasVersion": 908940404,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "head/nose",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 14,
+              "h": 4
+            },
+            "pivot": {
+              "x": -11,
+              "y": 12
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 8,
+              "w": 14,
+              "h": 4
+            },
+            "pivot": {
+              "x": 25,
+              "y": 12
+            }
+          }
+        }
+      ],
+      "back": []
+    }
+  },
+  "shoes-boots": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/shoes-boots.png",
+    "atlasVersion": 1062324730,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "foot.L/footwear",
+          "east": {
+            "region": {
+              "x": 80,
+              "y": 35,
+              "w": 38,
+              "h": 21
+            },
+            "pivot": {
+              "x": 13,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 68,
+              "w": 38,
+              "h": 21
+            },
+            "pivot": {
+              "x": 25,
+              "y": 9
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foot.R/footwear",
+          "east": {
+            "region": {
+              "x": 42,
+              "y": 68,
+              "w": 38,
+              "h": 21
+            },
+            "pivot": {
+              "x": 13,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 82,
+              "y": 68,
+              "w": 38,
+              "h": 21
+            },
+            "pivot": {
+              "x": 25,
+              "y": 9
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "shin.L/footwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 24,
+              "h": 31
+            },
+            "pivot": {
+              "x": 12,
+              "y": -20
+            }
+          },
+          "west": {
+            "region": {
+              "x": 28,
+              "y": 2,
+              "w": 24,
+              "h": 31
+            },
+            "pivot": {
+              "x": 12,
+              "y": -20
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "shin.R/footwear",
+          "east": {
+            "region": {
+              "x": 54,
+              "y": 2,
+              "w": 24,
+              "h": 31
+            },
+            "pivot": {
+              "x": 12,
+              "y": -20
+            }
+          },
+          "west": {
+            "region": {
+              "x": 80,
+              "y": 2,
+              "w": 24,
+              "h": 31
+            },
+            "pivot": {
+              "x": 12,
+              "y": -20
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "foot.L/footwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 91,
+              "w": 38,
+              "h": 21
+            },
+            "pivot": {
+              "x": 13,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 42,
+              "y": 91,
+              "w": 38,
+              "h": 21
+            },
+            "pivot": {
+              "x": 25,
+              "y": 9
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foot.R/footwear",
+          "east": {
+            "region": {
+              "x": 82,
+              "y": 91,
+              "w": 38,
+              "h": 21
+            },
+            "pivot": {
+              "x": 13,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 114,
+              "w": 38,
+              "h": 21
+            },
+            "pivot": {
+              "x": 25,
+              "y": 9
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "shin.L/footwear",
+          "east": {
+            "region": {
+              "x": 106,
+              "y": 2,
+              "w": 24,
+              "h": 31
+            },
+            "pivot": {
+              "x": 12,
+              "y": -20
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 35,
+              "w": 24,
+              "h": 31
+            },
+            "pivot": {
+              "x": 12,
+              "y": -20
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "shin.R/footwear",
+          "east": {
+            "region": {
+              "x": 28,
+              "y": 35,
+              "w": 24,
+              "h": 31
+            },
+            "pivot": {
+              "x": 12,
+              "y": -20
+            }
+          },
+          "west": {
+            "region": {
+              "x": 54,
+              "y": 35,
+              "w": 24,
+              "h": 31
+            },
+            "pivot": {
+              "x": 12,
+              "y": -20
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "shoes-dress": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/shoes-dress.png",
+    "atlasVersion": 1643516843,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "foot.L/footwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 38,
+              "h": 17
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 42,
+              "y": 2,
+              "w": 38,
+              "h": 17
+            },
+            "pivot": {
+              "x": 26,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foot.R/footwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 21,
+              "w": 38,
+              "h": 17
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 42,
+              "y": 21,
+              "w": 38,
+              "h": 17
+            },
+            "pivot": {
+              "x": 26,
+              "y": 6
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "foot.L/footwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 40,
+              "w": 38,
+              "h": 17
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 42,
+              "y": 40,
+              "w": 38,
+              "h": 17
+            },
+            "pivot": {
+              "x": 26,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foot.R/footwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 59,
+              "w": 38,
+              "h": 17
+            },
+            "pivot": {
+              "x": 12,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 42,
+              "y": 59,
+              "w": 38,
+              "h": 17
+            },
+            "pivot": {
+              "x": 26,
+              "y": 6
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "shoes-high-tops": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/shoes-high-tops.png",
+    "atlasVersion": 2721120656,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "foot.L/footwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 38,
+              "h": 21
+            },
+            "pivot": {
+              "x": 13,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 42,
+              "y": 2,
+              "w": 38,
+              "h": 21
+            },
+            "pivot": {
+              "x": 25,
+              "y": 9
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foot.R/footwear",
+          "east": {
+            "region": {
+              "x": 82,
+              "y": 2,
+              "w": 38,
+              "h": 21
+            },
+            "pivot": {
+              "x": 13,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 25,
+              "w": 38,
+              "h": 21
+            },
+            "pivot": {
+              "x": 25,
+              "y": 9
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "shin.L/footwear",
+          "east": {
+            "region": {
+              "x": 82,
+              "y": 48,
+              "w": 24,
+              "h": 19
+            },
+            "pivot": {
+              "x": 12,
+              "y": -32
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 71,
+              "w": 24,
+              "h": 19
+            },
+            "pivot": {
+              "x": 12,
+              "y": -32
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "shin.R/footwear",
+          "east": {
+            "region": {
+              "x": 28,
+              "y": 71,
+              "w": 24,
+              "h": 19
+            },
+            "pivot": {
+              "x": 12,
+              "y": -32
+            }
+          },
+          "west": {
+            "region": {
+              "x": 54,
+              "y": 71,
+              "w": 24,
+              "h": 19
+            },
+            "pivot": {
+              "x": 12,
+              "y": -32
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "foot.L/footwear",
+          "east": {
+            "region": {
+              "x": 42,
+              "y": 25,
+              "w": 38,
+              "h": 21
+            },
+            "pivot": {
+              "x": 13,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 82,
+              "y": 25,
+              "w": 38,
+              "h": 21
+            },
+            "pivot": {
+              "x": 25,
+              "y": 9
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foot.R/footwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 48,
+              "w": 38,
+              "h": 21
+            },
+            "pivot": {
+              "x": 13,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 42,
+              "y": 48,
+              "w": 38,
+              "h": 21
+            },
+            "pivot": {
+              "x": 25,
+              "y": 9
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "shin.L/footwear",
+          "east": {
+            "region": {
+              "x": 80,
+              "y": 71,
+              "w": 24,
+              "h": 19
+            },
+            "pivot": {
+              "x": 12,
+              "y": -32
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 92,
+              "w": 24,
+              "h": 19
+            },
+            "pivot": {
+              "x": 12,
+              "y": -32
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "shin.R/footwear",
+          "east": {
+            "region": {
+              "x": 28,
+              "y": 92,
+              "w": 24,
+              "h": 19
+            },
+            "pivot": {
+              "x": 12,
+              "y": -32
+            }
+          },
+          "west": {
+            "region": {
+              "x": 54,
+              "y": 92,
+              "w": 24,
+              "h": 19
+            },
+            "pivot": {
+              "x": 12,
+              "y": -32
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "shoes-sandals": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/shoes-sandals.png",
+    "atlasVersion": 3600841456,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "foot.L/footwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 39,
+              "h": 14
+            },
+            "pivot": {
+              "x": 13,
+              "y": 1
+            }
+          },
+          "west": {
+            "region": {
+              "x": 43,
+              "y": 2,
+              "w": 39,
+              "h": 14
+            },
+            "pivot": {
+              "x": 26,
+              "y": 1
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foot.R/footwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 18,
+              "w": 39,
+              "h": 14
+            },
+            "pivot": {
+              "x": 13,
+              "y": 1
+            }
+          },
+          "west": {
+            "region": {
+              "x": 43,
+              "y": 18,
+              "w": 39,
+              "h": 14
+            },
+            "pivot": {
+              "x": 26,
+              "y": 1
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "foot.L/footwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 34,
+              "w": 39,
+              "h": 14
+            },
+            "pivot": {
+              "x": 13,
+              "y": 1
+            }
+          },
+          "west": {
+            "region": {
+              "x": 43,
+              "y": 34,
+              "w": 39,
+              "h": 14
+            },
+            "pivot": {
+              "x": 26,
+              "y": 1
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foot.R/footwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 50,
+              "w": 39,
+              "h": 14
+            },
+            "pivot": {
+              "x": 13,
+              "y": 1
+            }
+          },
+          "west": {
+            "region": {
+              "x": 43,
+              "y": 50,
+              "w": 39,
+              "h": 14
+            },
+            "pivot": {
+              "x": 26,
+              "y": 1
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "shoes-slides": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/shoes-slides.png",
+    "atlasVersion": 3223372703,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "foot.L/footwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 39,
+              "h": 13
+            },
+            "pivot": {
+              "x": 13,
+              "y": 0
+            }
+          },
+          "west": {
+            "region": {
+              "x": 43,
+              "y": 2,
+              "w": 39,
+              "h": 13
+            },
+            "pivot": {
+              "x": 26,
+              "y": 0
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foot.R/footwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 17,
+              "w": 39,
+              "h": 13
+            },
+            "pivot": {
+              "x": 13,
+              "y": 0
+            }
+          },
+          "west": {
+            "region": {
+              "x": 43,
+              "y": 17,
+              "w": 39,
+              "h": 13
+            },
+            "pivot": {
+              "x": 26,
+              "y": 0
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "foot.L/footwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 32,
+              "w": 39,
+              "h": 13
+            },
+            "pivot": {
+              "x": 13,
+              "y": 0
+            }
+          },
+          "west": {
+            "region": {
+              "x": 43,
+              "y": 32,
+              "w": 39,
+              "h": 13
+            },
+            "pivot": {
+              "x": 26,
+              "y": 0
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foot.R/footwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 47,
+              "w": 39,
+              "h": 13
+            },
+            "pivot": {
+              "x": 13,
+              "y": 0
+            }
+          },
+          "west": {
+            "region": {
+              "x": 43,
+              "y": 47,
+              "w": 39,
+              "h": 13
+            },
+            "pivot": {
+              "x": 26,
+              "y": 0
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "shoes-sneakers": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/shoes-sneakers.png",
+    "atlasVersion": 488778555,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "foot.L/footwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 38,
+              "h": 21
+            },
+            "pivot": {
+              "x": 13,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 42,
+              "y": 2,
+              "w": 38,
+              "h": 21
+            },
+            "pivot": {
+              "x": 25,
+              "y": 9
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foot.R/footwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 25,
+              "w": 38,
+              "h": 21
+            },
+            "pivot": {
+              "x": 13,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 42,
+              "y": 25,
+              "w": 38,
+              "h": 21
+            },
+            "pivot": {
+              "x": 25,
+              "y": 9
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "foot.L/footwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 48,
+              "w": 38,
+              "h": 21
+            },
+            "pivot": {
+              "x": 13,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 42,
+              "y": 48,
+              "w": 38,
+              "h": 21
+            },
+            "pivot": {
+              "x": 25,
+              "y": 9
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foot.R/footwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 71,
+              "w": 38,
+              "h": 21
+            },
+            "pivot": {
+              "x": 13,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 42,
+              "y": 71,
+              "w": 38,
+              "h": 21
+            },
+            "pivot": {
+              "x": 25,
+              "y": 9
+            }
+          },
+          "tintable": true
+        }
+      ]
     }
   },
   "t-shirt": {
@@ -2649,6 +8493,3378 @@
               "y": 9
             }
           }
+        }
+      ]
+    }
+  },
+  "top-blazer": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/top-blazer.png",
+    "atlasVersion": 1280328661,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "chest/tops",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 52,
+              "h": 58
+            },
+            "pivot": {
+              "x": 26,
+              "y": 51
+            }
+          },
+          "west": {
+            "region": {
+              "x": 56,
+              "y": 2,
+              "w": 52,
+              "h": 58
+            },
+            "pivot": {
+              "x": 26,
+              "y": 51
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foreArm.L/tops",
+          "east": {
+            "region": {
+              "x": 194,
+              "y": 115,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 216,
+              "y": 115,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foreArm.R/tops",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 164,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 24,
+              "y": 164,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "spine/tops",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 115,
+              "w": 46,
+              "h": 47
+            },
+            "pivot": {
+              "x": 23,
+              "y": 34
+            }
+          },
+          "west": {
+            "region": {
+              "x": 50,
+              "y": 115,
+              "w": 46,
+              "h": 47
+            },
+            "pivot": {
+              "x": 23,
+              "y": 34
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.L/tops",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 62,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 26,
+              "y": 62,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.R/tops",
+          "east": {
+            "region": {
+              "x": 50,
+              "y": 62,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 74,
+              "y": 62,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "chest/tops",
+          "east": {
+            "region": {
+              "x": 110,
+              "y": 2,
+              "w": 52,
+              "h": 58
+            },
+            "pivot": {
+              "x": 26,
+              "y": 51
+            }
+          },
+          "west": {
+            "region": {
+              "x": 164,
+              "y": 2,
+              "w": 52,
+              "h": 58
+            },
+            "pivot": {
+              "x": 26,
+              "y": 51
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foreArm.L/tops",
+          "east": {
+            "region": {
+              "x": 46,
+              "y": 164,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 68,
+              "y": 164,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foreArm.R/tops",
+          "east": {
+            "region": {
+              "x": 90,
+              "y": 164,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 112,
+              "y": 164,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "spine/tops",
+          "east": {
+            "region": {
+              "x": 98,
+              "y": 115,
+              "w": 46,
+              "h": 47
+            },
+            "pivot": {
+              "x": 23,
+              "y": 34
+            }
+          },
+          "west": {
+            "region": {
+              "x": 146,
+              "y": 115,
+              "w": 46,
+              "h": 47
+            },
+            "pivot": {
+              "x": 23,
+              "y": 34
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.L/tops",
+          "east": {
+            "region": {
+              "x": 98,
+              "y": 62,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 122,
+              "y": 62,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.R/tops",
+          "east": {
+            "region": {
+              "x": 146,
+              "y": 62,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 170,
+              "y": 62,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "top-button-up": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/top-button-up.png",
+    "atlasVersion": 3768046613,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "chest/tops",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 52,
+              "h": 58
+            },
+            "pivot": {
+              "x": 26,
+              "y": 51
+            }
+          },
+          "west": {
+            "region": {
+              "x": 56,
+              "y": 2,
+              "w": 52,
+              "h": 58
+            },
+            "pivot": {
+              "x": 26,
+              "y": 51
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foreArm.L/tops",
+          "east": {
+            "region": {
+              "x": 194,
+              "y": 115,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 216,
+              "y": 115,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foreArm.R/tops",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 164,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 24,
+              "y": 164,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "spine/tops",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 115,
+              "w": 46,
+              "h": 47
+            },
+            "pivot": {
+              "x": 23,
+              "y": 34
+            }
+          },
+          "west": {
+            "region": {
+              "x": 50,
+              "y": 115,
+              "w": 46,
+              "h": 47
+            },
+            "pivot": {
+              "x": 23,
+              "y": 34
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.L/tops",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 62,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 26,
+              "y": 62,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.R/tops",
+          "east": {
+            "region": {
+              "x": 50,
+              "y": 62,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 74,
+              "y": 62,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "chest/tops",
+          "east": {
+            "region": {
+              "x": 110,
+              "y": 2,
+              "w": 52,
+              "h": 58
+            },
+            "pivot": {
+              "x": 26,
+              "y": 51
+            }
+          },
+          "west": {
+            "region": {
+              "x": 164,
+              "y": 2,
+              "w": 52,
+              "h": 58
+            },
+            "pivot": {
+              "x": 26,
+              "y": 51
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foreArm.L/tops",
+          "east": {
+            "region": {
+              "x": 46,
+              "y": 164,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 68,
+              "y": 164,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foreArm.R/tops",
+          "east": {
+            "region": {
+              "x": 90,
+              "y": 164,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 112,
+              "y": 164,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "spine/tops",
+          "east": {
+            "region": {
+              "x": 98,
+              "y": 115,
+              "w": 46,
+              "h": 47
+            },
+            "pivot": {
+              "x": 23,
+              "y": 34
+            }
+          },
+          "west": {
+            "region": {
+              "x": 146,
+              "y": 115,
+              "w": 46,
+              "h": 47
+            },
+            "pivot": {
+              "x": 23,
+              "y": 34
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.L/tops",
+          "east": {
+            "region": {
+              "x": 98,
+              "y": 62,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 122,
+              "y": 62,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.R/tops",
+          "east": {
+            "region": {
+              "x": 146,
+              "y": 62,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 170,
+              "y": 62,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "top-crop": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/top-crop.png",
+    "atlasVersion": 268101322,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "chest/tops",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 52,
+              "h": 58
+            },
+            "pivot": {
+              "x": 26,
+              "y": 51
+            }
+          },
+          "west": {
+            "region": {
+              "x": 56,
+              "y": 2,
+              "w": 52,
+              "h": 58
+            },
+            "pivot": {
+              "x": 26,
+              "y": 51
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.L/tops",
+          "east": {
+            "region": {
+              "x": 56,
+              "y": 62,
+              "w": 22,
+              "h": 31
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 80,
+              "y": 62,
+              "w": 22,
+              "h": 31
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.R/tops",
+          "east": {
+            "region": {
+              "x": 104,
+              "y": 62,
+              "w": 22,
+              "h": 31
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 128,
+              "y": 62,
+              "w": 22,
+              "h": 31
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "chest/tops",
+          "east": {
+            "region": {
+              "x": 110,
+              "y": 2,
+              "w": 52,
+              "h": 58
+            },
+            "pivot": {
+              "x": 26,
+              "y": 51
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 62,
+              "w": 52,
+              "h": 58
+            },
+            "pivot": {
+              "x": 26,
+              "y": 51
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.L/tops",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 122,
+              "w": 22,
+              "h": 31
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 26,
+              "y": 122,
+              "w": 22,
+              "h": 31
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.R/tops",
+          "east": {
+            "region": {
+              "x": 50,
+              "y": 122,
+              "w": 22,
+              "h": 31
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 74,
+              "y": 122,
+              "w": 22,
+              "h": 31
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "top-hoodie": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/top-hoodie.png",
+    "atlasVersion": 645588943,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "chest/tops",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 52,
+              "h": 62
+            },
+            "pivot": {
+              "x": 26,
+              "y": 55
+            }
+          },
+          "west": {
+            "region": {
+              "x": 56,
+              "y": 2,
+              "w": 52,
+              "h": 62
+            },
+            "pivot": {
+              "x": 26,
+              "y": 55
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foreArm.L/tops",
+          "east": {
+            "region": {
+              "x": 98,
+              "y": 119,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 120,
+              "y": 119,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foreArm.R/tops",
+          "east": {
+            "region": {
+              "x": 142,
+              "y": 119,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 164,
+              "y": 119,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "spine/tops",
+          "east": {
+            "region": {
+              "x": 98,
+              "y": 66,
+              "w": 46,
+              "h": 47
+            },
+            "pivot": {
+              "x": 23,
+              "y": 34
+            }
+          },
+          "west": {
+            "region": {
+              "x": 146,
+              "y": 66,
+              "w": 46,
+              "h": 47
+            },
+            "pivot": {
+              "x": 23,
+              "y": 34
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.L/tops",
+          "east": {
+            "region": {
+              "x": 110,
+              "y": 2,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 134,
+              "y": 2,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.R/tops",
+          "east": {
+            "region": {
+              "x": 158,
+              "y": 2,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 182,
+              "y": 2,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "chest/tops",
+          "east": {
+            "region": {
+              "x": 68,
+              "y": 168,
+              "w": 40,
+              "h": 22
+            },
+            "pivot": {
+              "x": 20,
+              "y": 57
+            }
+          },
+          "west": {
+            "region": {
+              "x": 110,
+              "y": 168,
+              "w": 40,
+              "h": 22
+            },
+            "pivot": {
+              "x": 20,
+              "y": 57
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foreArm.L/tops",
+          "east": {
+            "region": {
+              "x": 186,
+              "y": 119,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 168,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foreArm.R/tops",
+          "east": {
+            "region": {
+              "x": 24,
+              "y": 168,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 46,
+              "y": 168,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "spine/tops",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 119,
+              "w": 46,
+              "h": 47
+            },
+            "pivot": {
+              "x": 23,
+              "y": 34
+            }
+          },
+          "west": {
+            "region": {
+              "x": 50,
+              "y": 119,
+              "w": 46,
+              "h": 47
+            },
+            "pivot": {
+              "x": 23,
+              "y": 34
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.L/tops",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 66,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 26,
+              "y": 66,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.R/tops",
+          "east": {
+            "region": {
+              "x": 50,
+              "y": 66,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 74,
+              "y": 66,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "top-jersey": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/top-jersey.png",
+    "atlasVersion": 4249988531,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "chest/tops",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 52,
+              "h": 58
+            },
+            "pivot": {
+              "x": 26,
+              "y": 51
+            }
+          },
+          "west": {
+            "region": {
+              "x": 56,
+              "y": 2,
+              "w": 52,
+              "h": 58
+            },
+            "pivot": {
+              "x": 26,
+              "y": 51
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "spine/tops",
+          "east": {
+            "region": {
+              "x": 56,
+              "y": 62,
+              "w": 46,
+              "h": 47
+            },
+            "pivot": {
+              "x": 23,
+              "y": 34
+            }
+          },
+          "west": {
+            "region": {
+              "x": 104,
+              "y": 62,
+              "w": 46,
+              "h": 47
+            },
+            "pivot": {
+              "x": 23,
+              "y": 34
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.L/tops",
+          "east": {
+            "region": {
+              "x": 50,
+              "y": 122,
+              "w": 22,
+              "h": 31
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 74,
+              "y": 122,
+              "w": 22,
+              "h": 31
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.R/tops",
+          "east": {
+            "region": {
+              "x": 98,
+              "y": 122,
+              "w": 22,
+              "h": 31
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 122,
+              "y": 122,
+              "w": 22,
+              "h": 31
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "chest/tops",
+          "east": {
+            "region": {
+              "x": 110,
+              "y": 2,
+              "w": 52,
+              "h": 58
+            },
+            "pivot": {
+              "x": 26,
+              "y": 51
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 62,
+              "w": 52,
+              "h": 58
+            },
+            "pivot": {
+              "x": 26,
+              "y": 51
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "spine/tops",
+          "east": {
+            "region": {
+              "x": 152,
+              "y": 62,
+              "w": 46,
+              "h": 47
+            },
+            "pivot": {
+              "x": 23,
+              "y": 34
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 122,
+              "w": 46,
+              "h": 47
+            },
+            "pivot": {
+              "x": 23,
+              "y": 34
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.L/tops",
+          "east": {
+            "region": {
+              "x": 146,
+              "y": 122,
+              "w": 22,
+              "h": 31
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 170,
+              "y": 122,
+              "w": 22,
+              "h": 31
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.R/tops",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 171,
+              "w": 22,
+              "h": 31
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 26,
+              "y": 171,
+              "w": 22,
+              "h": 31
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "top-polo": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/top-polo.png",
+    "atlasVersion": 338714562,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "chest/tops",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 52,
+              "h": 58
+            },
+            "pivot": {
+              "x": 26,
+              "y": 51
+            }
+          },
+          "west": {
+            "region": {
+              "x": 56,
+              "y": 2,
+              "w": 52,
+              "h": 58
+            },
+            "pivot": {
+              "x": 26,
+              "y": 51
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "spine/tops",
+          "east": {
+            "region": {
+              "x": 56,
+              "y": 62,
+              "w": 46,
+              "h": 47
+            },
+            "pivot": {
+              "x": 23,
+              "y": 34
+            }
+          },
+          "west": {
+            "region": {
+              "x": 104,
+              "y": 62,
+              "w": 46,
+              "h": 47
+            },
+            "pivot": {
+              "x": 23,
+              "y": 34
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.L/tops",
+          "east": {
+            "region": {
+              "x": 50,
+              "y": 122,
+              "w": 22,
+              "h": 31
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 74,
+              "y": 122,
+              "w": 22,
+              "h": 31
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.R/tops",
+          "east": {
+            "region": {
+              "x": 98,
+              "y": 122,
+              "w": 22,
+              "h": 31
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 122,
+              "y": 122,
+              "w": 22,
+              "h": 31
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "chest/tops",
+          "east": {
+            "region": {
+              "x": 110,
+              "y": 2,
+              "w": 52,
+              "h": 58
+            },
+            "pivot": {
+              "x": 26,
+              "y": 51
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 62,
+              "w": 52,
+              "h": 58
+            },
+            "pivot": {
+              "x": 26,
+              "y": 51
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "spine/tops",
+          "east": {
+            "region": {
+              "x": 152,
+              "y": 62,
+              "w": 46,
+              "h": 47
+            },
+            "pivot": {
+              "x": 23,
+              "y": 34
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 122,
+              "w": 46,
+              "h": 47
+            },
+            "pivot": {
+              "x": 23,
+              "y": 34
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.L/tops",
+          "east": {
+            "region": {
+              "x": 146,
+              "y": 122,
+              "w": 22,
+              "h": 31
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 170,
+              "y": 122,
+              "w": 22,
+              "h": 31
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.R/tops",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 171,
+              "w": 22,
+              "h": 31
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 26,
+              "y": 171,
+              "w": 22,
+              "h": 31
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "top-puffer": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/top-puffer.png",
+    "atlasVersion": 1938290251,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "chest/tops",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 56,
+              "h": 58
+            },
+            "pivot": {
+              "x": 28,
+              "y": 51
+            }
+          },
+          "west": {
+            "region": {
+              "x": 60,
+              "y": 2,
+              "w": 56,
+              "h": 58
+            },
+            "pivot": {
+              "x": 28,
+              "y": 51
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foreArm.L/tops",
+          "east": {
+            "region": {
+              "x": 210,
+              "y": 115,
+              "w": 22,
+              "h": 40
+            },
+            "pivot": {
+              "x": 11,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 164,
+              "w": 22,
+              "h": 40
+            },
+            "pivot": {
+              "x": 11,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foreArm.R/tops",
+          "east": {
+            "region": {
+              "x": 26,
+              "y": 164,
+              "w": 22,
+              "h": 40
+            },
+            "pivot": {
+              "x": 11,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 50,
+              "y": 164,
+              "w": 22,
+              "h": 40
+            },
+            "pivot": {
+              "x": 11,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "spine/tops",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 115,
+              "w": 50,
+              "h": 47
+            },
+            "pivot": {
+              "x": 25,
+              "y": 34
+            }
+          },
+          "west": {
+            "region": {
+              "x": 54,
+              "y": 115,
+              "w": 50,
+              "h": 47
+            },
+            "pivot": {
+              "x": 25,
+              "y": 34
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.L/tops",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 62,
+              "w": 24,
+              "h": 51
+            },
+            "pivot": {
+              "x": 12,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 28,
+              "y": 62,
+              "w": 24,
+              "h": 51
+            },
+            "pivot": {
+              "x": 12,
+              "y": 9
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.R/tops",
+          "east": {
+            "region": {
+              "x": 54,
+              "y": 62,
+              "w": 24,
+              "h": 51
+            },
+            "pivot": {
+              "x": 12,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 80,
+              "y": 62,
+              "w": 24,
+              "h": 51
+            },
+            "pivot": {
+              "x": 12,
+              "y": 9
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "chest/tops",
+          "east": {
+            "region": {
+              "x": 118,
+              "y": 2,
+              "w": 56,
+              "h": 58
+            },
+            "pivot": {
+              "x": 28,
+              "y": 51
+            }
+          },
+          "west": {
+            "region": {
+              "x": 176,
+              "y": 2,
+              "w": 56,
+              "h": 58
+            },
+            "pivot": {
+              "x": 28,
+              "y": 51
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foreArm.L/tops",
+          "east": {
+            "region": {
+              "x": 74,
+              "y": 164,
+              "w": 22,
+              "h": 40
+            },
+            "pivot": {
+              "x": 11,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 98,
+              "y": 164,
+              "w": 22,
+              "h": 40
+            },
+            "pivot": {
+              "x": 11,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foreArm.R/tops",
+          "east": {
+            "region": {
+              "x": 122,
+              "y": 164,
+              "w": 22,
+              "h": 40
+            },
+            "pivot": {
+              "x": 11,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 146,
+              "y": 164,
+              "w": 22,
+              "h": 40
+            },
+            "pivot": {
+              "x": 11,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "spine/tops",
+          "east": {
+            "region": {
+              "x": 106,
+              "y": 115,
+              "w": 50,
+              "h": 47
+            },
+            "pivot": {
+              "x": 25,
+              "y": 34
+            }
+          },
+          "west": {
+            "region": {
+              "x": 158,
+              "y": 115,
+              "w": 50,
+              "h": 47
+            },
+            "pivot": {
+              "x": 25,
+              "y": 34
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.L/tops",
+          "east": {
+            "region": {
+              "x": 106,
+              "y": 62,
+              "w": 24,
+              "h": 51
+            },
+            "pivot": {
+              "x": 12,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 132,
+              "y": 62,
+              "w": 24,
+              "h": 51
+            },
+            "pivot": {
+              "x": 12,
+              "y": 9
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.R/tops",
+          "east": {
+            "region": {
+              "x": 158,
+              "y": 62,
+              "w": 24,
+              "h": 51
+            },
+            "pivot": {
+              "x": 12,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 184,
+              "y": 62,
+              "w": 24,
+              "h": 51
+            },
+            "pivot": {
+              "x": 12,
+              "y": 9
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "top-sweater": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/top-sweater.png",
+    "atlasVersion": 3754472590,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "chest/tops",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 52,
+              "h": 58
+            },
+            "pivot": {
+              "x": 26,
+              "y": 51
+            }
+          },
+          "west": {
+            "region": {
+              "x": 56,
+              "y": 2,
+              "w": 52,
+              "h": 58
+            },
+            "pivot": {
+              "x": 26,
+              "y": 51
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foreArm.L/tops",
+          "east": {
+            "region": {
+              "x": 194,
+              "y": 115,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 216,
+              "y": 115,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foreArm.R/tops",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 164,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 24,
+              "y": 164,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "spine/tops",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 115,
+              "w": 46,
+              "h": 47
+            },
+            "pivot": {
+              "x": 23,
+              "y": 34
+            }
+          },
+          "west": {
+            "region": {
+              "x": 50,
+              "y": 115,
+              "w": 46,
+              "h": 47
+            },
+            "pivot": {
+              "x": 23,
+              "y": 34
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.L/tops",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 62,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 26,
+              "y": 62,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.R/tops",
+          "east": {
+            "region": {
+              "x": 50,
+              "y": 62,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 74,
+              "y": 62,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "chest/tops",
+          "east": {
+            "region": {
+              "x": 110,
+              "y": 2,
+              "w": 52,
+              "h": 58
+            },
+            "pivot": {
+              "x": 26,
+              "y": 51
+            }
+          },
+          "west": {
+            "region": {
+              "x": 164,
+              "y": 2,
+              "w": 52,
+              "h": 58
+            },
+            "pivot": {
+              "x": 26,
+              "y": 51
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foreArm.L/tops",
+          "east": {
+            "region": {
+              "x": 46,
+              "y": 164,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 68,
+              "y": 164,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foreArm.R/tops",
+          "east": {
+            "region": {
+              "x": 90,
+              "y": 164,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 112,
+              "y": 164,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "spine/tops",
+          "east": {
+            "region": {
+              "x": 98,
+              "y": 115,
+              "w": 46,
+              "h": 47
+            },
+            "pivot": {
+              "x": 23,
+              "y": 34
+            }
+          },
+          "west": {
+            "region": {
+              "x": 146,
+              "y": 115,
+              "w": 46,
+              "h": 47
+            },
+            "pivot": {
+              "x": 23,
+              "y": 34
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.L/tops",
+          "east": {
+            "region": {
+              "x": 98,
+              "y": 62,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 122,
+              "y": 62,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.R/tops",
+          "east": {
+            "region": {
+              "x": 146,
+              "y": 62,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 170,
+              "y": 62,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "top-tank": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/top-tank.png",
+    "atlasVersion": 1365850747,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "chest/tops",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 50,
+              "h": 58
+            },
+            "pivot": {
+              "x": 25,
+              "y": 51
+            }
+          },
+          "west": {
+            "region": {
+              "x": 54,
+              "y": 2,
+              "w": 50,
+              "h": 58
+            },
+            "pivot": {
+              "x": 25,
+              "y": 51
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "spine/tops",
+          "east": {
+            "region": {
+              "x": 54,
+              "y": 62,
+              "w": 46,
+              "h": 47
+            },
+            "pivot": {
+              "x": 23,
+              "y": 34
+            }
+          },
+          "west": {
+            "region": {
+              "x": 102,
+              "y": 62,
+              "w": 46,
+              "h": 47
+            },
+            "pivot": {
+              "x": 23,
+              "y": 34
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "chest/tops",
+          "east": {
+            "region": {
+              "x": 106,
+              "y": 2,
+              "w": 50,
+              "h": 58
+            },
+            "pivot": {
+              "x": 25,
+              "y": 51
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 62,
+              "w": 50,
+              "h": 58
+            },
+            "pivot": {
+              "x": 25,
+              "y": 51
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "spine/tops",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 122,
+              "w": 46,
+              "h": 47
+            },
+            "pivot": {
+              "x": 23,
+              "y": 34
+            }
+          },
+          "west": {
+            "region": {
+              "x": 50,
+              "y": 122,
+              "w": 46,
+              "h": 47
+            },
+            "pivot": {
+              "x": 23,
+              "y": 34
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "top-track-jacket": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/top-track-jacket.png",
+    "atlasVersion": 2685880544,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "chest/tops",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 52,
+              "h": 58
+            },
+            "pivot": {
+              "x": 26,
+              "y": 51
+            }
+          },
+          "west": {
+            "region": {
+              "x": 56,
+              "y": 2,
+              "w": 52,
+              "h": 58
+            },
+            "pivot": {
+              "x": 26,
+              "y": 51
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foreArm.L/tops",
+          "east": {
+            "region": {
+              "x": 194,
+              "y": 115,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 216,
+              "y": 115,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foreArm.R/tops",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 164,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 24,
+              "y": 164,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "spine/tops",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 115,
+              "w": 46,
+              "h": 47
+            },
+            "pivot": {
+              "x": 23,
+              "y": 34
+            }
+          },
+          "west": {
+            "region": {
+              "x": 50,
+              "y": 115,
+              "w": 46,
+              "h": 47
+            },
+            "pivot": {
+              "x": 23,
+              "y": 34
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.L/tops",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 62,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 26,
+              "y": 62,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.R/tops",
+          "east": {
+            "region": {
+              "x": 50,
+              "y": 62,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 74,
+              "y": 62,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "chest/tops",
+          "east": {
+            "region": {
+              "x": 110,
+              "y": 2,
+              "w": 52,
+              "h": 58
+            },
+            "pivot": {
+              "x": 26,
+              "y": 51
+            }
+          },
+          "west": {
+            "region": {
+              "x": 164,
+              "y": 2,
+              "w": 52,
+              "h": 58
+            },
+            "pivot": {
+              "x": 26,
+              "y": 51
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foreArm.L/tops",
+          "east": {
+            "region": {
+              "x": 46,
+              "y": 164,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 68,
+              "y": 164,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foreArm.R/tops",
+          "east": {
+            "region": {
+              "x": 90,
+              "y": 164,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "west": {
+            "region": {
+              "x": 112,
+              "y": 164,
+              "w": 20,
+              "h": 40
+            },
+            "pivot": {
+              "x": 10,
+              "y": 6
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "spine/tops",
+          "east": {
+            "region": {
+              "x": 98,
+              "y": 115,
+              "w": 46,
+              "h": 47
+            },
+            "pivot": {
+              "x": 23,
+              "y": 34
+            }
+          },
+          "west": {
+            "region": {
+              "x": 146,
+              "y": 115,
+              "w": 46,
+              "h": 47
+            },
+            "pivot": {
+              "x": 23,
+              "y": 34
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.L/tops",
+          "east": {
+            "region": {
+              "x": 98,
+              "y": 62,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 122,
+              "y": 62,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "upperArm.R/tops",
+          "east": {
+            "region": {
+              "x": 146,
+              "y": 62,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "west": {
+            "region": {
+              "x": 170,
+              "y": 62,
+              "w": 22,
+              "h": 51
+            },
+            "pivot": {
+              "x": 11,
+              "y": 9
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "wrist-beads": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/wrist-beads.png",
+    "atlasVersion": 670761561,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "foreArm.L/wristwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 19,
+              "h": 8
+            },
+            "pivot": {
+              "x": 10,
+              "y": -26
+            }
+          },
+          "west": {
+            "region": {
+              "x": 23,
+              "y": 2,
+              "w": 19,
+              "h": 8
+            },
+            "pivot": {
+              "x": 9,
+              "y": -26
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foreArm.R/wristwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 12,
+              "w": 19,
+              "h": 8
+            },
+            "pivot": {
+              "x": 10,
+              "y": -26
+            }
+          },
+          "west": {
+            "region": {
+              "x": 23,
+              "y": 12,
+              "w": 19,
+              "h": 8
+            },
+            "pivot": {
+              "x": 9,
+              "y": -26
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "foreArm.L/wristwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 22,
+              "w": 19,
+              "h": 8
+            },
+            "pivot": {
+              "x": 10,
+              "y": -26
+            }
+          },
+          "west": {
+            "region": {
+              "x": 23,
+              "y": 22,
+              "w": 19,
+              "h": 8
+            },
+            "pivot": {
+              "x": 9,
+              "y": -26
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foreArm.R/wristwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 32,
+              "w": 19,
+              "h": 8
+            },
+            "pivot": {
+              "x": 10,
+              "y": -26
+            }
+          },
+          "west": {
+            "region": {
+              "x": 23,
+              "y": 32,
+              "w": 19,
+              "h": 8
+            },
+            "pivot": {
+              "x": 9,
+              "y": -26
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "wrist-bracelet": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/wrist-bracelet.png",
+    "atlasVersion": 4250884792,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "foreArm.L/wristwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 18,
+              "h": 6
+            },
+            "pivot": {
+              "x": 9,
+              "y": -27
+            }
+          },
+          "west": {
+            "region": {
+              "x": 22,
+              "y": 2,
+              "w": 18,
+              "h": 6
+            },
+            "pivot": {
+              "x": 9,
+              "y": -27
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foreArm.R/wristwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 10,
+              "w": 18,
+              "h": 6
+            },
+            "pivot": {
+              "x": 9,
+              "y": -27
+            }
+          },
+          "west": {
+            "region": {
+              "x": 22,
+              "y": 10,
+              "w": 18,
+              "h": 6
+            },
+            "pivot": {
+              "x": 9,
+              "y": -27
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "foreArm.L/wristwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 18,
+              "w": 18,
+              "h": 6
+            },
+            "pivot": {
+              "x": 9,
+              "y": -27
+            }
+          },
+          "west": {
+            "region": {
+              "x": 22,
+              "y": 18,
+              "w": 18,
+              "h": 6
+            },
+            "pivot": {
+              "x": 9,
+              "y": -27
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foreArm.R/wristwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 26,
+              "w": 18,
+              "h": 6
+            },
+            "pivot": {
+              "x": 9,
+              "y": -27
+            }
+          },
+          "west": {
+            "region": {
+              "x": 22,
+              "y": 26,
+              "w": 18,
+              "h": 6
+            },
+            "pivot": {
+              "x": 9,
+              "y": -27
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "wrist-smartwatch": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/wrist-smartwatch.png",
+    "atlasVersion": 2204642720,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "foreArm.L/wristwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 18,
+              "h": 12
+            },
+            "pivot": {
+              "x": 9,
+              "y": -24
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 16,
+              "w": 18,
+              "h": 12
+            },
+            "pivot": {
+              "x": 9,
+              "y": -24
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "foreArm.L/wristwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 30,
+              "w": 18,
+              "h": 12
+            },
+            "pivot": {
+              "x": 9,
+              "y": -24
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 44,
+              "w": 18,
+              "h": 12
+            },
+            "pivot": {
+              "x": 9,
+              "y": -24
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "wrist-sweatband": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/wrist-sweatband.png",
+    "atlasVersion": 2383090134,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "foreArm.L/wristwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 18,
+              "h": 12
+            },
+            "pivot": {
+              "x": 9,
+              "y": -24
+            }
+          },
+          "west": {
+            "region": {
+              "x": 22,
+              "y": 2,
+              "w": 18,
+              "h": 12
+            },
+            "pivot": {
+              "x": 9,
+              "y": -24
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foreArm.R/wristwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 16,
+              "w": 18,
+              "h": 12
+            },
+            "pivot": {
+              "x": 9,
+              "y": -24
+            }
+          },
+          "west": {
+            "region": {
+              "x": 22,
+              "y": 16,
+              "w": 18,
+              "h": 12
+            },
+            "pivot": {
+              "x": 9,
+              "y": -24
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "foreArm.L/wristwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 30,
+              "w": 18,
+              "h": 12
+            },
+            "pivot": {
+              "x": 9,
+              "y": -24
+            }
+          },
+          "west": {
+            "region": {
+              "x": 22,
+              "y": 30,
+              "w": 18,
+              "h": 12
+            },
+            "pivot": {
+              "x": 9,
+              "y": -24
+            }
+          },
+          "tintable": true
+        },
+        {
+          "slot": "foreArm.R/wristwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 44,
+              "w": 18,
+              "h": 12
+            },
+            "pivot": {
+              "x": 9,
+              "y": -24
+            }
+          },
+          "west": {
+            "region": {
+              "x": 22,
+              "y": 44,
+              "w": 18,
+              "h": 12
+            },
+            "pivot": {
+              "x": 9,
+              "y": -24
+            }
+          },
+          "tintable": true
+        }
+      ]
+    }
+  },
+  "wrist-watch": {
+    "rig": "humanoid-v1",
+    "atlasUrl": "/wearables/wrist-watch.png",
+    "atlasVersion": 1487870894,
+    "scale": 3,
+    "views": {
+      "front": [
+        {
+          "slot": "foreArm.L/wristwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 2,
+              "w": 18,
+              "h": 12
+            },
+            "pivot": {
+              "x": 9,
+              "y": -24
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 16,
+              "w": 18,
+              "h": 12
+            },
+            "pivot": {
+              "x": 9,
+              "y": -24
+            }
+          },
+          "tintable": true
+        }
+      ],
+      "back": [
+        {
+          "slot": "foreArm.L/wristwear",
+          "east": {
+            "region": {
+              "x": 2,
+              "y": 30,
+              "w": 18,
+              "h": 12
+            },
+            "pivot": {
+              "x": 9,
+              "y": -24
+            }
+          },
+          "west": {
+            "region": {
+              "x": 2,
+              "y": 44,
+              "w": 18,
+              "h": 12
+            },
+            "pivot": {
+              "x": 9,
+              "y": -24
+            }
+          },
+          "tintable": true
         }
       ]
     }

@@ -259,6 +259,109 @@ const DANCE_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
   'shin.R': { rotate: keys(DANCE_BEATS, alternate(0, 25)) },
 };
 
+/** The near arm comes forward with the forearm up, holds a thumbs-up, and the head nods. */
+const THUMBS_UP_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
+  'upperArm.L': { rotate: keys([0, 0.3, 1.3, 1.6], [0, -35, -35, 0]) },
+  'foreArm.L': { rotate: keys([0, 0.3, 1.3, 1.6], [0, -95, -95, 0]) },
+  head: { rotate: keys([0, 0.4, 0.6, 0.8, 1.6], [0, 6, 0, 6, 0]) },
+};
+
+/** Arms out with palms up, head tilted, a little bounce at the top. */
+const SHRUG_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
+  'upperArm.L': { rotate: keys([0, 0.3, 1.1, 1.4], [0, -20, -20, 0]) },
+  'upperArm.R': { rotate: keys([0, 0.3, 1.1, 1.4], [0, -20, -20, 0]) },
+  'foreArm.L': { rotate: keys([0, 0.3, 1.1, 1.4], [0, -75, -75, 0]) },
+  'foreArm.R': { rotate: keys([0, 0.3, 1.1, 1.4], [0, -75, -75, 0]) },
+  head: { rotate: keys([0, 0.3, 1.1, 1.4], [0, -8, -8, 0]) },
+  hip: { translate: [0, 0.3, 0.5, 1.1, 1.4].map((t, i) => ({ t, v: [0, i === 1 ? -1 : 0] as [number, number], ease: 'inOut' as const })) },
+};
+
+/** The near hand comes up over the face; head and chest drop and shake slowly. */
+const FACEPALM_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
+  'upperArm.L': { rotate: keys([0, 0.35, 1.5, 1.8], [0, -55, -55, 0]) },
+  'foreArm.L': { rotate: keys([0, 0.35, 1.5, 1.8], [0, -120, -120, 0]) },
+  head: { rotate: keys([0, 0.35, 0.7, 0.95, 1.2, 1.5, 1.8], [0, 14, 10, 14, 10, 14, 0]) },
+  chest: { rotate: keys([0, 0.35, 1.5, 1.8], [0, 5, 5, 0]) },
+};
+
+/** Both arms shoot up and pump while the body bounces. */
+const CHEER_BEATS = [0, 0.3, 0.55, 0.8, 1.05, 1.3, 1.8];
+const CHEER_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
+  'upperArm.L': { rotate: keys(CHEER_BEATS, [0, -165, -145, -170, -145, -165, 0]) },
+  'upperArm.R': { rotate: keys(CHEER_BEATS, [0, -165, -145, -170, -145, -165, 0]) },
+  'foreArm.L': { rotate: keys(CHEER_BEATS, [0, -10, -25, -10, -25, -10, 0]) },
+  'foreArm.R': { rotate: keys(CHEER_BEATS, [0, -10, -25, -10, -25, -10, 0]) },
+  head: { rotate: keys([0, 0.3, 1.3, 1.8], [0, -8, -8, 0]) },
+  hip: { translate: CHEER_BEATS.map((t, i) => ({ t, v: [0, i > 0 && i < 6 && i % 2 ? -2 : 0] as [number, number], ease: 'inOut' as const })) },
+};
+
+/** A slow bow from the waist, holding at the bottom. */
+const BOW_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
+  spine: { rotate: keys([0, 0.5, 1.2, 1.7], [0, 18, 18, 0]) },
+  chest: { rotate: keys([0, 0.5, 1.2, 1.7], [0, 22, 22, 0]) },
+  head: { rotate: keys([0, 0.5, 1.2, 1.7], [0, 10, 10, 0]) },
+  'upperArm.L': { rotate: keys([0, 0.5, 1.2, 1.7], [0, -10, -10, 0]) },
+  'upperArm.R': { rotate: keys([0, 0.5, 1.2, 1.7], [0, -10, -10, 0]) },
+};
+
+/** Both hands to the eyes, sobbing: chest and head bob. */
+const CRY_BEATS = [0.4, 0.6, 0.8, 1, 1.2, 1.4, 1.6];
+const CRY_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
+  'upperArm.L': { rotate: keys([0, 0.35, 1.7, 2], [0, -55, -55, 0]) },
+  'upperArm.R': { rotate: keys([0, 0.35, 1.7, 2], [0, -50, -50, 0]) },
+  'foreArm.L': { rotate: keys([0, 0.35, 1.7, 2], [0, -115, -115, 0]) },
+  'foreArm.R': { rotate: keys([0, 0.35, 1.7, 2], [0, -115, -115, 0]) },
+  head: { rotate: keys([0, ...CRY_BEATS, 2], [0, 10, 6, 10, 6, 10, 6, 10, 0]) },
+  chest: { rotate: keys([0, ...CRY_BEATS, 2], [0, 4, 2, 4, 2, 4, 2, 4, 0]) },
+};
+
+/** Crouch, spring up with arms raised and legs tucked, land softly. */
+const JUMP_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
+  hip: {
+    translate: [
+      { t: 0, v: [0, 0], ease: 'inOut' },
+      { t: 0.25, v: [0, 3], ease: 'inOut' },
+      { t: 0.5, v: [0, -12], ease: 'inOut' },
+      { t: 0.75, v: [0, 3], ease: 'inOut' },
+      { t: 1.1, v: [0, 0] },
+    ],
+  },
+  'thigh.L': { rotate: keys([0, 0.25, 0.5, 0.75, 1.1], [0, -35, -20, -35, 0]) },
+  'thigh.R': { rotate: keys([0, 0.25, 0.5, 0.75, 1.1], [0, -35, -20, -35, 0]) },
+  'shin.L': { rotate: keys([0, 0.25, 0.5, 0.75, 1.1], [0, 55, 40, 55, 0]) },
+  'shin.R': { rotate: keys([0, 0.25, 0.5, 0.75, 1.1], [0, 55, 40, 55, 0]) },
+  'upperArm.L': { rotate: keys([0, 0.25, 0.5, 0.75, 1.1], [0, 25, -160, -20, 0]) },
+  'upperArm.R': { rotate: keys([0, 0.25, 0.5, 0.75, 1.1], [0, 25, -160, -20, 0]) },
+  chest: { rotate: keys([0, 0.25, 0.5, 0.75, 1.1], [0, 10, -4, 8, 0]) },
+};
+
+/** The near arm points straight ahead and holds. */
+const POINT_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
+  'upperArm.L': { rotate: keys([0, 0.25, 1.2, 1.5], [0, -90, -90, 0]) },
+  'foreArm.L': { rotate: keys([0, 0.25, 1.2, 1.5], [0, -5, -5, 0]) },
+  chest: { rotate: keys([0, 0.25, 1.2, 1.5], [0, 3, 3, 0]) },
+  head: { rotate: keys([0, 0.25, 1.2, 1.5], [0, 3, 3, 0]) },
+};
+
+/** Double biceps: upper arms forward, fists up, muscles pulsing; leaning back proudly. */
+const FLEX_BEATS = [0, 0.3, 0.6, 0.9, 1.2, 1.5, 1.8];
+const FLEX_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
+  'upperArm.L': { rotate: keys([0, 0.3, 1.5, 1.8], [0, -80, -80, 0]) },
+  'upperArm.R': { rotate: keys([0, 0.3, 1.5, 1.8], [0, -80, -80, 0]) },
+  'foreArm.L': { rotate: keys(FLEX_BEATS, [0, -95, -115, -95, -115, -95, 0]) },
+  'foreArm.R': { rotate: keys(FLEX_BEATS, [0, -95, -115, -95, -115, -95, 0]) },
+  chest: { rotate: keys([0, 0.3, 1.5, 1.8], [0, -5, -5, 0]) },
+  head: { rotate: keys([0, 0.3, 1.5, 1.8], [0, -4, -4, 0]) },
+};
+
+/** The near hand goes to the lips, then sweeps out towards whoever's watching. */
+const BLOW_KISS_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
+  'upperArm.L': { rotate: keys([0, 0.35, 0.8, 1.15, 1.6], [0, -45, -45, -110, 0]) },
+  'foreArm.L': { rotate: keys([0, 0.35, 0.8, 1.15, 1.6], [0, -125, -125, -10, 0]) },
+  head: { rotate: keys([0, 0.35, 0.8, 1.15, 1.6], [0, 6, 6, -4, 0]) },
+  chest: { rotate: keys([0, 0.8, 1.15, 1.6], [0, 0, 4, 0]) },
+};
+
 function bothViews(base: Omit<AnimationClip, 'view'>): Record<RigView, AnimationClip> {
   return { front: { ...base, view: 'front' }, back: { ...base, view: 'back' } };
 }
@@ -277,12 +380,25 @@ export const CLIPS = {
   clap: bothViews({ name: 'clap', duration: 1.6, loop: false, tracks: CLAP_TRACKS }),
   laugh: bothViews({ name: 'laugh', duration: 1.6, loop: false, tracks: LAUGH_TRACKS }),
   dance: bothViews({ name: 'dance', duration: 3.2, loop: false, tracks: DANCE_TRACKS }),
+  thumbsUp: bothViews({ name: 'thumbsUp', duration: 1.6, loop: false, tracks: THUMBS_UP_TRACKS }),
+  shrug: bothViews({ name: 'shrug', duration: 1.4, loop: false, tracks: SHRUG_TRACKS }),
+  facepalm: bothViews({ name: 'facepalm', duration: 1.8, loop: false, tracks: FACEPALM_TRACKS }),
+  cheer: bothViews({ name: 'cheer', duration: 1.8, loop: false, tracks: CHEER_TRACKS }),
+  bow: bothViews({ name: 'bow', duration: 1.7, loop: false, tracks: BOW_TRACKS }),
+  cry: bothViews({ name: 'cry', duration: 2, loop: false, tracks: CRY_TRACKS }),
+  jump: bothViews({ name: 'jump', duration: 1.1, loop: false, tracks: JUMP_TRACKS }),
+  point: bothViews({ name: 'point', duration: 1.5, loop: false, tracks: POINT_TRACKS }),
+  flex: bothViews({ name: 'flex', duration: 1.8, loop: false, tracks: FLEX_TRACKS }),
+  blowKiss: bothViews({ name: 'blowKiss', duration: 1.6, loop: false, tracks: BLOW_KISS_TRACKS }),
 } satisfies Record<string, Record<RigView, AnimationClip>>;
 
 export type ClipId = keyof typeof CLIPS;
 
 /** Clips an `emote` action can name; each matches an EMOTE entry in the backend's animation catalog. */
-export const EMOTE_CLIPS = ['wave', 'clap', 'laugh', 'dance'] as const satisfies readonly ClipId[];
+export const EMOTE_CLIPS = [
+  'wave', 'clap', 'laugh', 'dance',
+  'thumbsUp', 'shrug', 'facepalm', 'cheer', 'bow', 'cry', 'jump', 'point', 'flex', 'blowKiss',
+] as const satisfies readonly ClipId[];
 
 export function isEmoteClip(name: string): name is (typeof EMOTE_CLIPS)[number] {
   return (EMOTE_CLIPS as readonly string[]).includes(name);

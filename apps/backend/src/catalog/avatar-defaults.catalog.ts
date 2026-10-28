@@ -14,4 +14,6 @@ export const AVATAR_DEFAULTS_CATALOG: Record<string, string> = {
     mouth:   'Happy Mouth',
     tops:    'T-Shirt',
     bottoms: 'Jeans',
+    // Optional, but new avatars start in shoes; its first variant is the free one.
+    footwear: 'Sneakers',
 };

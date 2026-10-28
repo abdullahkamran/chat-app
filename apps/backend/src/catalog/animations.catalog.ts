@@ -36,4 +36,20 @@ export const ANIMATIONS_CATALOG: CatalogAnimation[] = [
         category: AnimationCategory.EMOTE,
         price: { coins: 50, cash: 0, realMoney: 0 },
     },
+    ...([
+        ['thumbsUp', 25],
+        ['shrug', 25],
+        ['point', 25],
+        ['facepalm', 30],
+        ['bow', 30],
+        ['cry', 35],
+        ['blowKiss', 40],
+        ['cheer', 40],
+        ['jump', 40],
+        ['flex', 50],
+    ] as const).map(([name, coins]): CatalogAnimation => ({
+        name,
+        category: AnimationCategory.EMOTE,
+        price: { coins, cash: 0, realMoney: 0 },
+    })),
 ];

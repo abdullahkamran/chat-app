@@ -10,7 +10,8 @@
     "art:template": "ts-node scripts/rig-template.ts",
     "art:starter": "ts-node scripts/starter-art.ts",
     "art:pack": "ts-node scripts/pack-wearables.ts",
-    "art:preview": "ts-node scripts/preview-avatar.ts"
+    "art:preview": "ts-node scripts/preview-avatar.ts",
+    "art:items": "ts-node scripts/item-placeholders.ts"
   },
   "dependencies": {
     "@chat-app/shared-types": "workspace:*",

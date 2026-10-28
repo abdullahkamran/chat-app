@@ -35,5 +35,8 @@ Wearables for the Skia room engine are drawn against the `humanoid-v1` rig and p
 | `pnpm art:pack [id...]` | Packs `wearables/<id>/` into `public/wearables/<id>.png` and `src/catalog/wearables.generated.json` |
 | `pnpm art:preview out.png <id...>` | Renders a dressed avatar from the packed atlases |
 | `pnpm art:starter` | Regenerates the placeholder art for today's catalog (overwrites those folders) |
+| `pnpm art:items` | Writes placeholder room item images to `apps/mobile/assets/items/` for catalog items with no image yet (never overwrites) |
 
-The current catalog art is generated placeholder art (`scripts/starter-art.ts`). Replace a folder with real exports and re-pack; nothing else changes.
+The current catalog art is generated placeholder art (`scripts/starter-art.ts`). Replace a folder with real exports and re-pack; nothing else changes. Most new wearables are `tintable` so one folder serves every colour variant; real art can keep that (draw in white and greys) or set `tintable: false` and give each colour its own wearable id. Once a folder holds real art, remove its id from `STARTER` in `starter-art.ts`, or the next `art:starter` run will overwrite it.
+
+Room items work the same way: replace the PNG at the item's `assetUrl` under `apps/mobile/assets/` (keep the canvas framing: a floor item's image is fitted into its isometric footprint box).
