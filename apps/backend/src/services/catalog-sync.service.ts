@@ -6,10 +6,11 @@ import UserModel from '../models/user.model';
 import { ANIMATIONS_CATALOG } from '../catalog/animations.catalog';
 import { AVATAR_ITEMS_CATALOG } from '../catalog/avatar-items.catalog';
 import { ITEMS_CATALOG } from '../catalog/items.catalog';
-import { TEST_USERS_CATALOG } from '../catalog/test-users.catalog';
+import { TEST_USER_MIN_COINS, TEST_USERS_CATALOG } from '../catalog/test-users.catalog';
 import WEARABLES from '../catalog/wearables.generated.json';
 import type { WearableAsset } from '@chat-app/shared-types';
 import { applySignupDefaults, grantDefaultAnimationsToAll } from './signup-defaults.service';
+import { logTransaction } from '../controllers/transaction.controller';
 /**
  * Inserts any catalog entries that don't yet exist in the DB.
  * Existing documents are never modified — they are the stable source for
@@ -26,6 +27,7 @@ export async function syncCatalog(): Promise<void> {
     ]);
     // Test users run after items are seeded — applySignupDefaults depends on them
     await syncTestUsers();
+    await topUpTestUsers();
     await grantDefaultAnimationsToAll();
 }
 
@@ -162,4 +164,36 @@ async function syncTestUsers(): Promise<void> {
     }
 
     console.log(`[catalog-sync] test_users: ${inserted} inserted, ${TEST_USERS_CATALOG.length - inserted} already exist`);
+}
+
+/**
+ * Raises each test user's coins to TEST_USER_MIN_COINS when below it. The check and the
+ * write are one atomic update, so instances booting together can't credit twice.
+ */
+async function topUpTestUsers(): Promise<void> {
+    let toppedUp = 0;
+    for (const { username } of TEST_USERS_CATALOG) {
+        try {
+            const before = await UserModel.findOneAndUpdate(
+                { username, 'amount.coins': { $lt: TEST_USER_MIN_COINS } },
+                { $set: { 'amount.coins': TEST_USER_MIN_COINS } },
+            ).select('amount').lean();
+            if (!before) continue;
+
+            const wallet = { coins: before.amount?.coins ?? 0, cash: before.amount?.cash ?? 0, realMoney: before.amount?.realMoney ?? 0 };
+            await logTransaction({
+                userId: before._id.toString(),
+                type: 'ADD_MONEY',
+                direction: 'credit',
+                description: 'Test account top-up',
+                amount: { coins: TEST_USER_MIN_COINS - wallet.coins, cash: 0, realMoney: 0 },
+                balanceBefore: wallet,
+                balanceAfter: { ...wallet, coins: TEST_USER_MIN_COINS },
+            });
+            toppedUp++;
+        } catch (e) {
+            console.error(`[catalog-sync] Failed to top up test user "${username}":`, e);
+        }
+    }
+    if (toppedUp > 0) console.log(`[catalog-sync] test_users: ${toppedUp} topped up to ${TEST_USER_MIN_COINS} coins`);
 }

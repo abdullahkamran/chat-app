@@ -7,6 +7,13 @@
  *
  * To reset a test user: drop their document from the `users` collection and restart.
  */
+
+/**
+ * Test users never hold fewer coins than this: on every start, any below it are topped
+ * up to it (catalog-sync.service.ts), so shop testing never runs dry. Backend only.
+ */
+export const TEST_USER_MIN_COINS = 10_000;
+
 export const TEST_USERS_CATALOG = [
     {
         username: 'abdullahk',
