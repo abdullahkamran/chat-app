@@ -2,10 +2,12 @@
  * Renders a dressed avatar in the bind pose from packed atlases, in all four facings,
  * to check new art before it ships: pivots, draw order, mirroring and tints.
  *
- *   pnpm --filter @chat-app/backend art:preview out.png body face-normal eyes-1 t-shirt jeans
+ *   pnpm --filter @chat-app/backend art:preview out.png --skin=#B97A4B body face-normal hair-long=#5a3a28 t-shirt
  *
- * Wearables are given by id (see src/catalog/wearables.generated.json). Tintable
- * pieces use the default skin tone. Reads only what the app reads: the manifest and atlases.
+ * Wearables are given by id (see src/catalog/wearables.generated.json), optionally with
+ * `=<colour>` for the variant colour. As in the app, tintable pieces on the skin and face
+ * layers take the skin tone (default or `--skin`) and others take the variant colour.
+ * Reads only what the app reads: the manifest and atlases.
  */
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -20,12 +22,25 @@ import {
 import { FRAME_PX_H, FRAME_PX_W, ROOT_X, ROOT_Y } from './wearables/frame';
 
 const ROOT = join(__dirname, '..');
-const SKIN = { r: 0xff, g: 0xdb, b: 0xb8 };
 const BACKDROP = { r: 0x22, g: 0x22, b: 0x22, alpha: 1 };
+const WHITE = { r: 255, g: 255, b: 255 };
+const SKIN_LAYERS = new Set(['skin', 'face']);
 
-const [out, ...ids] = process.argv.slice(2);
+function rgb(hex: string) {
+  const n = parseInt(hex.replace('#', ''), 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+
+const [out, ...args] = process.argv.slice(2);
+const skinArg = args.find(a => a.startsWith('--skin='));
+const SKIN = rgb(skinArg ? skinArg.slice('--skin='.length) : '#FFDBB8');
+const wearing = args.filter(a => !a.startsWith('--')).map(a => {
+  const [id, color] = a.split('=');
+  return { id, color: color ? rgb(color) : WHITE };
+});
+const ids = wearing.map(w => w.id);
 if (!out || ids.length === 0) {
-  console.error('usage: art:preview <out.png> <wearable id>...');
+  console.error('usage: art:preview <out.png> [--skin=<colour>] <wearable id>[=<colour>]...');
   process.exit(1);
 }
 
@@ -68,11 +83,12 @@ async function main() {
 
       const px = Buffer.alloc(region.w * region.h * 4);
       const src = atlases[a];
+      const layer = slot.slice(slot.lastIndexOf('/') + 1);
+      const tint = !att.tintable ? WHITE : SKIN_LAYERS.has(layer) ? SKIN : wearing[a].color;
       for (let y = 0; y < region.h; y++) {
         for (let x = 0; x < region.w; x++) {
           const i = ((region.y + y) * src.width + region.x + x) * 4;
           const o = (y * region.w + x) * 4;
-          const tint = att.tintable ? SKIN : { r: 255, g: 255, b: 255 };
           px[o] = (src.data[i] * tint.r) / 255;
           px[o + 1] = (src.data[i + 1] * tint.g) / 255;
           px[o + 2] = (src.data[i + 2] * tint.b) / 255;

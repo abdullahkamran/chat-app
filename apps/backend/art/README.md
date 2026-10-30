@@ -10,7 +10,7 @@ Wearables for the Skia room engine are drawn against the `humanoid-v1` rig and p
 4. Name each file `<bone>.<layer>`, for example `shin.L.bottoms.png` or `head.hair.svg`. Layers: `skin bottoms tops footwear wristwear` on body bones, plus `neckwear` on `neck` and `chest`; `skin face eye nose mouth facialHair hair headwear facewear` on `head`; `bottoms tops` on `skirt.L`/`skirt.R`; `hair` on `hairBack`. Add a band for pieces that stack against the whole body (see below): `hairBack.hair.behind.svg`, `chest.neckwear.front.svg`.
 5. Put them in `wearables/<id>/front/` and `wearables/<id>/back/`, add `wearables/<id>/asset.json`, then run `pnpm art:pack <id>` from `apps/backend`.
 6. Point the catalog variant at it: `wearable: '<id>'` in `src/catalog/avatar-items.catalog.ts`. The server attaches it as `rigAsset` on its next start.
-7. Check it with `pnpm art:preview out.png body face-normal <id>`. It renders all four facings in the bind pose.
+7. Check it with `pnpm art:preview out.png body face-normal <id>`. It renders all four facings in the bind pose. Give a tintable item a colour with `<id>=#3f6fd8` and the skin tone with `--skin=#8D5A3B`.
 
 `asset.json`:
 
@@ -22,6 +22,8 @@ Wearables for the Skia room engine are drawn against the `humanoid-v1` rig and p
 - `tintable`: draw the pieces in white and greys and they're tinted at runtime. Pieces on the `skin` and `face` layers take the avatar's skin tone; others take the variant's `color`.
 
 ## Drawing rules
+
+- Style: cel-shaded. Every part has a dark outline (about 0.7 px at 1×) and one shadow tone on its left side, as if lit from screen right. Tintable art is white with greys (shadow `#c2c2c2`, outline `#545454`; skin shadow `#e6c3b6`, outline `#8a655b`). A tint can only darken, so tintable art has no highlights; fixed-colour art may add one.
 
 - Overlap at the joints: run pieces past the knee, elbow and hip, so a bent limb leaves no gap.
 - Long or loose garments (skirts, dresses, long coats): draw the waist on `hip` and the hanging part as two overlapping panels on `skirt.L` and `skirt.R`. Those follower bones swing half as far as the thighs, so the hem moves with the legs and never splits at the hip. Overlap the panels in the middle.

@@ -5,15 +5,23 @@
  *   pnpm --filter @chat-app/backend art:starter && pnpm --filter @chat-app/backend art:pack
  *
  * Writes art/wearables/<id>/ folders in exactly the format an artist would export:
- * one full-frame SVG per piece, named <bone>.<layer>[.<band>].svg. Colours follow the legacy
- * SVGs so the two engines look alike. Re-running overwrites these folders only.
+ * one full-frame SVG per piece, named <bone>.<layer>[.<band>].svg. Re-running overwrites
+ * these folders only.
+ *
+ * The art is moving to a cel-shaded style (outlines, a shadow tone on the left; helpers in
+ * wearables/cel.ts). The body, faces, default features, long hair, t-shirt, jeans and
+ * sneakers are done; the rest still use the flat placeholder shapes.
  */
 import { mkdirSync, rmSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { WEARABLE_ART_SCALE, type BoneName, type DrawBand, type RigView, type SlotLayer } from '@chat-app/shared-types';
 
 import { ART_DIR, FRAME_PX_H, FRAME_PX_W, frameOrigins } from './wearables/frame';
-import { HEAD_CY, HEAD_R, bodyShapes, capsule, disc, shapeSvg, type Shape } from './wearables/shapes';
+import {
+  GREY, LINE_W, SKIN, cel, circleD, crescent, ellipseD, leftOf, limbD, limbShade, strokeSvg, uid,
+  type CelInner, type CelPaint,
+} from './wearables/cel';
+import { HEAD_CY, HEAD_R, capsule, disc, shapeSvg, type Shape } from './wearables/shapes';
 
 const S = WEARABLE_ART_SCALE;
 const OUTLINE = 0.6;
@@ -25,12 +33,8 @@ const C = {
   feature: '#2b2b2b',
   eyeWhite: '#ffffff',
   shade: 'rgba(0,0,0,0.22)',
-  tshirt: '#82c55f',
-  tshirtLine: '#4f8a35',
   denim: '#8c949b',
   denimLine: '#515252',
-  jeans: '#365b91',
-  jeansLine: '#363c46',
   cargo: '#98885f',
   cargoLine: '#77684a',
   hairDark: '#3e3f4b',
@@ -44,6 +48,13 @@ const C = {
   catEye: '#c9e265',
   freckle: '#b0714f',
   tongue: '#e86f86',
+  iris: '#6b4a2f',
+  mouth: '#6e2a2a',
+  blush: '#ff8a8a',
+  stitch: '#d9a441',
+  /** Shading on features over any skin tone. */
+  skinShadow: 'rgba(110,45,30,0.22)',
+  skinLine: 'rgba(90,40,30,0.75)',
 };
 
 interface Piece {
@@ -71,56 +82,199 @@ function sided<T extends string>(name: T): [`${T}.L`, `${T}.R`] {
   return [`${name}.L`, `${name}.R`];
 }
 
-function body(): Wearable {
-  const pieces: Piece[] = [];
-  for (const view of BOTH) {
-    for (const [bone, shape] of Object.entries(bodyShapes(view)) as [BoneName, Shape][]) {
-      pieces.push({ bone, layer: 'skin', views: [view], shapes: [[shape, paint(C.tintBase, C.tintLine)]] });
-    }
-  }
-  return { tintable: true, pieces };
+// ── Cel-shaded art ──────────────────────────────────────────────────────────
+// Outlined parts with a shadow tone on the left (light from screen right). Tintable
+// parts are drawn in greys (GREY, SKIN in cel.ts) so the runtime tint keeps the shading.
+
+/** Torso outlines, `g` wider all round for clothing over the body. */
+const TORSO = {
+  chest: (g: number) =>
+    `M ${-4 - g} ${-16.5 - g} Q ${-8.2 - g} ${-16.5 - g} ${-8.2 - g} -12.5 L ${-6.9 - g} 1.5 ` +
+    `Q 0 ${3 + g} ${6.9 + g} 1.5 L ${8.2 + g} -12.5 Q ${8.2 + g} ${-16.5 - g} ${4 + g} ${-16.5 - g} Z`,
+  spine: (g: number, hem = 2) =>
+    `M ${-6.7 - g} -11 L ${6.7 + g} -11 L ${6.9 + g} ${hem} Q 0 ${hem + 1.6 + g} ${-6.9 - g} ${hem} Z`,
+  hip: (g: number) =>
+    `M ${-6.9 - g} -3.5 L ${6.9 + g} -3.5 L ${7.1 + g} 3 Q 0 ${6 + g} ${-7.1 - g} 3 Z`,
+};
+
+/** Limb sizes: width at the joint, width at the far end, start and end along the bone. */
+type LimbSize = readonly [number, number, number, number];
+const LIMB: Record<'upperArm' | 'foreArm' | 'thigh' | 'shin', LimbSize> = {
+  upperArm: [5.4, 4.4, -2.5, 13.5],
+  foreArm: [4.4, 3.6, -1, 12],
+  thigh: [7.6, 6.2, -3, 18.5],
+  shin: [6.2, 4.8, -1, 16],
+};
+
+function limb(size: LimbSize, paint: CelPaint, inner: CelInner = {}): Shape {
+  return cel(limbD(...size), paint, { ...inner, shade: [limbShade(...size), ...(inner.shade ?? [])] });
 }
 
-function face(rx: number, ry: number): Wearable {
-  const shape: Shape = { kind: 'oval', x: -rx, y: HEAD_CY - ry, w: 2 * rx, h: 2 * ry };
-  return {
-    tintable: true,
-    pieces: [{ bone: 'head', layer: 'face', views: BOTH, shapes: [[shape, paint(C.tintBase, C.tintLine)]] }],
+const HAND = 'M -1.9 -0.6 L 1.9 -0.6 Q 2.4 2.5 1.4 4.3 Q 0 5.3 -1.4 4.3 Q -2.4 2.5 -1.9 -0.6 Z';
+const THUMB = 'M 1.5 0.3 Q 3.5 0.6 3.1 2.6 Q 2.3 3.1 1.6 2.3 Z';
+const FOOT = 'M -3 -2.2 Q -3.6 2.6 -2.4 3.2 L 6.2 3.2 Q 8 2.8 7.2 0.8 Q 5.2 -1.4 1.8 -2.2 Z';
+
+function body(): Wearable {
+  const parts: Partial<Record<BoneName, Shape[]>> = {
+    hip: [cel(TORSO.hip(0), SKIN, { shade: [leftOf(-4.5)] })],
+    spine: [cel(TORSO.spine(0), SKIN, { shade: [leftOf(-4.2)] })],
+    chest: [cel(TORSO.chest(0), SKIN, { shade: [leftOf(-4.8)] })],
+    // The chin shades the top of the neck.
+    neck: [cel(limbD(5.4, 4.8, 1.5, -5), SKIN, { shade: [leftOf(-0.8), 'M -40 -60 H 40 V -2.2 H -40 Z'] })],
+    head: [cel(circleD(0, HEAD_CY, HEAD_R), SKIN, { shade: [crescent(0, HEAD_CY, HEAD_R)] })],
   };
+  for (const side of ['L', 'R'] as const) {
+    parts[`upperArm.${side}`] = [limb(LIMB.upperArm, SKIN)];
+    parts[`foreArm.${side}`] = [limb(LIMB.foreArm, SKIN)];
+    parts[`hand.${side}`] = [cel(HAND, SKIN, { shade: [leftOf(-0.6)] }), cel(THUMB, SKIN)];
+    parts[`thigh.${side}`] = [limb(LIMB.thigh, SKIN)];
+    parts[`shin.${side}`] = [limb(LIMB.shin, SKIN)];
+    parts[`foot.${side}`] = [cel(FOOT, SKIN, { shade: [leftOf(-1)] })];
+  }
+  const pieces = (Object.entries(parts) as [BoneName, Shape[]][]).map(([bone, shapes]): Piece => ({
+    bone, layer: 'skin', views: BOTH, shapes: shapes.map(s => [s, '']),
+  }));
+  return { tintable: true, pieces };
 }
 
 /** Features sit right of centre: the front view is turned towards screen right. */
 const EYE_Y = HEAD_CY + 1;
 const EYES_X = [1.5, 5.5];
+/** The far eye (screen left) is foreshortened by the three-quarter turn. */
+const EYE_K = [0.8, 1];
+
+/**
+ * A face shape, shaded on the left, with an ear towards the back of the head and a
+ * blush on the cheeks. From behind, the near ear sits right of centre.
+ */
+function face(outline: string): Wearable {
+  const shade = `M -40 -60 H 40 V 60 H -40 Z ${circleD(2.6, HEAD_CY - 1.4, HEAD_R + 0.3)}`;
+  // Out on the cheeks, clear of the nose.
+  const blush = (cx: number, rx: number) =>
+    `<path d="${ellipseD(cx, HEAD_CY + 3.8, rx, 0.8)}" fill="${C.blush}" fill-opacity="0.35"/>`;
+  const ear = (cx: number) => cel(ellipseD(cx, HEAD_CY + 1.4, 1.5, 2.1), SKIN, {
+    shade: [leftOf(cx - 0.2)],
+    lines: [`M ${cx + 0.5} ${HEAD_CY + 0.4} Q ${cx - 0.6} ${HEAD_CY + 1.2} ${cx + 0.3} ${HEAD_CY + 2.6}`],
+  });
+  return {
+    tintable: true,
+    pieces: [
+      { bone: 'head', layer: 'face', views: FRONT, shapes: [
+        [cel(outline, SKIN, { shade: [shade], raw: blush(7.7, 1) + blush(-0.4, 0.9) }), ''],
+        [ear(-4.4), ''],
+      ] },
+      { bone: 'head', layer: 'face', views: ['back'], shapes: [[cel(outline, SKIN, { shade: [shade] }), ''], [ear(4.4), '']] },
+    ],
+  };
+}
 
 function eyes(style: 'dots' | 'open'): Wearable {
-  const shapes: Array<[Shape, string]> = EYES_X.flatMap(x => style === 'dots'
-    ? [[disc(x, EYE_Y, 1.2), `fill="${C.feature}"`] as [Shape, string]]
-    : [
-        [{ kind: 'oval', x: x - 1.5, y: EYE_Y - 2, w: 3, h: 4 }, paint(C.eyeWhite, C.feature)] as [Shape, string],
-        [disc(x + 0.4, EYE_Y + 0.3, 0.9), `fill="${C.feature}"`] as [Shape, string],
-      ]);
-  return { pieces: [{ bone: 'head', layer: 'eye', views: FRONT, shapes }] };
+  const parts = EYES_X.map((x, i) => {
+    const k = EYE_K[i];
+    if (style === 'dots') {
+      return `<path d="${ellipseD(x, EYE_Y, 1.05 * k, 1.6)}" fill="${C.feature}"/>` +
+        `<circle cx="${x + 0.35 * k}" cy="${EYE_Y - 0.6}" r="0.42" fill="${C.eyeWhite}"/>` +
+        `<circle cx="${x - 0.3 * k}" cy="${EYE_Y + 0.7}" r="0.2" fill="${C.eyeWhite}"/>`;
+    }
+    // A large iris almost filling the eye, outlined only by a heavy upper lid.
+    const id = uid('eye');
+    const white = ellipseD(x, EYE_Y, 1.3 * k, 1.7);
+    return `<defs><clipPath id="${id}"><path d="${white}"/></clipPath></defs>` +
+      `<path d="${white}" fill="${C.eyeWhite}"/>` +
+      `<g clip-path="url(#${id})">` +
+      `<circle cx="${x + 0.3 * k}" cy="${EYE_Y + 0.2}" r="1.15" fill="${C.iris}"/>` +
+      `<circle cx="${x + 0.3 * k}" cy="${EYE_Y + 0.2}" r="0.6" fill="${C.feature}"/>` +
+      `<circle cx="${x + 0.65 * k}" cy="${EYE_Y - 0.35}" r="0.36" fill="${C.eyeWhite}"/></g>` +
+      strokeSvg(`M ${x - 1.4 * k} ${EYE_Y - 0.1} Q ${x} ${EYE_Y - 2.5} ${x + 1.4 * k} ${EYE_Y - 0.3}` +
+        (i === 1 ? ` L ${x + 1.9} ${EYE_Y - 0.9}` : ''), C.feature, 0.7);
+  });
+  return { pieces: [{ bone: 'head', layer: 'eye', views: FRONT, shapes: [[{ kind: 'raw', svg: parts.join('') }, '']] }] };
 }
 
 function nose(style: 'normal' | 'round'): Wearable {
-  const shape: Shape = style === 'normal'
-    ? { kind: 'path', d: `M 5.5 ${HEAD_CY + 2} L 7 ${HEAD_CY + 4.5} L 5.5 ${HEAD_CY + 4.8}` }
-    : disc(6, HEAD_CY + 4, 1.1);
-  const attrs = style === 'normal' ? ink(C.feature, 0.5) : `fill="${C.shade}"`;
-  return { pieces: [{ bone: 'head', layer: 'nose', views: FRONT, shapes: [[shape, attrs]] }] };
+  const svg = style === 'normal'
+    // A hooked line for the tip and a small cast shadow beneath it.
+    ? `<path d="${ellipseD(5.4, HEAD_CY + 5, 0.9, 0.35)}" fill="${C.skinShadow}"/>` +
+      strokeSvg(`M 5.5 ${HEAD_CY + 2.4} Q 6.8 ${HEAD_CY + 4} 6.2 ${HEAD_CY + 4.6} Q 5.7 ${HEAD_CY + 4.9} 5.1 ${HEAD_CY + 4.6}`, C.skinLine, 0.5)
+    : `<path d="${ellipseD(6.3, HEAD_CY + 4.1, 1, 0.9)}" fill="${C.skinShadow}"/>` +
+      strokeSvg(`M 5.3 ${HEAD_CY + 4.5} Q 6.3 ${HEAD_CY + 5.4} 7.3 ${HEAD_CY + 4.5}`, C.skinLine, 0.45) +
+      `<circle cx="6.6" cy="${HEAD_CY + 3.6}" r="0.3" fill="${C.eyeWhite}" fill-opacity="0.6"/>`;
+  return { pieces: [{ bone: 'head', layer: 'nose', views: FRONT, shapes: [[{ kind: 'raw', svg }, '']] }] };
 }
 
 function mouth(mood: 'happy' | 'angry'): Wearable {
   const y = HEAD_CY + 6.5;
-  const d = mood === 'happy'
-    ? `M 1.5 ${y} Q 4 ${y + 2.2} 6.5 ${y - 0.5}`
-    : `M 1.5 ${y + 1} Q 4 ${y - 1} 6.5 ${y + 0.8}`;
-  const shapes: Array<[Shape, string]> = [[{ kind: 'path', d }, ink(C.feature)]];
-  if (mood === 'angry') {
-    shapes.push([{ kind: 'path', d: `M 0 ${EYE_Y - 3.5} L 3 ${EYE_Y - 2.2} M 7 ${EYE_Y - 2.2} L 9 ${EYE_Y - 3.5}` }, ink(C.feature, 0.7)]);
+  let svg: string;
+  if (mood === 'happy') {
+    // An open smile: teeth along the top, tongue at the bottom.
+    const id = uid('mouth');
+    const open = `M 2 ${y - 0.2} Q 4.2 ${y + 0.2} 6.4 ${y - 0.7} Q 6 ${y + 2.2} 4.2 ${y + 2.2} Q 2.3 ${y + 2.1} 2 ${y - 0.2} Z`;
+    svg = `<defs><clipPath id="${id}"><path d="${open}"/></clipPath></defs>` +
+      `<path d="${open}" fill="${C.mouth}"/>` +
+      `<g clip-path="url(#${id})"><path d="M 0 ${y - 2} H 8 V ${y + 0.3} H 0 Z" fill="${C.eyeWhite}"/>` +
+      `<path d="${ellipseD(4.5, y + 2.2, 1.3, 0.8)}" fill="${C.tongue}"/></g>` +
+      strokeSvg(open, C.feature, 0.45);
+  } else {
+    svg = strokeSvg(`M 1.6 ${y + 1} Q 4 ${y - 0.9} 6.5 ${y + 0.8}`, C.feature, 0.7) +
+      strokeSvg(`M -0.2 ${EYE_Y - 3.5} L 2.9 ${EYE_Y - 2.2} M 4.3 ${EYE_Y - 2.2} L 7.8 ${EYE_Y - 3.6}`, C.feature, 0.8);
   }
-  return { pieces: [{ bone: 'head', layer: 'mouth', views: FRONT, shapes }] };
+  return { pieces: [{ bone: 'head', layer: 'mouth', views: FRONT, shapes: [[{ kind: 'raw', svg }, '']] }] };
+}
+
+/** Fixed colours for the legacy-catalog clothes, which aren't tintable. */
+const TEE: CelPaint = { base: '#82c55f', shade: '#5f9e45', line: '#3b6a29', light: '#a7dd86' };
+const DENIM: CelPaint = { base: '#3f6699', shade: '#2d4d78', line: '#1e324f', light: '#5b83b8' };
+
+/** A crew-neck t-shirt: the collar rib sits on the neck bone so it draws over the neck. */
+function celTee(): Wearable {
+  const sleeve = [6.6, 6, -3.2, 7.5] as const;
+  return {
+    pieces: [
+      { bone: 'chest', layer: 'tops', views: BOTH, shapes: [[cel(TORSO.chest(0.6), TEE, {
+        shade: [leftOf(-4.5)],
+        light: ['M 3 -17.6 Q 8.8 -17.6 8.8 -12 Q 6.4 -14.6 3 -15.6 Z'],
+        lines: ['M -3.2 -6.5 Q -1.6 -4.2 -3.6 -1.2', 'M 5.6 -10.5 Q 4.6 -8 5.2 -5.5'],
+      }), '']] },
+      { bone: 'spine', layer: 'tops', views: BOTH, shapes: [[cel(TORSO.spine(0.6, 3.5), TEE, {
+        shade: [leftOf(-4.2)],
+        lines: ['M -7.3 2 Q 0 3.6 7.3 2'],
+      }), '']] },
+      { bone: 'neck', layer: 'tops', views: BOTH, shapes: [[cel('M -3 -0.6 Q 0 1.4 3 -0.6 L 3.2 1.6 Q 0 3.6 -3.2 1.6 Z', TEE, { shade: [leftOf(-1.5)] }), '']] },
+      ...sided('upperArm').map((bone): Piece => ({ bone, layer: 'tops', views: BOTH, shapes: [[cel(limbD(...sleeve), TEE, {
+        shade: [limbShade(...sleeve)],
+        light: ['M 1.6 -3 Q 3.4 -2 3.2 2 L 2.2 2 Z'],
+        lines: ['M -2.9 5.9 Q 0 6.7 2.9 5.9'],
+      }), '']] })),
+    ],
+  };
+}
+
+/** Jeans with gold stitching: a seam down the outside of each leg, a fly and rolled cuffs. */
+function celJeans(): Wearable {
+  const thigh = [8.4, 7.2, -3, 18.8] as const;
+  const shin = [7.2, 6.8, -1.5, 15.6] as const;
+  const stitch = (d: string) =>
+    `<path d="${d}" fill="none" stroke="${C.stitch}" stroke-width="0.3" stroke-dasharray="0.8 0.6"/>`;
+  return {
+    pieces: [
+      { bone: 'hip', layer: 'bottoms', views: BOTH, shapes: [[cel(TORSO.hip(0.6), DENIM, {
+        shade: [leftOf(-4.5)],
+        lines: ['M -7.6 -1.3 Q 0 0.1 7.6 -1.3', 'M 2.6 -0.9 Q 2.9 2 2.3 4.6'],
+        raw: stitch('M -7.6 -2.4 Q 0 -1 7.6 -2.4') + stitch('M 3.4 -0.6 Q 3.7 2 3.1 4.2'),
+      }), '']] },
+      ...sided('thigh').map((bone): Piece => ({ bone, layer: 'bottoms', views: BOTH, shapes: [[cel(limbD(...thigh), DENIM, {
+        shade: [limbShade(...thigh)],
+        light: ['M 1.6 -2 L 3.4 -2 L 2.8 17 L 1.4 17 Z'],
+        lines: ['M -2 15.4 Q 0 16.4 2 15.5'],
+        raw: stitch('M 3.2 -2 L 2.7 18'),
+      }), '']] })),
+      ...sided('shin').map((bone): Piece => ({ bone, layer: 'bottoms', views: BOTH, shapes: [[cel(limbD(...shin), DENIM, {
+        shade: [limbShade(...shin), 'M -40 13.2 H 40 V 30 H -40 Z'],
+        lines: ['M -3.6 13.2 H 3.6'],
+        raw: stitch('M 2.9 -1 L 2.7 13'),
+      }), '']] })),
+    ],
+  };
 }
 
 const TOP = HEAD_CY - HEAD_R;
@@ -201,15 +355,6 @@ const R = HEAD_R + 0.6;
 const CY = HEAD_CY;
 const BROW_Y = EYE_Y - 3;
 
-/** A full circle as a path, so it can share an evenodd fill with a cut-out. */
-function circleD(cx: number, cy: number, r: number): string {
-  return `M ${cx - r} ${cy} A ${r} ${r} 0 1 0 ${cx + r} ${cy} A ${r} ${r} 0 1 0 ${cx - r} ${cy} Z`;
-}
-
-function ellipseD(cx: number, cy: number, rx: number, ry: number): string {
-  return `M ${cx - rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx + rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx - rx} ${cy} Z`;
-}
-
 function roundRect(x: number, y: number, w: number, h: number, r: number): Shape {
   return {
     kind: 'path',
@@ -238,6 +383,35 @@ function hairMass(massD: string, fringeY: number): [Shape, string] {
     `<g clip-path="url(#head)"><path d="${window}" ${ink(C.tintLine, OUTLINE)} clip-path="url(#hair-mass)"/></g>`;
   return [{ kind: 'raw', svg }, ''];
 }
+
+/**
+ * Cel-shaded `hairMass`: the same face window, with a shadow on the left and strand lines
+ * drawn inside the hair.
+ */
+function celHairMass(massD: string, fringeY: number, strands: string[]): [Shape, string] {
+  const bottom = CY + 10;
+  const window = ellipseD(4, (fringeY + bottom) / 2, 6.5, (bottom - fringeY) / 2);
+  const [head, mass, face] = [uid('head'), uid('mass'), uid('face')];
+  const svg =
+    `<defs><clipPath id="${head}"><path d="${circleD(0, CY, HEAD_R)}"/></clipPath>` +
+    `<clipPath id="${mass}"><path d="${massD}"/></clipPath>` +
+    `<mask id="${face}" maskUnits="userSpaceOnUse" x="-40" y="-60" width="80" height="100">` +
+    `<rect x="-40" y="-60" width="80" height="100" fill="white"/>` +
+    `<path d="${window}" fill="black" clip-path="url(#${head})"/></mask></defs>` +
+    `<g mask="url(#${face})"><path d="${massD}" fill="${GREY.base}"/>` +
+    `<g clip-path="url(#${mass})"><path d="${crescent(0, CY, R + 1)}" fill="${GREY.shade}" fill-rule="evenodd"/>` +
+    strands.map(d => strokeSvg(d, GREY.line, 0.4)).join('') + '</g>' +
+    strokeSvg(massD, GREY.line, LINE_W) + '</g>' +
+    `<g clip-path="url(#${head})"><g clip-path="url(#${mass})">${strokeSvg(window, GREY.line, LINE_W)}</g></g>`;
+  return [{ kind: 'raw', svg }, ''];
+}
+
+/** Strands sweeping from the crown, shared by the cap of most cel hair styles. */
+const CROWN_STRANDS = [
+  `M -1 ${CY - R + 0.6} Q 3 ${CY - 6} 6.5 ${CY - 3.5}`,
+  `M -2 ${CY - R + 1} Q -5.5 ${CY - 4} -7 ${CY + 3}`,
+  `M 1 ${CY - R + 0.8} Q 6.5 ${CY - R + 2} 9 ${CY - 3}`,
+];
 
 /** Back-view hair over the whole head down to `depth` below its centre. */
 function hairBack(depth: number, r = R): Shape {
@@ -314,9 +488,25 @@ function hairStyle(style: string): Wearable {
       return headPieces('hair',
         [hairMass(`M ${-(R + 1)} ${CY + 10} L ${-(R + 1)} ${CY} A ${R + 1} ${R + 1} 0 0 1 ${R + 1} ${CY} L ${R + 1} ${CY + 10} Z`, CY - 4)],
         tinted(hairBack(10, R + 1)));
-    case 'long':
-      return longHair([hairMass(cap, CY - 4)], tinted({ kind: 'path', d: longFront }),
-        tinted(hairBack(4, R + 1)), tinted({ kind: 'path', d: longBack }));
+    case 'long': {
+      // From behind, the cap runs down to the jaw so no skin shows above the length. Its
+      // bottom is left unlined, with pointed tips drawn as lines, so the two read as one.
+      const r = R + 1;
+      const capBack = `M ${r} ${CY + 9.5} L ${r} ${CY} A ${r} ${r} 0 0 0 ${-r} ${CY} L ${-r} ${CY + 9.5} Z`;
+      const tips = 'M ' + [-r, -6.5, -3, 0.5, 4, 7.5, r].map((x, i) => `${x} ${CY + (i % 2 === 0 ? 9.5 : 6.5)}`).join(' L ');
+      const strand = (x: number, sway: number) => `M ${x} ${CY + 2} Q ${x + sway} ${CY + 13} ${x} ${CY + 23}`;
+      return longHair(
+        [celHairMass(cap, CY - 4, CROWN_STRANDS)],
+        // Behind the shoulders from the front, so mostly in shadow.
+        [[cel(longFront, GREY, { shade: [leftOf(-6.5)], lines: [strand(-8, -1), strand(-4.5, 0.8)] }), '']],
+        [[cel(capBack, GREY, {
+          shade: [crescent(0, CY, R + 1)],
+          lines: [tips, `M -1 ${CY - R + 0.5} Q -5 ${CY - 5} -6.5 ${CY + 4}`, `M 1 ${CY - R + 0.5} Q 5 ${CY - 5} 6.5 ${CY + 4}`],
+          edge: `M ${r} ${CY + 9.5} L ${r} ${CY} A ${r} ${r} 0 0 0 ${-r} ${CY} L ${-r} ${CY + 9.5}`,
+        }), '']],
+        [[cel(longBack, GREY, { shade: [leftOf(-5)], lines: [strand(-6, -1), strand(-1.5, 0.6), strand(3.5, 1), strand(7.5, -0.8)] }), '']],
+      );
+    }
     case 'waves':
       return longHair([hairMass(cap, CY - 4)],
         tinted({
@@ -501,7 +691,17 @@ function footwear(style: 'sneakers' | 'high-tops' | 'boots' | 'sandals' | 'slide
   const sole = roundRect(-3.9, 2.4, 12, 1.4, 0.6);
   const lowShoe: Shape = { kind: 'path', d: 'M -3.4 -1.2 L 2.5 -1.6 Q 7.8 -0.5 8.2 2.2 L 8.2 3.2 L -3.6 3.2 Z' };
   const feet: Record<typeof style, Array<[Shape, string]>> = {
-    'sneakers': [[shoe, TINT], [sole, `fill="${C.eyeWhite}" stroke="${C.tintLine}" stroke-width="0.4"`]],
+    // Cel-shaded: toe cap, laces and a side stripe on the upper, then a midsole.
+    'sneakers': [
+      [cel((shoe as { d: string }).d, GREY, {
+        shade: [leftOf(-1.6), 'M -2.8 1.8 Q 1 -0.6 4.4 1.8 L 4.4 2.8 Q 1 0.6 -2.8 2.8 Z'],
+        lines: ['M 4.7 -0.9 Q 4.1 1.2 4.6 3'],
+        raw: strokeSvg('M 0.4 -2.2 L 1.6 -1.4 M 1.6 -2.3 L 2.8 -1.3 M 2.8 -2.2 L 3.9 -1', GREY.line, 0.45),
+      }), ''],
+      [cel('M -3.9 2.4 H 7.4 Q 8.4 2.4 8.4 3.2 Q 8.4 4 7.4 4 H -3.9 Q -4.5 4 -4.5 3.2 Q -4.5 2.4 -3.9 2.4 Z', GREY, {
+        lines: ['M -4 3.2 H 8'],
+      }, 0.5), ''],
+    ],
     'high-tops': [[shoe, TINT], [sole, `fill="${C.eyeWhite}" stroke="${C.tintLine}" stroke-width="0.4"`]],
     'boots': [[shoe, TINT], [sole, TINT_SHADE]],
     'sandals': [[sole, TINT], [{ kind: 'path', d: 'M 0 2.4 Q 3 -1.5 6 2.4' }, ink(C.tintBase, 1)]],
@@ -628,15 +828,14 @@ function tintedBottoms(style: BottomStyle): Wearable {
   return { tintable: true, pieces };
 }
 
-function faceShape(style: 'oval' | 'long' | 'square' | 'heart'): Wearable {
-  const shapes: Record<typeof style, Shape> = {
-    oval: { kind: 'oval', x: -(HEAD_R - 0.6), y: CY - (HEAD_R + 0.6), w: 2 * (HEAD_R - 0.6), h: 2 * (HEAD_R + 0.6) },
-    long: { kind: 'oval', x: -(HEAD_R - 1.2), y: CY - (HEAD_R + 1.3), w: 2 * (HEAD_R - 1.2), h: 2 * (HEAD_R + 1.3) },
-    square: roundRect(-HEAD_R, CY - HEAD_R, 2 * HEAD_R, 2 * HEAD_R, 4),
-    heart: { kind: 'path', d: `M -9.3 ${CY - 3} A 9.3 8 0 0 1 9.3 ${CY - 3} Q 9 ${CY + 5} 0 ${CY + 10} Q -9 ${CY + 5} -9.3 ${CY - 3} Z` },
-  };
-  return { tintable: true, pieces: [{ bone: 'head', layer: 'face', views: BOTH, shapes: [[shapes[style], paint(C.tintBase, C.tintLine)]] }] };
-}
+const FACE_SHAPES = {
+  normal: circleD(0, CY, HEAD_R),
+  round: ellipseD(0, CY, HEAD_R + 1, HEAD_R + 0.3),
+  oval: ellipseD(0, CY, HEAD_R - 0.6, HEAD_R + 0.6),
+  long: ellipseD(0, CY, HEAD_R - 1.2, HEAD_R + 1.3),
+  square: (roundRect(-HEAD_R, CY - HEAD_R, 2 * HEAD_R, 2 * HEAD_R, 4) as { d: string }).d,
+  heart: `M -9.3 ${CY - 3} A 9.3 8 0 0 1 9.3 ${CY - 3} Q 9 ${CY + 5} 0 ${CY + 10} Q -9 ${CY + 5} -9.3 ${CY - 3} Z`,
+};
 
 /** More eyes; drawn in fixed colours like the originals (features aren't tinted). */
 function moreEyes(style: 'sleepy' | 'wide' | 'wink' | 'lashes' | 'happy' | 'star' | 'cat' | 'heart'): Wearable {
@@ -712,8 +911,7 @@ function moreMouths(style: 'smirk' | 'grin' | 'surprised' | 'tongue' | 'neutral'
 /** Wearable id → art. Ids are what the catalog's `wearable` field points at. */
 const STARTER: Record<string, Wearable> = {
   'body': body(),
-  'face-normal': face(HEAD_R, HEAD_R),
-  'face-round': face(HEAD_R + 1, HEAD_R + 0.3),
+  ...Object.fromEntries(Object.entries(FACE_SHAPES).map(([s, d]) => [`face-${s}`, face(d)])),
   'eyes-1': eyes('dots'),
   'eyes-2': eyes('open'),
   'nose-normal': nose('normal'),
@@ -723,12 +921,11 @@ const STARTER: Record<string, Wearable> = {
   'hair-center-parted': hair('parted', C.hairDark, C.hairDarkLine),
   'hair-puffed': hair('puffed', C.hairRed, C.hairRedLine),
   'hair-spiked': hair('spiked', C.hairBlond, C.hairBlondLine),
-  't-shirt': top('short', C.tshirt, C.tshirtLine),
+  't-shirt': celTee(),
   'denim-jacket': top('long', C.denim, C.denimLine),
-  'jeans': trousers(C.jeans, C.jeansLine, false),
+  'jeans': celJeans(),
   'cargo': trousers(C.cargo, C.cargoLine, true),
 
-  ...Object.fromEntries((['oval', 'long', 'square', 'heart'] as const).map(s => [`face-${s}`, faceShape(s)])),
   ...Object.fromEntries((['sleepy', 'wide', 'wink', 'lashes', 'happy', 'star', 'cat', 'heart'] as const).map(s => [`eyes-${s}`, moreEyes(s)])),
   ...Object.fromEntries((['button', 'pointed', 'freckled', 'wide'] as const).map(s => [`nose-${s}`, moreNoses(s)])),
   ...Object.fromEntries((['smirk', 'grin', 'surprised', 'tongue', 'neutral', 'sad'] as const).map(s => [`mouth-${s}`, moreMouths(s)])),

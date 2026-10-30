@@ -1,3 +1,3 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="192" height="288" viewBox="0 0 192 288">
-<g transform="translate(96 72) scale(3)"><circle cx="1.5" cy="-7" r="1.2" fill="#2b2b2b"/><circle cx="5.5" cy="-7" r="1.2" fill="#2b2b2b"/></g>
+<g transform="translate(96 72) scale(3)"><path d="M 0.6599999999999999 -7 A 0.8400000000000001 1.6 0 1 0 2.34 -7 A 0.8400000000000001 1.6 0 1 0 0.6599999999999999 -7 Z" fill="#2b2b2b"/><circle cx="1.78" cy="-7.6" r="0.42" fill="#ffffff"/><circle cx="1.26" cy="-6.3" r="0.2" fill="#ffffff"/><path d="M 4.45 -7 A 1.05 1.6 0 1 0 6.55 -7 A 1.05 1.6 0 1 0 4.45 -7 Z" fill="#2b2b2b"/><circle cx="5.85" cy="-7.6" r="0.42" fill="#ffffff"/><circle cx="5.2" cy="-6.3" r="0.2" fill="#ffffff"/></g>
 </svg>
