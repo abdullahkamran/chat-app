@@ -1,15 +1,13 @@
 import React, { useState } from 'react';
 import {
-    ActivityIndicator,
     Alert,
     Modal,
     Pressable,
     ScrollView,
-    StyleSheet,
     Switch,
-    Text,
     View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -18,34 +16,45 @@ import { useAuth } from '@/context/auth.context';
 import { api } from '@/lib/api';
 import { useMe } from '@/hooks/useMe';
 import { MY_AVATARS_KEY, useMyAvatars, useWearAvatar } from '@/hooks/useMyAvatars';
-import { theme } from '@/constants/theme';
+import { makeStyles, useTheme, type ThemeColors } from '@/constants/theme';
 import AvatarPreview from '@/components/AvatarPreview';
+import UserAvatar from '@/components/UserAvatar';
+import { AppText, Button, EmptyState, Spinner } from '@/components/ui';
 
-// ── Stat chip ─────────────────────────────────────────────────────────────────
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
-function StatChip({ label, value }: { label: string; value: number }) {
+// ── Stat tile ─────────────────────────────────────────────────────────────────
+
+function StatTile({ label, value, icon, color }: { label: string; value: number; icon: IconName; color: keyof ThemeColors }) {
+    const t = useTheme();
+    const styles = useStyles();
     return (
-        <View style={styles.statChip}>
-            <Text style={styles.statValue}>{value}</Text>
-            <Text style={styles.statLabel}>{label}</Text>
+        <View style={styles.statTile}>
+            <Ionicons name={icon} size={16} color={t.colors[color]} />
+            <AppText variant="title" color={color}>{value}</AppText>
+            <AppText variant="overline" color="textMuted">{label}</AppText>
         </View>
     );
 }
 
 // ── Currency row ──────────────────────────────────────────────────────────────
 
-function CurrencyRow({ coins, cash }: { coins: number; cash: number }) {
+function CurrencyTile({ label, value, icon, tone }: {
+    label: string; value: number; icon: IconName; tone: 'reward' | 'secondary';
+}) {
+    const t = useTheme();
+    const styles = useStyles();
+    const c = tone === 'reward'
+        ? { color: 'reward' as const, soft: t.colors.rewardSoft, on: t.colors.onReward }
+        : { color: 'secondary' as const, soft: t.colors.secondarySoft, on: t.colors.onSecondary };
     return (
-        <View style={styles.currencyRow}>
-            <View style={styles.currencyChip}>
-                <Text style={styles.currencyIcon}>🪙</Text>
-                <Text style={styles.currencyValue}>{coins.toLocaleString()}</Text>
-                <Text style={styles.currencyLabel}>Coins</Text>
+        <View style={[styles.currencyTile, { backgroundColor: c.soft, borderColor: t.colors[c.color] }]}>
+            <View style={[styles.currencyIcon, { backgroundColor: t.colors[c.color] }]}>
+                <Ionicons name={icon} size={16} color={c.on} />
             </View>
-            <View style={styles.currencyChip}>
-                <Text style={styles.currencyIcon}>💵</Text>
-                <Text style={styles.currencyValue}>{cash.toLocaleString()}</Text>
-                <Text style={styles.currencyLabel}>Cash</Text>
+            <View>
+                <AppText variant="heading" color={c.color}>{value.toLocaleString()}</AppText>
+                <AppText variant="caption" color="textSecondary">{label}</AppText>
             </View>
         </View>
     );
@@ -74,47 +83,26 @@ function AvatarCard({
     isSettingDefault: boolean;
     isDeleting: boolean;
 }) {
+    const styles = useStyles();
     return (
         <View style={[styles.avatarCard, isDefault && styles.avatarCardDefault]}>
             {isDefault && (
                 <View style={styles.defaultBadge}>
-                    <Text style={styles.defaultBadgeText}>Default</Text>
+                    <AppText variant="overline" color="onPrimary">Wearing</AppText>
                 </View>
             )}
             <View style={styles.avatarPreview}>
                 <AvatarPreview avatar={avatar} size={140} animated={false} />
             </View>
-            <Text style={styles.avatarName}>Avatar {index + 1}</Text>
+            <AppText variant="label" color="textSecondary" style={styles.avatarName}>Avatar {index + 1}</AppText>
 
             <View style={styles.avatarActions}>
                 {!isDefault && (
-                    <Pressable
-                        style={[styles.actionBtn, styles.actionBtnPrimary]}
-                        onPress={onSetDefault}
-                        disabled={isSettingDefault}
-                    >
-                        {isSettingDefault ? (
-                            <ActivityIndicator size="small" color={theme.colors.primaryText} />
-                        ) : (
-                            <Text style={styles.actionBtnPrimaryText}>Set Default</Text>
-                        )}
-                    </Pressable>
+                    <Button title="Wear" size="sm" fullWidth loading={isSettingDefault} onPress={onSetDefault} />
                 )}
-                <Pressable style={[styles.actionBtn, styles.actionBtnSecondary]} onPress={onEdit}>
-                    <Text style={styles.actionBtnSecondaryText}>Edit</Text>
-                </Pressable>
+                <Button title="Edit" icon="brush-outline" variant="secondary" size="sm" fullWidth onPress={onEdit} />
                 {canDelete && (
-                    <Pressable
-                        style={[styles.actionBtn, styles.actionBtnDanger]}
-                        onPress={onDelete}
-                        disabled={isDeleting}
-                    >
-                        {isDeleting ? (
-                            <ActivityIndicator size="small" color={theme.colors.error} />
-                        ) : (
-                            <Text style={styles.actionBtnDangerText}>Delete</Text>
-                        )}
-                    </Pressable>
+                    <Button title="Delete" variant="ghost" size="sm" fullWidth loading={isDeleting} onPress={onDelete} style={styles.deleteBtn} />
                 )}
             </View>
         </View>
@@ -124,6 +112,8 @@ function AvatarCard({
 // ── Main screen ───────────────────────────────────────────────────────────────
 
 export default function ProfileScreen() {
+    const t = useTheme();
+    const styles = useStyles();
     const { userId, selectedAvatar, logout } = useAuth();
     const router = useRouter();
     const insets = useSafeAreaInsets();
@@ -173,10 +163,12 @@ export default function ProfileScreen() {
     if (userQuery.isLoading) {
         return (
             <View style={styles.centered}>
-                <ActivityIndicator size="large" color={theme.colors.primary} />
+                <Spinner size="large" />
             </View>
         );
     }
+
+    const location = user ? [user.city, user.state, user.country].filter(Boolean).join(', ') : '';
 
     return (
         <>
@@ -187,44 +179,44 @@ export default function ProfileScreen() {
         >
             {/* Header */}
             <View style={styles.header}>
-                <Text style={styles.username}>{user?.username ?? '—'}</Text>
-                {user && (
-                    <Text style={styles.location}>
-                        {[user.city, user.state, user.country].filter(Boolean).join(', ')}
-                    </Text>
-                )}
+                <UserAvatar username={user?.username ?? '?'} size={84} />
+                <AppText variant="display" align="center">{user?.username ?? '—'}</AppText>
+                {location ? (
+                    <View style={styles.location}>
+                        <Ionicons name="location-outline" size={14} color={t.colors.textSecondary} />
+                        <AppText variant="label" color="textSecondary">{location}</AppText>
+                    </View>
+                ) : null}
             </View>
 
             {/* Stats */}
             {user && (
                 <View style={styles.statsRow}>
-                    <StatChip label="Level" value={user.level} />
-                    <StatChip label="Popularity" value={user.popularity} />
-                    <StatChip label="Drip" value={user.drip} />
-                    <StatChip label="Respecc" value={user.respecc} />
+                    <StatTile label="Level" value={user.level} icon="star" color="reward" />
+                    <StatTile label="Popular" value={user.popularity} icon="heart" color="primary" />
+                    <StatTile label="Drip" value={user.drip} icon="water" color="secondary" />
+                    <StatTile label="Respecc" value={user.respecc} icon="thumbs-up" color="success" />
                 </View>
             )}
 
             {/* Currency */}
             {user && (
-                <CurrencyRow coins={user.amount.coins} cash={user.amount.cash} />
+                <View style={styles.currencyRow}>
+                    <CurrencyTile label="Coins" value={user.amount.coins} icon="star" tone="reward" />
+                    <CurrencyTile label="Cash" value={user.amount.cash} icon="cash" tone="secondary" />
+                </View>
             )}
 
             {/* Avatars */}
             <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Avatars</Text>
-                <Pressable
-                    style={styles.createBtn}
-                    onPress={() => router.push('/(avatar)/create')}
-                >
-                    <Text style={styles.createBtnText}>+ New</Text>
-                </Pressable>
+                <AppText variant="title">Avatars</AppText>
+                <Button title="New" icon="add" size="sm" onPress={() => router.push('/(avatar)/create')} />
             </View>
 
             {avatarsQuery.isLoading ? (
-                <ActivityIndicator color={theme.colors.primary} style={styles.avatarLoader} />
+                <Spinner style={styles.avatarLoader} />
             ) : avatars.length === 0 ? (
-                <Text style={styles.emptyText}>No avatars yet. Create one!</Text>
+                <EmptyState icon="happy-outline" title="No avatars yet" body="Create one to start hanging out." />
             ) : (
                 <View style={styles.avatarGrid}>
                     {avatars.map((avatar, index) => (
@@ -254,24 +246,22 @@ export default function ProfileScreen() {
             {user && (
                 <View style={styles.settingRow}>
                     <View style={styles.settingText}>
-                        <Text style={styles.settingTitle}>Find me by my phone number</Text>
-                        <Text style={styles.settingBody}>
+                        <AppText variant="bodyStrong">Find me by my phone number</AppText>
+                        <AppText variant="caption" color="textSecondary">
                             People who have your number in their contacts see you in Quick Add.
-                        </Text>
+                        </AppText>
                     </View>
                     <Switch
                         value={discoverableMutation.isPending ? discoverableMutation.variables : user.discoverableByPhone}
                         onValueChange={(value) => discoverableMutation.mutate(value)}
-                        trackColor={{ true: theme.colors.primary, false: theme.colors.borderSubtle }}
-                        thumbColor={theme.colors.text}
+                        trackColor={{ true: t.colors.primary, false: t.colors.switchTrackOff }}
+                        thumbColor={t.colors.switchThumb}
                     />
                 </View>
             )}
 
             {/* Logout */}
-            <Pressable style={styles.logoutBtn} onPress={handleLogout}>
-                <Text style={styles.logoutText}>Logout</Text>
-            </Pressable>
+            <Button title="Log out" icon="log-out-outline" variant="danger" fullWidth onPress={handleLogout} />
         </ScrollView>
 
         {/* Logout confirmation modal */}
@@ -283,21 +273,23 @@ export default function ProfileScreen() {
         >
             <Pressable style={styles.modalOverlay} onPress={() => setLogoutModalVisible(false)}>
                 <Pressable style={styles.modalBox} onPress={() => {}}>
-                    <Text style={styles.modalTitle}>Log out?</Text>
-                    <Text style={styles.modalSubtitle}>You&apos;ll need to sign in again to access your account.</Text>
+                    <AppText variant="title" align="center">Log out?</AppText>
+                    <AppText color="textSecondary" align="center">
+                        You&apos;ll need to sign in again to access your account.
+                    </AppText>
                     <View style={styles.modalActions}>
-                        <Pressable
-                            style={[styles.modalBtn, styles.modalBtnCancel]}
+                        <Button
+                            title="Cancel"
+                            variant="secondary"
+                            style={styles.modalBtn}
                             onPress={() => setLogoutModalVisible(false)}
-                        >
-                            <Text style={styles.modalBtnCancelText}>Cancel</Text>
-                        </Pressable>
-                        <Pressable
-                            style={[styles.modalBtn, styles.modalBtnConfirm]}
+                        />
+                        <Button
+                            title="Log out"
+                            variant="danger"
+                            style={styles.modalBtn}
                             onPress={() => { setLogoutModalVisible(false); logout(); }}
-                        >
-                            <Text style={styles.modalBtnConfirmText}>Log out</Text>
-                        </Pressable>
+                        />
                     </View>
                 </Pressable>
             </Pressable>
@@ -308,19 +300,19 @@ export default function ProfileScreen() {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(t => ({
     container: {
         flex: 1,
-        backgroundColor: theme.colors.background,
+        backgroundColor: t.colors.background,
     },
     content: {
-        paddingHorizontal: 16,
+        paddingHorizontal: t.space.lg,
         paddingBottom: 40,
-        gap: 24,
+        gap: t.space.xl,
     },
     centered: {
         flex: 1,
-        backgroundColor: theme.colors.background,
+        backgroundColor: t.colors.background,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -328,72 +320,52 @@ const styles = StyleSheet.create({
     // Header
     header: {
         alignItems: 'center',
-        gap: 4,
-    },
-    username: {
-        fontSize: 28,
-        fontWeight: '700',
-        color: theme.colors.text,
-        letterSpacing: 0.3,
+        gap: t.space.xs,
     },
     location: {
-        fontSize: 14,
-        color: theme.colors.textSecondary,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: t.space.xs,
     },
 
     // Stats
     statsRow: {
         flexDirection: 'row',
-        gap: 10,
-        justifyContent: 'center',
+        gap: t.space.sm,
     },
-    statChip: {
+    statTile: {
         flex: 1,
-        backgroundColor: theme.colors.surface,
-        borderRadius: 12,
-        paddingVertical: 12,
+        backgroundColor: t.colors.surface,
+        borderRadius: t.radius.lg,
+        borderWidth: t.borderWidth.thick,
+        borderColor: t.colors.border,
+        paddingVertical: t.space.md,
         alignItems: 'center',
         gap: 2,
-    },
-    statValue: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: theme.colors.primary,
-    },
-    statLabel: {
-        fontSize: 11,
-        color: theme.colors.textSecondary,
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
+        ...t.shadows.sticker,
     },
 
     // Currency
     currencyRow: {
         flexDirection: 'row',
-        gap: 12,
+        gap: t.space.md,
     },
-    currencyChip: {
+    currencyTile: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: theme.colors.surface,
-        borderRadius: 12,
-        paddingHorizontal: 16,
-        paddingVertical: 14,
-        gap: 8,
+        borderRadius: t.radius.lg,
+        borderWidth: t.borderWidth.thick,
+        paddingHorizontal: 14,
+        paddingVertical: t.space.md,
+        gap: t.space.md,
     },
     currencyIcon: {
-        fontSize: 20,
-    },
-    currencyValue: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: theme.colors.text,
-    },
-    currencyLabel: {
-        fontSize: 12,
-        color: theme.colors.textSecondary,
-        marginLeft: 'auto',
+        width: 32,
+        height: 32,
+        borderRadius: t.radius.pill,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
 
     // Section header
@@ -401,203 +373,98 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-    },
-    sectionTitle: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: theme.colors.text,
-    },
-    createBtn: {
-        backgroundColor: theme.colors.primary,
-        borderRadius: 20,
-        paddingHorizontal: 14,
-        paddingVertical: 6,
-    },
-    createBtnText: {
-        color: theme.colors.primaryText,
-        fontWeight: '700',
-        fontSize: 14,
+        marginBottom: -t.space.sm,
     },
 
     // Avatar grid
     avatarGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 12,
+        gap: t.space.md,
     },
     avatarLoader: {
         marginTop: 20,
-    },
-    emptyText: {
-        color: theme.colors.textMuted,
-        textAlign: 'center',
-        marginTop: 8,
     },
 
     // Avatar card
     avatarCard: {
         width: '47%',
-        backgroundColor: theme.colors.surface,
-        borderRadius: 16,
+        flexGrow: 1,
+        backgroundColor: t.colors.surface,
+        borderRadius: t.radius.lg,
         overflow: 'hidden',
-        borderWidth: 2,
-        borderColor: theme.colors.border,
+        borderWidth: t.borderWidth.thick,
+        borderColor: t.colors.border,
         alignItems: 'center',
-        paddingBottom: 12,
+        paddingBottom: t.space.md,
     },
     avatarCardDefault: {
-        borderColor: theme.colors.primary,
+        borderColor: t.colors.primary,
     },
     defaultBadge: {
-        backgroundColor: theme.colors.primary,
+        backgroundColor: t.colors.primary,
         width: '100%',
-        paddingVertical: 4,
+        paddingVertical: t.space.xs,
         alignItems: 'center',
     },
-    defaultBadgeText: {
-        color: theme.colors.primaryText,
-        fontSize: 11,
-        fontWeight: '700',
-        letterSpacing: 0.8,
-        textTransform: 'uppercase',
-    },
     avatarPreview: {
-        paddingTop: 12,
-        paddingBottom: 4,
+        paddingTop: t.space.md,
+        paddingBottom: t.space.xs,
         alignItems: 'center',
     },
     avatarName: {
-        color: theme.colors.textSecondary,
-        fontSize: 12,
         marginBottom: 10,
     },
     avatarActions: {
-        width: '100%',
+        alignSelf: 'stretch',
         paddingHorizontal: 10,
-        gap: 6,
+        gap: t.space.sm,
     },
-    actionBtn: {
-        borderRadius: 8,
-        paddingVertical: 7,
-        alignItems: 'center',
-    },
-    actionBtnPrimary: {
-        backgroundColor: theme.colors.primary,
-    },
-    actionBtnPrimaryText: {
-        color: theme.colors.primaryText,
-        fontWeight: '700',
-        fontSize: 13,
-    },
-    actionBtnSecondary: {
-        backgroundColor: theme.colors.surfaceElevated,
-    },
-    actionBtnSecondaryText: {
-        color: theme.colors.text,
-        fontSize: 13,
-    },
-    actionBtnDanger: {
-        backgroundColor: 'transparent',
-        borderWidth: 1,
-        borderColor: theme.colors.error,
-    },
-    actionBtnDangerText: {
-        color: theme.colors.error,
-        fontSize: 13,
+    deleteBtn: {
+        height: 30,
     },
 
     // Logout modal
     modalOverlay: {
         flex: 1,
-        backgroundColor: theme.colors.overlay,
+        backgroundColor: t.colors.overlay,
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 32,
+        padding: t.space.xxl,
     },
     modalBox: {
         width: '100%',
-        backgroundColor: theme.colors.surfaceElevated,
-        borderRadius: 20,
-        padding: 24,
-        gap: 8,
-    },
-    modalTitle: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: theme.colors.text,
-        textAlign: 'center',
-    },
-    modalSubtitle: {
-        fontSize: 14,
-        color: theme.colors.textSecondary,
-        textAlign: 'center',
-        marginBottom: 8,
+        maxWidth: 360,
+        backgroundColor: t.colors.surfaceElevated,
+        borderRadius: t.radius.xl,
+        borderWidth: t.borderWidth.thick,
+        borderColor: t.colors.border,
+        padding: t.space.xl,
+        gap: t.space.sm,
+        ...t.shadows.floating,
     },
     modalActions: {
         flexDirection: 'row',
         gap: 10,
-        marginTop: 8,
+        marginTop: t.space.md,
     },
     modalBtn: {
         flex: 1,
-        borderRadius: 12,
-        paddingVertical: 14,
-        alignItems: 'center',
-    },
-    modalBtnCancel: {
-        backgroundColor: theme.colors.surface,
-    },
-    modalBtnCancelText: {
-        color: theme.colors.text,
-        fontWeight: '600',
-        fontSize: 15,
-    },
-    modalBtnConfirm: {
-        backgroundColor: theme.colors.error,
-    },
-    modalBtnConfirmText: {
-        color: theme.colors.text,
-        fontWeight: '700',
-        fontSize: 15,
     },
 
     // Privacy
     settingRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
-        backgroundColor: theme.colors.surface,
-        borderRadius: 12,
-        padding: 14,
-        marginTop: 24,
-        marginBottom: 16,
+        gap: t.space.md,
+        backgroundColor: t.colors.surface,
+        borderRadius: t.radius.lg,
+        borderWidth: t.borderWidth.thick,
+        borderColor: t.colors.border,
+        padding: t.space.lg,
     },
     settingText: {
         flex: 1,
+        gap: 2,
     },
-    settingTitle: {
-        color: theme.colors.text,
-        fontSize: 15,
-        fontWeight: '600',
-    },
-    settingBody: {
-        color: theme.colors.textSecondary,
-        fontSize: 12,
-        marginTop: 2,
-    },
-
-    // Logout
-    logoutBtn: {
-        marginTop: 8,
-        paddingVertical: 14,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: theme.colors.error,
-        alignItems: 'center',
-    },
-    logoutText: {
-        color: theme.colors.error,
-        fontWeight: '600',
-        fontSize: 16,
-    },
-});
+}));

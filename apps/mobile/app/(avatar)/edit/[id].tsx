@@ -1,13 +1,15 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import { Avatar } from '@chat-app/shared-types';
 import AvatarEditorScreen from '@/components/AvatarEditorScreen';
-import { theme } from '@/constants/theme';
+import { Spinner } from '@/components/ui';
+import { makeStyles } from '@/constants/theme';
 import { useMyAvatars } from '@/hooks/useMyAvatars';
 
 export default function EditAvatarScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const styles = useStyles();
 
   const { data, isLoading } = useMyAvatars();
 
@@ -20,7 +22,7 @@ export default function EditAvatarScreen() {
   if (isLoading || !avatar) {
     return (
       <View style={styles.loader}>
-        <ActivityIndicator color={theme.colors.primary} size="large" />
+        <Spinner size="large" />
       </View>
     );
   }
@@ -38,11 +40,11 @@ export default function EditAvatarScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(t => ({
   loader: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: theme.colors.background,
+    backgroundColor: t.colors.background,
   },
-});
+}));

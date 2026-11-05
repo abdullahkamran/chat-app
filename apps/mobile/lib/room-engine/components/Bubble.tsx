@@ -1,7 +1,7 @@
 import { useEffect } from "react";
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
-import { theme } from '@/constants/theme';
+import { makeStyles } from '@/constants/theme';
 
 interface BubbleProps {
   message?: string;
@@ -15,19 +15,43 @@ interface BubbleProps {
 }
 
 const TAIL = 6;
+/** The bubble's outline, like the ink edge of a comic speech bubble. */
+const EDGE = 2;
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(t => ({
   container: {
     alignItems: 'center',
   },
   body: {
-    backgroundColor: theme.colors.bubble,
+    backgroundColor: t.colors.bubble,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 12,
+    borderRadius: t.radius.md,
+    borderWidth: EDGE,
+    borderColor: t.colors.outline,
     maxWidth: 160,
   },
+  // An outline-colored triangle with a bubble-colored one inside it, overlapping the
+  // bubble's bottom edge so the two read as one shape.
   tail: {
+    marginTop: -EDGE,
+    width: 2 * (TAIL + EDGE),
+    height: TAIL + EDGE,
+  },
+  tailOuter: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: TAIL + EDGE,
+    borderRightWidth: TAIL + EDGE,
+    borderTopWidth: TAIL + EDGE,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: t.colors.outline,
+  },
+  tailInner: {
+    position: 'absolute',
+    top: 0,
+    left: EDGE,
     width: 0,
     height: 0,
     borderLeftWidth: TAIL,
@@ -35,26 +59,28 @@ const styles = StyleSheet.create({
     borderTopWidth: TAIL,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
-    borderTopColor: theme.colors.bubble,
+    borderTopColor: t.colors.bubble,
   },
   messageText: {
-    color: theme.colors.bubbleText,
+    fontFamily: t.fontFamily.bodyBold,
+    color: t.colors.bubbleText,
     fontSize: 13,
     lineHeight: 17,
-    fontWeight: '600',
     textAlign: 'center',
   },
   typingText: {
-    color: theme.colors.bubbleTyping,
+    fontFamily: t.fontFamily.bodyExtraBold,
+    color: t.colors.bubbleTyping,
     fontSize: 13,
     lineHeight: 17,
-    fontWeight: '700',
     letterSpacing: 1,
     textAlign: 'center',
   },
-});
+}));
 
 export default function Bubble({ message, isTyping, duration = 3500, sentAt, close, tail = false }: BubbleProps) {
+  const styles = useStyles();
+
   useEffect(() => {
     if (!close) return;
     const left = sentAt === undefined ? duration : sentAt + duration - Date.now();
@@ -71,7 +97,12 @@ export default function Bubble({ message, isTyping, duration = 3500, sentAt, clo
           <Text style={styles.messageText}>{message}</Text>
         )}
       </View>
-      {tail && <View style={styles.tail} />}
+      {tail && (
+        <View style={styles.tail}>
+          <View style={styles.tailOuter} />
+          <View style={styles.tailInner} />
+        </View>
+      )}
     </View>
   );
 }

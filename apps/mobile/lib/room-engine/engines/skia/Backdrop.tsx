@@ -10,7 +10,7 @@ import {
 import { useMemo } from 'react';
 
 import { TILE_H, TILE_W, WALL_HEIGHT, gridToScreen, type GridOrigin } from '@/constants/grid';
-import { theme } from '@/constants/theme';
+import { useTheme, type ThemeColors } from '@/constants/theme';
 import type { RoomScene } from '../../core/contract';
 import { useSkImage } from './imageCache';
 
@@ -33,7 +33,7 @@ function drawCover(canvas: SkCanvas, image: SkImage, dest: SkRect) {
   canvas.drawImageRect(image, coverSource(image, dest.width, dest.height), dest, Skia.Paint());
 }
 
-function drawDoors(canvas: SkCanvas, doors: RoomScene['doors'], origin: GridOrigin) {
+function drawDoors(canvas: SkCanvas, doors: RoomScene['doors'], origin: GridOrigin, colors: ThemeColors) {
   for (const door of doors) {
     const { x: gx, y: gy } = door.position;
     const corners = [
@@ -45,12 +45,12 @@ function drawDoors(canvas: SkCanvas, doors: RoomScene['doors'], origin: GridOrig
     const path = Skia.PathBuilder.Make().addPoly(corners, true).build();
 
     const fill = Skia.Paint();
-    fill.setColor(Skia.Color(door.isEntry ? theme.colors.primary : theme.colors.text));
+    fill.setColor(Skia.Color(door.isEntry ? colors.roomDoorEntry : colors.roomDoor));
     fill.setAlphaf(door.isEntry ? DOOR_FILL_ALPHA.entry : DOOR_FILL_ALPHA.other);
     canvas.drawPath(path, fill);
 
     const stroke = Skia.Paint();
-    stroke.setColor(Skia.Color(door.isEntry ? theme.colors.primary : theme.colors.border));
+    stroke.setColor(Skia.Color(door.isEntry ? colors.roomDoorEntry : colors.roomDoorStroke));
     stroke.setStyle(PaintStyle.Stroke);
     stroke.setStrokeWidth(2);
     canvas.drawPath(path, stroke);
@@ -67,6 +67,7 @@ interface Props {
  * Re-recorded only when the room, its theme images or the canvas origin change.
  */
 export function Backdrop({ scene, origin }: Props) {
+  const { colors } = useTheme();
   const leftWall = useSkImage(scene.theme?.leftWall?.assetUrl);
   const rightWall = useSkImage(scene.theme?.rightWall?.assetUrl);
   const floor = useSkImage(scene.theme?.floor?.assetUrl);
@@ -105,8 +106,8 @@ export function Backdrop({ scene, origin }: Props) {
       ));
     }
 
-    drawDoors(canvas, scene.doors ?? [], origin);
-  }), [leftWall, rightWall, floor, roomX, roomY, origin, scene.doors]);
+    drawDoors(canvas, scene.doors ?? [], origin, colors);
+  }), [leftWall, rightWall, floor, roomX, roomY, origin, scene.doors, colors]);
 
   return <Picture picture={picture} />;
 }

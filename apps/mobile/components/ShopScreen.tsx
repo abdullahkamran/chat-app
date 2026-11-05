@@ -1,20 +1,13 @@
 import React, { useState } from 'react';
-import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-} from 'react-native';
+import { Alert, FlatList, ScrollView, View } from 'react-native';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Animation, AvatarInventoryEntry, AvatarItem, Item, PaginatedAnimations, PaginatedAvatarItems, PaginatedItems } from '@chat-app/shared-types';
 import { useAuth } from '@/context/auth.context';
 import { api } from '@/lib/api';
-import { theme } from '@/constants/theme';
+import { AppText, Button, Chip, CoinPill, EmptyState, ScreenHeader, SegmentedControl, Spinner } from '@/components/ui';
+import { makeStyles } from '@/constants/theme';
+import { useMe } from '@/hooks/useMe';
 import ShopItemCard from './ShopItemCard';
 import AvatarShopItemCard from './AvatarShopItemCard';
 import ItemDetailModal from './ItemDetailModal';
@@ -24,10 +17,40 @@ const ALL_CATEGORY = '__all__';
 
 type ShopTab = 'items' | 'outfits' | 'animations';
 
+const TABS = [
+    { value: 'items', label: 'Items' },
+    { value: 'outfits', label: 'Outfits' },
+    { value: 'animations', label: 'Animations' },
+] as const;
+
+/** A horizontal row of category filters, "All" first. */
+function CategoryChips({ categories, selected, onSelect }: { categories: string[]; selected: string; onSelect: (c: string) => void }) {
+    const styles = useStyles();
+    return (
+        <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.categoryBar}
+            contentContainerStyle={styles.categoryContent}
+        >
+            {[ALL_CATEGORY, ...categories].map((cat) => (
+                <Chip
+                    key={cat}
+                    label={cat === ALL_CATEGORY ? 'All' : cat}
+                    selected={selected === cat}
+                    onPress={() => onSelect(cat)}
+                />
+            ))}
+        </ScrollView>
+    );
+}
+
 export default function ShopScreen(): React.JSX.Element {
     const { userId } = useAuth();
     const queryClient = useQueryClient();
     const insets = useSafeAreaInsets();
+    const styles = useStyles();
+    const coins = useMe().data?.amount.coins;
 
     const [shopTab, setShopTab] = useState<ShopTab>('items');
 
@@ -84,6 +107,7 @@ export default function ShopScreen(): React.JSX.Element {
         onMutate: (itemId) => setBuyingItemId(itemId),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['inventory'] });
+            queryClient.invalidateQueries({ queryKey: ['user'] });
             setModalVisible(false);
             Alert.alert('Purchased!', 'Item added to your inventory.');
         },
@@ -156,6 +180,7 @@ export default function ShopScreen(): React.JSX.Element {
         onMutate: (animationId) => setBuyingAnimationId(animationId),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['animation-inventory'] });
+            queryClient.invalidateQueries({ queryKey: ['user'] });
             Alert.alert('Purchased!', 'Animation added to your collection.');
         },
         onError: (err: Error) => Alert.alert('Purchase failed', err.message),
@@ -168,6 +193,7 @@ export default function ShopScreen(): React.JSX.Element {
         onMutate: ({ itemId, variantId }) => setBuyingOutfitKey(`${itemId}:${variantId}`),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['avatar-inventory'] });
+            queryClient.invalidateQueries({ queryKey: ['user'] });
             Alert.alert('Purchased!', 'Outfit added to your wardrobe.');
         },
         onError: (err: Error) => Alert.alert('Purchase failed', err.message),
@@ -176,65 +202,19 @@ export default function ShopScreen(): React.JSX.Element {
 
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
-            {/* ── Tab switcher ── */}
-            <View style={styles.tabSwitcher}>
-                <TouchableOpacity
-                    style={[styles.pill, shopTab === 'items' && styles.pillActive]}
-                    onPress={() => setShopTab('items')}
-                    activeOpacity={0.7}
-                >
-                    <Text style={[styles.pillText, shopTab === 'items' && styles.pillTextActive]}>
-                        Items
-                    </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.pill, shopTab === 'outfits' && styles.pillActive]}
-                    onPress={() => setShopTab('outfits')}
-                    activeOpacity={0.7}
-                >
-                    <Text style={[styles.pillText, shopTab === 'outfits' && styles.pillTextActive]}>
-                        Outfits
-                    </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.pill, shopTab === 'animations' && styles.pillActive]}
-                    onPress={() => setShopTab('animations')}
-                    activeOpacity={0.7}
-                >
-                    <Text style={[styles.pillText, shopTab === 'animations' && styles.pillTextActive]}>
-                        Animations
-                    </Text>
-                </TouchableOpacity>
-            </View>
+            <ScreenHeader large title="Shop" right={coins !== undefined ? <CoinPill coins={coins} /> : undefined} />
+            <SegmentedControl options={TABS} value={shopTab} onChange={setShopTab} style={styles.tabSwitcher} />
 
             {shopTab === 'items' && (
                 <>
-                    {/* ── Category chips ── */}
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        style={styles.categoryBar}
-                        contentContainerStyle={styles.categoryContent}
-                    >
-                        {[ALL_CATEGORY, ...categories].map((cat) => (
-                            <TouchableOpacity
-                                key={cat}
-                                style={[styles.categoryChip, selectedCategory === cat && styles.categoryChipActive]}
-                                onPress={() => setSelectedCategory(cat)}
-                            >
-                                <Text style={[styles.categoryText, selectedCategory === cat && styles.categoryTextActive]}>
-                                    {cat === ALL_CATEGORY ? 'All' : cat}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
-
+                    <CategoryChips categories={categories} selected={selectedCategory} onSelect={setSelectedCategory} />
                     {isLoadingItems ? (
-                        <ActivityIndicator style={styles.loader} size="large" color={theme.colors.primary} />
+                        <Spinner style={styles.loader} size="large" />
                     ) : (
                         <FlatList
                             data={items}
                             keyExtractor={(item) => item._id}
+                            contentContainerStyle={styles.list}
                             renderItem={({ item }) => (
                                 <ShopItemCard
                                     item={item}
@@ -243,14 +223,8 @@ export default function ShopScreen(): React.JSX.Element {
                             )}
                             onEndReached={() => { if (hasNextPage && !isFetchingNextPage) fetchNextPage(); }}
                             onEndReachedThreshold={0.4}
-                            ListFooterComponent={
-                                isFetchingNextPage
-                                    ? <ActivityIndicator style={styles.footer} color={theme.colors.primary} />
-                                    : undefined
-                            }
-                            ListEmptyComponent={
-                                <Text style={styles.empty}>No items available.</Text>
-                            }
+                            ListFooterComponent={isFetchingNextPage ? <Spinner style={styles.footer} /> : undefined}
+                            ListEmptyComponent={<EmptyState icon="cube-outline" title="Nothing here yet" body="Check back soon for new furniture." />}
                         />
                     )}
                 </>
@@ -258,28 +232,9 @@ export default function ShopScreen(): React.JSX.Element {
 
             {shopTab === 'outfits' && (
                 <>
-                    {/* ── Outfit category chips ── */}
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        style={styles.categoryBar}
-                        contentContainerStyle={styles.categoryContent}
-                    >
-                        {[ALL_CATEGORY, ...outfitCategories].map((cat) => (
-                            <TouchableOpacity
-                                key={cat}
-                                style={[styles.categoryChip, selectedOutfitCategory === cat && styles.categoryChipActive]}
-                                onPress={() => setSelectedOutfitCategory(cat)}
-                            >
-                                <Text style={[styles.categoryText, selectedOutfitCategory === cat && styles.categoryTextActive]}>
-                                    {cat === ALL_CATEGORY ? 'All' : cat}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
-
+                    <CategoryChips categories={outfitCategories} selected={selectedOutfitCategory} onSelect={setSelectedOutfitCategory} />
                     {isLoadingOutfits ? (
-                        <ActivityIndicator style={styles.loader} size="large" color={theme.colors.primary} />
+                        <Spinner style={styles.loader} size="large" />
                     ) : (
                         <FlatList
                             data={outfitItems}
@@ -294,15 +249,9 @@ export default function ShopScreen(): React.JSX.Element {
                             )}
                             onEndReached={() => { if (hasNextOutfitsPage && !isFetchingNextOutfitsPage) fetchNextOutfitsPage(); }}
                             onEndReachedThreshold={0.4}
-                            contentContainerStyle={styles.outfitList}
-                            ListFooterComponent={
-                                isFetchingNextOutfitsPage
-                                    ? <ActivityIndicator style={styles.footer} color={theme.colors.primary} />
-                                    : undefined
-                            }
-                            ListEmptyComponent={
-                                <Text style={styles.empty}>No outfits available.</Text>
-                            }
+                            contentContainerStyle={styles.list}
+                            ListFooterComponent={isFetchingNextOutfitsPage ? <Spinner style={styles.footer} /> : undefined}
+                            ListEmptyComponent={<EmptyState icon="shirt-outline" title="No outfits yet" body="New styles are on the way." />}
                         />
                     )}
                 </>
@@ -310,67 +259,39 @@ export default function ShopScreen(): React.JSX.Element {
 
             {shopTab === 'animations' && (
                 <>
-                    {/* ── Animation category chips ── */}
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        style={styles.categoryBar}
-                        contentContainerStyle={styles.categoryContent}
-                    >
-                        {[ALL_CATEGORY, ...animationCategories].map((cat) => (
-                            <TouchableOpacity
-                                key={cat}
-                                style={[styles.categoryChip, selectedAnimationCategory === cat && styles.categoryChipActive]}
-                                onPress={() => setSelectedAnimationCategory(cat)}
-                            >
-                                <Text style={[styles.categoryText, selectedAnimationCategory === cat && styles.categoryTextActive]}>
-                                    {cat === ALL_CATEGORY ? 'All' : cat}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
-
+                    <CategoryChips categories={animationCategories} selected={selectedAnimationCategory} onSelect={setSelectedAnimationCategory} />
                     {isLoadingAnimations ? (
-                        <ActivityIndicator style={styles.loader} size="large" color={theme.colors.primary} />
+                        <Spinner style={styles.loader} size="large" />
                     ) : (
                         <FlatList
                             data={animationItems}
                             keyExtractor={(item) => item._id}
+                            contentContainerStyle={styles.list}
                             renderItem={({ item }) => {
                                 const owned = ownedAnimationIds.has(item._id);
                                 const isBuying = buyingAnimationId === item._id;
                                 return (
                                     <View style={styles.animationRow}>
                                         <View style={styles.animationInfo}>
-                                            <Text style={styles.animationName}>{item.name}</Text>
-                                            <Text style={styles.animationCategory}>{item.category}</Text>
+                                            <AppText variant="heading">{item.name}</AppText>
+                                            <AppText variant="overline" color="textMuted">{item.category}</AppText>
                                         </View>
-                                        <TouchableOpacity
-                                            style={[styles.animationBuyBtn, owned && styles.animationBuyBtnOwned]}
-                                            onPress={() => !owned && buyAnimation(item._id)}
-                                            disabled={owned || isBuying}
-                                            activeOpacity={0.7}
-                                        >
-                                            {isBuying
-                                                ? <ActivityIndicator size="small" color={theme.colors.primaryText} />
-                                                : <Text style={[styles.animationBuyText, owned && styles.animationBuyTextOwned]}>
-                                                    {owned ? 'Owned' : `${item.price.coins} coins`}
-                                                </Text>
-                                            }
-                                        </TouchableOpacity>
+                                        <Button
+                                            title={owned ? 'Owned' : `${item.price.coins} coins`}
+                                            icon={owned ? 'checkmark' : 'star'}
+                                            variant={owned ? 'secondary' : 'reward'}
+                                            size="sm"
+                                            loading={isBuying}
+                                            disabled={owned}
+                                            onPress={() => buyAnimation(item._id)}
+                                        />
                                     </View>
                                 );
                             }}
                             onEndReached={() => { if (hasNextAnimationsPage && !isFetchingNextAnimationsPage) fetchNextAnimationsPage(); }}
                             onEndReachedThreshold={0.4}
-                            ListFooterComponent={
-                                isFetchingNextAnimationsPage
-                                    ? <ActivityIndicator style={styles.footer} color={theme.colors.primary} />
-                                    : undefined
-                            }
-                            ListEmptyComponent={
-                                <Text style={styles.empty}>No animations available.</Text>
-                            }
+                            ListFooterComponent={isFetchingNextAnimationsPage ? <Spinner style={styles.footer} /> : undefined}
+                            ListEmptyComponent={<EmptyState icon="musical-notes-outline" title="No animations yet" body="New moves are on the way." />}
                         />
                     )}
                 </>
@@ -387,72 +308,31 @@ export default function ShopScreen(): React.JSX.Element {
     );
 }
 
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: theme.colors.background },
-    tabSwitcher: {
-        flexDirection: 'row',
-        padding: 12,
-        gap: 8,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: theme.colors.border,
-    },
-    pill: {
-        flex: 1,
-        paddingVertical: 8,
-        borderRadius: 20,
-        alignItems: 'center',
-        backgroundColor: theme.colors.surface,
-    },
-    pillActive: { backgroundColor: theme.colors.primary },
-    pillText: { color: theme.colors.textSecondary, fontWeight: '600', fontSize: 14 },
-    pillTextActive: { color: theme.colors.primaryText },
-    categoryBar: {
-        flexGrow: 0,
-        flexShrink: 0,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: theme.colors.border,
-    },
+const useStyles = makeStyles(t => ({
+    container: { flex: 1, backgroundColor: t.colors.background },
+    tabSwitcher: { marginHorizontal: t.space.lg, marginBottom: t.space.xs },
+    categoryBar: { flexGrow: 0, flexShrink: 0 },
     categoryContent: {
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-        gap: 8,
+        paddingHorizontal: t.space.lg,
+        paddingVertical: t.space.md,
+        gap: t.space.sm,
         flexDirection: 'row',
     },
-    categoryChip: {
-        paddingHorizontal: 14,
-        paddingVertical: 6,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: theme.colors.borderSubtle,
-    },
-    categoryChipActive: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
-    categoryText: { color: theme.colors.textSecondary, fontSize: 13, fontWeight: '500' },
-    categoryTextActive: { color: theme.colors.primaryText },
-    loader: { flex: 1, justifyContent: 'center' },
-    footer: { paddingVertical: 16 },
-    empty: { color: theme.colors.textMuted, textAlign: 'center', marginTop: 40, fontSize: 15 },
-    outfitList: { paddingVertical: 6 },
+    loader: { flex: 1 },
+    footer: { paddingVertical: t.space.lg },
+    list: { paddingTop: t.space.xs, paddingBottom: t.space.xl, gap: t.space.md },
     animationRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: theme.colors.border,
+        gap: t.space.md,
+        marginHorizontal: t.space.lg,
+        padding: t.space.md,
+        paddingLeft: t.space.lg,
+        borderRadius: t.radius.lg,
+        borderWidth: t.borderWidth.thick,
+        borderColor: t.colors.border,
+        backgroundColor: t.colors.surface,
+        ...t.shadows.sticker,
     },
     animationInfo: { flex: 1, gap: 2 },
-    animationName: { color: theme.colors.text, fontSize: 15, fontWeight: '600' },
-    animationCategory: { color: theme.colors.textSecondary, fontSize: 12 },
-    animationBuyBtn: {
-        paddingHorizontal: 14,
-        paddingVertical: 7,
-        borderRadius: 14,
-        backgroundColor: theme.colors.primary,
-        minWidth: 90,
-        alignItems: 'center',
-    },
-    animationBuyBtnOwned: { backgroundColor: theme.colors.surface },
-    animationBuyText: { color: theme.colors.primaryText, fontSize: 13, fontWeight: '700' },
-    animationBuyTextOwned: { color: theme.colors.textMuted },
-});
+}));

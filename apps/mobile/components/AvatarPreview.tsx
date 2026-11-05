@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Canvas, Picture } from '@shopify/react-native-skia';
 import React, { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
-import { theme } from '@/constants/theme';
+import { makeStyles, useTheme } from '@/constants/theme';
 import { Facing } from '@chat-app/shared-types';
 import { useAvatarPreviewPicture } from '@/lib/room-engine/engines/skia/useAvatarPreviewPicture';
 import {
@@ -36,6 +36,8 @@ interface Props {
  * Shows the programmer-art placeholder until the outfit's atlases are composed.
  */
 export default function AvatarPreview({ avatar, size = 220, rotatable = false, animated = true }: Props) {
+  const t = useTheme();
+  const styles = useStyles();
   const [facingIndex, setFacingIndex] = useState(0);
   const outfits = useMemo(() => ({ [PREVIEW_ID]: avatar }), [avatar]);
   const { arts, artKeys } = useOutfitArts(outfits);
@@ -65,14 +67,14 @@ export default function AvatarPreview({ avatar, size = 220, rotatable = false, a
           accessibilityRole="button"
           accessibilityLabel="Turn avatar"
         >
-          <Ionicons name="sync" size={18} color={theme.colors.text} />
+          <Ionicons name="sync" size={18} color={t.colors.text} />
         </Pressable>
       )}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(t => ({
   rotate: {
     position: 'absolute',
     right: 0,
@@ -82,8 +84,9 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.borderSubtle,
+    backgroundColor: t.colors.surfaceElevated,
+    borderWidth: t.borderWidth.thick,
+    borderColor: t.colors.border,
+    ...t.shadows.sticker,
   },
-});
+}));

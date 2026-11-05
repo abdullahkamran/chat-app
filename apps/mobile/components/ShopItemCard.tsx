@@ -1,63 +1,65 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { Image } from 'expo-image';
-import { Amount, Item } from '@chat-app/shared-types';
-import { theme } from '@/constants/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { Item } from '@chat-app/shared-types';
+import { AppText } from '@/components/ui';
+import { makeStyles, useTheme } from '@/constants/theme';
 import { resolveItemSource } from '@/constants/avatarAssets';
-
-function formatPrice(price: Amount): string {
-    const parts: string[] = [];
-    if (price.realMoney > 0) parts.push(`$${price.realMoney.toFixed(2)}`);
-    if (price.cash > 0) parts.push(`${price.cash} cash`);
-    if (price.coins > 0) parts.push(`${price.coins} coins`);
-    return parts.length > 0 ? parts.join(' + ') : 'Free';
-}
+import { formatPrice } from '@/utils/formatPrice';
 
 interface ShopItemCardProps {
     item: Item;
     onPress: () => void;
 }
 
-export default function ShopItemCard({ item, onPress }: ShopItemCardProps) {
-    const source = resolveItemSource(item.assetUrl);
-
-    return (
-        <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
-            {source
-                ? <Image source={source} style={styles.thumbnail} contentFit="contain" />
-                : <View style={[styles.thumbnail, styles.thumbnailPlaceholder]} />
-            }
-            <View style={styles.info}>
-                <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
-                <Text style={styles.description} numberOfLines={2}>{item.description}</Text>
-                <Text style={styles.price}>{formatPrice(item.price)}</Text>
-            </View>
-            <Text style={styles.chevron}>›</Text>
-        </TouchableOpacity>
-    );
-}
-
-const styles = StyleSheet.create({
+const useStyles = makeStyles(t => ({
     card: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        gap: 12,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: theme.colors.border,
+        gap: t.space.md,
+        marginHorizontal: t.space.lg,
+        padding: t.space.md,
+        borderRadius: t.radius.lg,
+        borderWidth: t.borderWidth.thick,
+        borderColor: t.colors.border,
+        backgroundColor: t.colors.surface,
+    },
+    thumbnailTile: {
+        width: 60,
+        height: 60,
+        borderRadius: t.radius.md,
+        backgroundColor: t.colors.surfaceElevated,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     thumbnail: {
-        width: 48,
-        height: 48,
-        borderRadius: 8,
+        width: 52,
+        height: 52,
     },
-    thumbnailPlaceholder: {
-        backgroundColor: theme.colors.border,
-    },
-    info: { flex: 1 },
-    name: { color: theme.colors.text, fontSize: 16, fontWeight: '600' },
-    description: { color: theme.colors.textSecondary, fontSize: 13, marginTop: 2 },
-    price: { color: theme.colors.primary, fontSize: 13, marginTop: 4, fontWeight: '500' },
-    chevron: { color: theme.colors.textMuted, fontSize: 20 },
-});
+    info: { flex: 1, gap: 2 },
+    price: { marginTop: t.space.xs },
+}));
+
+export default function ShopItemCard({ item, onPress }: ShopItemCardProps) {
+    const t = useTheme();
+    const styles = useStyles();
+    const source = resolveItemSource(item.assetUrl);
+
+    return (
+        <Pressable
+            style={({ pressed }) => [styles.card, pressed ? { transform: [{ translateY: t.pressDepth }] } : t.shadows.sticker]}
+            onPress={onPress}
+        >
+            <View style={styles.thumbnailTile}>
+                {source && <Image source={source} style={styles.thumbnail} contentFit="contain" />}
+            </View>
+            <View style={styles.info}>
+                <AppText variant="heading" numberOfLines={1}>{item.name}</AppText>
+                <AppText variant="caption" color="textSecondary" numberOfLines={2}>{item.description}</AppText>
+                <AppText variant="label" color="reward" style={styles.price}>{formatPrice(item.price)}</AppText>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={t.colors.textMuted} />
+        </Pressable>
+    );
+}

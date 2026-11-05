@@ -1,6 +1,6 @@
 import { PaintStyle, Skia, type SkCanvas } from '@shopify/react-native-skia';
 
-import { palette } from '@/constants/theme';
+import { artPalette } from '@/constants/theme';
 import type { RigView, SlotName } from '@chat-app/shared-types';
 import type { AvatarArt, TintGroup, ViewDrawList } from './avatarArt';
 import { BONE_INDEX, HUMANOID_V1 } from './humanoidV1';
@@ -61,7 +61,7 @@ const HEAD_FRONT: Piece = {
     canvas.drawCircle(0, HEAD_CY, HEAD_R, stroke);
     const eye = Skia.Paint();
     eye.setAntiAlias(true);
-    eye.setColor(Skia.Color(palette.black));
+    eye.setColor(Skia.Color(artPalette.eye));
     canvas.drawCircle(1.5, HEAD_CY + 1, 1.2, eye);
     canvas.drawCircle(5.5, HEAD_CY + 1, 1.2, eye);
   },
@@ -158,12 +158,12 @@ function buildArt(): AvatarArt {
 
   const fill = Skia.Paint();
   fill.setAntiAlias(true);
-  fill.setColor(Skia.Color(palette.white));
+  fill.setColor(Skia.Color(artPalette.pieceFill));
   const stroke = Skia.Paint();
   stroke.setAntiAlias(true);
   stroke.setStyle(PaintStyle.Stroke);
   stroke.setStrokeWidth(OUTLINE);
-  stroke.setColor(Skia.Color(palette.neutral600));
+  stroke.setColor(Skia.Color(artPalette.pieceOutline));
 
   const empty = (): ViewDrawList => ({ bone: [], tint: [], src: [], srcMirror: [], pivotX: [], pivotXMirror: [], pivotY: [], pivotYMirror: [] });
   const views: Record<RigView, ViewDrawList> = { front: empty(), back: empty() };

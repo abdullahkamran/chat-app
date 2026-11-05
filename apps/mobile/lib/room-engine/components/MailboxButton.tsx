@@ -1,7 +1,7 @@
-import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { TouchableOpacity, View } from 'react-native';
 
-import { theme } from '@/constants/theme';
+import { AppText, IconButton } from '@/components/ui';
+import { makeStyles } from '@/constants/theme';
 
 interface Props {
   unread: number;
@@ -10,91 +10,57 @@ interface Props {
   onPress: () => void;
 }
 
-/** Floating button that opens the room's postbox, with the unread count. */
-export function MailboxButton({ unread, hint, onPress }: Readonly<Props>) {
-  return (
-    <View style={styles.row} pointerEvents="box-none">
-      {hint ? (
-        <TouchableOpacity style={styles.hint} onPress={onPress} activeOpacity={0.85}>
-          <Text style={styles.hintText}>{hint}</Text>
-          <View style={styles.hintArrow} />
-        </TouchableOpacity>
-      ) : null}
-      <TouchableOpacity style={styles.fab} onPress={onPress} activeOpacity={0.85} accessibilityLabel="Postbox">
-        <Ionicons name={unread > 0 ? 'mail-unread' : 'mail'} size={24} color={theme.colors.primaryText} />
-        {unread > 0 && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{unread > 99 ? '99+' : unread}</Text>
-          </View>
-        )}
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
+const useStyles = makeStyles(t => ({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
   },
-  fab: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: theme.colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 6,
-    shadowColor: theme.colors.background,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.4,
-    shadowRadius: 4,
-  },
-  badge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    minWidth: 20,
-    height: 20,
-    borderRadius: 10,
-    paddingHorizontal: 5,
-    backgroundColor: theme.colors.error,
-    borderWidth: 2,
-    borderColor: theme.colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeText: {
-    color: theme.colors.text,
-    fontSize: 11,
-    fontWeight: '700',
-  },
   hint: {
-    marginRight: 12,
+    marginRight: t.space.md,
     maxWidth: 190,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    backgroundColor: theme.colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: theme.colors.borderSubtle,
-  },
-  hintText: {
-    color: theme.colors.text,
-    fontSize: 13,
+    paddingHorizontal: t.space.md,
+    paddingVertical: t.space.sm,
+    borderRadius: t.radius.md,
+    backgroundColor: t.colors.surfaceElevated,
+    borderWidth: t.borderWidth.thick,
+    borderColor: t.colors.border,
+    ...t.shadows.sticker,
   },
   hintArrow: {
     position: 'absolute',
-    right: -6,
+    right: -7,
     top: '50%',
     marginTop: -6,
     width: 12,
     height: 12,
-    backgroundColor: theme.colors.surfaceElevated,
-    borderTopWidth: 1,
-    borderRightWidth: 1,
-    borderColor: theme.colors.borderSubtle,
+    backgroundColor: t.colors.surfaceElevated,
+    borderTopWidth: t.borderWidth.thick,
+    borderRightWidth: t.borderWidth.thick,
+    borderColor: t.colors.border,
     transform: [{ rotate: '45deg' }],
   },
-});
+}));
+
+/** Floating button that opens the room's postbox, with the unread count. */
+export function MailboxButton({ unread, hint, onPress }: Readonly<Props>) {
+  const styles = useStyles();
+  return (
+    <View style={styles.row} pointerEvents="box-none">
+      {hint ? (
+        <TouchableOpacity style={styles.hint} onPress={onPress} activeOpacity={0.85}>
+          <AppText variant="label">{hint}</AppText>
+          <View style={styles.hintArrow} />
+        </TouchableOpacity>
+      ) : null}
+      <IconButton
+        icon={unread > 0 ? 'mail-unread' : 'mail'}
+        variant="primary"
+        size={52}
+        badge={unread}
+        onPress={onPress}
+        accessibilityLabel="Postbox"
+      />
+    </View>
+  );
+}

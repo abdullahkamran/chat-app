@@ -1,13 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { FlatList, Pressable, ScrollView, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -16,7 +9,8 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/context/auth.context';
 import { MY_AVATARS_KEY } from '@/hooks/useMyAvatars';
 import { announceAvatarChanged } from '@/utils/socketUtils';
-import { theme } from '@/constants/theme';
+import { makeStyles, useTheme } from '@/constants/theme';
+import { AppText, Button, Chip, EmptyState, Spinner } from '@/components/ui';
 import { resolveAvatarSource } from '@/constants/avatarAssets';
 import AvatarPreview from '@/components/AvatarPreview';
 import type { AvatarOutfit } from '@/lib/room-engine/engines/skia/wearables/useAvatarArts';
@@ -99,6 +93,8 @@ export default function AvatarEditorScreen({ mode, avatarId, initialSelections, 
   const { selectedAvatar, setSelectedAvatar } = useAuth();
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
+  const t = useTheme();
+  const styles = useStyles();
 
   const derived = initialAvatar ? deriveFromAvatar(initialAvatar) : null;
 
@@ -242,10 +238,8 @@ export default function AvatarEditorScreen({ mode, avatarId, initialSelections, 
     <View style={[styles.container, { paddingBottom: insets.bottom }]}>
       {/* ── Preview ── */}
       <View style={styles.preview}>
-        <Text style={styles.previewLabel}>Preview</Text>
-        <View style={styles.previewCharacter}>
-          <AvatarPreview avatar={previewOutfit} size={220} rotatable />
-        </View>
+        <View style={styles.spotlight} />
+        <AvatarPreview avatar={previewOutfit} size={220} rotatable />
       </View>
 
       {/* ── Category tabs ── */}
@@ -256,29 +250,25 @@ export default function AvatarEditorScreen({ mode, avatarId, initialSelections, 
         contentContainerStyle={styles.tabBarContent}
       >
         {PART_CATEGORIES.map((cat) => {
-          const isSelected = activeCategory === cat.key;
           const hasPick = !!selections[cat.key];
           return (
-            <Pressable
+            <Chip
               key={cat.key}
-              style={[styles.tab, isSelected && styles.tabActive]}
+              label={!hasPick && cat.required ? `${cat.label} *` : cat.label}
+              trailingIcon={hasPick ? 'checkmark-circle' : undefined}
+              selected={activeCategory === cat.key}
               onPress={() => {
                 setActiveCategory(cat.key);
                 setActiveItemId(null);
               }}
-            >
-              <Text style={[styles.tabText, isSelected && styles.tabTextActive]}>
-                {cat.label}
-                {hasPick ? ' ✓' : cat.required ? ' *' : ''}
-              </Text>
-            </Pressable>
+            />
           );
         })}
       </ScrollView>
 
       {/* ── Items grid ── */}
       {loadingItems ? (
-        <ActivityIndicator style={styles.gridLoader} color={theme.colors.primary} />
+        <Spinner style={styles.gridLoader} />
       ) : (
         <FlatList
           key={activeCategory}
@@ -292,15 +282,17 @@ export default function AvatarEditorScreen({ mode, avatarId, initialSelections, 
                 style={[styles.gridItem, styles.noneItem, !selections[activeCategory] && styles.gridItemChosen]}
                 onPress={handleClearSelection}
               >
-                <View style={[styles.gridItemSwatch, styles.noneItemSwatch]} />
-                <Text style={styles.gridItemName}>None</Text>
+                <View style={[styles.gridItemSwatch, styles.noneItemSwatch]}>
+                  <Ionicons name="close" size={22} color={t.colors.textMuted} />
+                </View>
+                <AppText variant="caption" color="textSubtle" align="center">None</AppText>
               </Pressable>
             </View>
           ) : undefined}
           renderItem={({ item }) => {
             const isChosen = selections[activeCategory]?.itemId === item._id;
             const source = resolveAvatarSource(item.variants[0]?.sourceUrl ?? '');
-            const fallbackColor = item.variants[0]?.color ?? theme.colors.border;
+            const fallbackColor = item.variants[0]?.color ?? t.colors.border;
             return (
               <Pressable
                 style={[styles.gridItem, isChosen && styles.gridItemChosen]}
@@ -308,16 +300,16 @@ export default function AvatarEditorScreen({ mode, avatarId, initialSelections, 
               >
                 {source
                   ? <Image source={source} style={styles.gridItemSwatch} contentFit="contain" />
-                  : <View style={[styles.gridItemSwatch, { backgroundColor: fallbackColor }]} />
+                  : <View style={[styles.gridItemSwatch, styles.colorSwatch, { backgroundColor: fallbackColor }]} />
                 }
-                <Text style={styles.gridItemName} numberOfLines={1}>
+                <AppText variant="caption" color="textSubtle" align="center" numberOfLines={1}>
                   {item.name}
-                </Text>
+                </AppText>
               </Pressable>
             );
           }}
           ListEmptyComponent={
-            <Text style={styles.emptyText}>No owned items for this category yet. Visit the Shop to buy some!</Text>
+            <EmptyState icon="bag-handle-outline" title="Nothing here yet" body="Visit the Shop to pick some up!" />
           }
         />
       )}
@@ -325,8 +317,8 @@ export default function AvatarEditorScreen({ mode, avatarId, initialSelections, 
       {/* ── Variant picker ── */}
       {activeItemId && (
         <View style={styles.variantRow}>
-          <Text style={styles.variantLabel}>Choose colour / style</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <AppText variant="overline" color="textMuted" style={styles.variantLabel}>Choose colour / style</AppText>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.variantContent}>
             {(catalogItems.find((i) => i._id === activeItemId)?.variants ?? [])
               .filter((v) => ownedVariantIds.has(v._id))
               .map((variant) => {
@@ -340,12 +332,12 @@ export default function AvatarEditorScreen({ mode, avatarId, initialSelections, 
                   <View
                     style={[
                       styles.variantSwatchColor,
-                      { backgroundColor: variant.color ?? theme.colors.textMuted },
+                      { backgroundColor: variant.color ?? t.colors.textMuted },
                     ]}
                   />
-                  <Text style={styles.variantSwatchName} numberOfLines={1}>
+                  <AppText variant="caption" color="placeholder" align="center" style={styles.variantSwatchName} numberOfLines={1}>
                     {variant.name}
-                  </Text>
+                  </AppText>
                 </Pressable>
               );
             })}
@@ -354,185 +346,144 @@ export default function AvatarEditorScreen({ mode, avatarId, initialSelections, 
       )}
 
       {/* ── Error ── */}
-      {errorMessage && <Text style={styles.error}>{errorMessage}</Text>}
+      {errorMessage && <AppText variant="label" color="error" align="center" style={styles.error}>{errorMessage}</AppText>}
 
       {/* ── Save button ── */}
-      <Pressable
-        style={[styles.saveButton, (!isComplete(selections) || isSaving) && styles.saveButtonDisabled]}
+      <Button
+        title={mode === 'create' ? 'Create Avatar' : 'Save Changes'}
+        size="lg"
+        loading={isSaving}
+        disabled={!isComplete(selections)}
         onPress={handleSave}
-        disabled={!isComplete(selections) || isSaving}
-      >
-        {isSaving ? (
-          <ActivityIndicator color={theme.colors.primaryText} />
-        ) : (
-          <Text style={styles.saveButtonText}>
-            {mode === 'create' ? 'Create Avatar' : 'Save Changes'}
-          </Text>
-        )}
-      </Pressable>
+        style={styles.saveButton}
+      />
     </View>
   );
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(t => ({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: t.colors.background,
   },
   preview: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    marginHorizontal: t.space.lg,
+    marginTop: t.space.sm,
+    borderRadius: t.radius.xl,
+    borderWidth: t.borderWidth.thick,
+    borderColor: t.colors.border,
+    backgroundColor: t.colors.surface,
     alignItems: 'center',
+    justifyContent: 'flex-end',
+    minHeight: 248,
+    paddingBottom: t.space.md,
+    overflow: 'hidden',
   },
-  previewLabel: {
-    color: theme.colors.textSecondary,
-    fontSize: 12,
-    marginBottom: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    alignSelf: 'flex-start',
-  },
-  previewCharacter: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 240,
+  // A soft floor disc under the avatar's feet.
+  spotlight: {
+    position: 'absolute',
+    bottom: t.space.md - 4,
+    width: 150,
+    height: 34,
+    borderRadius: t.radius.pill,
+    backgroundColor: t.colors.primarySoft,
   },
   tabBar: {
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
     flexGrow: 0,
   },
   tabBarContent: {
-    paddingHorizontal: 8,
-    paddingVertical: 10,
-    gap: 6,
-  },
-  tab: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: theme.colors.surface,
-  },
-  tabActive: {
-    backgroundColor: theme.colors.primary,
-  },
-  tabText: {
-    color: theme.colors.textSecondary,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  tabTextActive: {
-    color: theme.colors.primaryText,
+    paddingHorizontal: t.space.lg,
+    paddingVertical: t.space.md,
+    gap: t.space.sm,
   },
   gridLoader: {
     flex: 1,
   },
   grid: {
-    padding: 12,
-    gap: 8,
+    paddingHorizontal: t.space.md,
+    paddingBottom: t.space.md,
   },
   gridItem: {
     flex: 1,
-    margin: 4,
+    margin: t.space.xs,
     alignItems: 'center',
     padding: 10,
-    borderRadius: 12,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 2,
-    borderColor: 'transparent',
+    gap: 6,
+    borderRadius: t.radius.lg,
+    backgroundColor: t.colors.surface,
+    borderWidth: t.borderWidth.thick,
+    borderColor: t.colors.border,
   },
   gridItemChosen: {
-    borderColor: theme.colors.primary,
+    borderColor: t.colors.primary,
+    backgroundColor: t.colors.primarySoft,
   },
   gridItemSwatch: {
     width: 48,
     height: 48,
-    borderRadius: 24,
-    marginBottom: 6,
+    borderRadius: t.radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  gridItemName: {
-    color: theme.colors.textSubtle,
-    fontSize: 11,
-    textAlign: 'center',
-  },
-  emptyText: {
-    color: theme.colors.textMuted,
-    textAlign: 'center',
-    marginTop: 40,
-    fontSize: 14,
+  colorSwatch: {
+    borderWidth: t.borderWidth.thick,
+    borderColor: t.colors.outline,
   },
   noneRow: {
     flexDirection: 'row',
-    paddingBottom: 4,
   },
   noneItem: {
     flex: 0,
     width: '30%',
   },
   noneItemSwatch: {
-    backgroundColor: theme.colors.border,
-    borderWidth: 1,
-    borderColor: theme.colors.textMuted,
+    borderWidth: t.borderWidth.thick,
+    borderColor: t.colors.borderStrong,
     borderStyle: 'dashed',
   },
   variantRow: {
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-    padding: 12,
+    borderTopWidth: t.borderWidth.thin,
+    borderTopColor: t.colors.border,
+    paddingVertical: t.space.md,
   },
   variantLabel: {
-    color: theme.colors.textDisabled,
-    fontSize: 11,
-    marginBottom: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+    marginBottom: t.space.sm,
+    paddingHorizontal: t.space.lg,
+  },
+  variantContent: {
+    paddingHorizontal: t.space.md,
+    gap: t.space.xs,
   },
   variantSwatch: {
     alignItems: 'center',
-    marginRight: 10,
     padding: 6,
-    borderRadius: 8,
-    borderWidth: 2,
+    gap: t.space.xs,
+    borderRadius: t.radius.md,
+    borderWidth: t.borderWidth.thick,
     borderColor: 'transparent',
   },
   variantSwatchChosen: {
-    borderColor: theme.colors.primary,
+    borderColor: t.colors.primary,
+    backgroundColor: t.colors.primarySoft,
   },
   variantSwatchColor: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    marginBottom: 4,
+    borderRadius: t.radius.pill,
+    borderWidth: t.borderWidth.thick,
+    borderColor: t.colors.outline,
   },
   variantSwatchName: {
-    color: theme.colors.placeholder,
-    fontSize: 10,
-    maxWidth: 50,
-    textAlign: 'center',
+    maxWidth: 54,
   },
   error: {
-    color: theme.colors.error,
-    textAlign: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    fontSize: 13,
+    paddingHorizontal: t.space.lg,
+    paddingVertical: t.space.sm,
   },
   saveButton: {
-    margin: 16,
-    backgroundColor: theme.colors.primary,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
+    margin: t.space.lg,
+    marginTop: t.space.sm,
   },
-  saveButtonDisabled: {
-    backgroundColor: theme.colors.borderSubtle,
-  },
-  saveButtonText: {
-    color: theme.colors.primaryText,
-    fontWeight: '700',
-    fontSize: 16,
-  },
-});
+}));

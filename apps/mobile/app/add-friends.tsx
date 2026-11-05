@@ -3,16 +3,12 @@ import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   SectionList,
-  StyleSheet,
-  Text,
-  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,7 +16,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { FriendSuggestion, IncomingFriendRequest, PublicUser, RelatedUser } from '@chat-app/shared-types';
 import FriendButton from '@/components/FriendButton';
 import UserRow from '@/components/UserRow';
-import { theme } from '@/constants/theme';
+import { AppText, Button, EmptyState, IconButton, ScreenHeader, SegmentedControl, Spinner, TextField } from '@/components/ui';
+import { makeStyles, useTheme } from '@/constants/theme';
 import { useContactSync } from '@/hooks/useContactSync';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useFriendActions, useFriends, useIncomingRequests, useSuggestions } from '@/hooks/useFriends';
@@ -40,6 +37,7 @@ type HomeItem =
 
 /** Accept or decline a request someone sent. */
 function RequestRow({ request }: Readonly<{ request: IncomingFriendRequest }>) {
+  const styles = useStyles();
   const { accept, removeRequest } = useFriendActions();
   const busy = accept.isPending || removeRequest.isPending;
   return (
@@ -48,19 +46,16 @@ function RequestRow({ request }: Readonly<{ request: IncomingFriendRequest }>) {
       subtitle="Added you"
       right={
         busy ? (
-          <ActivityIndicator color={theme.colors.primary} />
+          <Spinner />
         ) : (
           <View style={styles.rowActions}>
-            <Pressable style={styles.acceptBtn} onPress={() => accept.mutate(request.user._id)}>
-              <Text style={styles.acceptText}>Accept</Text>
-            </Pressable>
-            <Pressable
+            <Button title="Accept" size="sm" onPress={() => accept.mutate(request.user._id)} />
+            <IconButton
+              icon="close"
+              size={32}
               onPress={() => removeRequest.mutate(request.user._id)}
-              hitSlop={8}
               accessibilityLabel={`Decline ${request.user.username}`}
-            >
-              <Ionicons name="close" size={22} color={theme.colors.textSecondary} />
-            </Pressable>
+            />
           </View>
         )
       }
@@ -77,6 +72,7 @@ function suggestionReason(s: FriendSuggestion): string {
 
 /** Someone in Quick Add: add them, or hide them for good. */
 function SuggestionRow({ suggestion }: Readonly<{ suggestion: FriendSuggestion }>) {
+  const styles = useStyles();
   const { dismiss } = useFriendActions();
   return (
     <UserRow
@@ -85,14 +81,13 @@ function SuggestionRow({ suggestion }: Readonly<{ suggestion: FriendSuggestion }
       right={
         <View style={styles.rowActions}>
           <FriendButton userId={suggestion._id} relation={suggestion.relation} />
-          <Pressable
+          <IconButton
+            icon="close"
+            size={32}
             onPress={() => dismiss.mutate(suggestion._id)}
             disabled={dismiss.isPending}
-            hitSlop={8}
             accessibilityLabel={`Hide ${suggestion.username}`}
-          >
-            <Ionicons name="close" size={20} color={theme.colors.textSecondary} />
-          </Pressable>
+          />
         </View>
       }
     />
@@ -113,11 +108,9 @@ function FriendRow({ friend }: Readonly<{ friend: PublicUser }>) {
       subtitle={`Level ${friend.level}`}
       right={
         unfriend.isPending ? (
-          <ActivityIndicator color={theme.colors.error} />
+          <Spinner color="error" />
         ) : (
-          <Pressable onPress={confirm} hitSlop={8} accessibilityLabel={`Remove ${friend.username}`}>
-            <Ionicons name="person-remove-outline" size={20} color={theme.colors.textSecondary} />
-          </Pressable>
+          <IconButton icon="person-remove-outline" size={36} onPress={confirm} accessibilityLabel={`Remove ${friend.username}`} />
         )
       }
     />
@@ -125,11 +118,13 @@ function FriendRow({ friend }: Readonly<{ friend: PublicUser }>) {
 }
 
 /**
- * Snapchat-style Add Friends: search by username, requests people sent you, Quick Add
+ * Add Friends: search by username, requests people sent you, Quick Add
  * (contacts, mutual friends, shared rooms), inviting people to the app, and your friends
  * on a second tab.
  */
 export default function AddFriendsScreen() {
+  const t = useTheme();
+  const styles = useStyles();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<Tab>('add');
@@ -149,11 +144,10 @@ export default function AddFriendsScreen() {
 
   const friendCount = friends.data?.length ?? 0;
 
-  const tabButton = (value: Tab, label: string) => (
-    <Pressable style={[styles.tab, tab === value && styles.tabActive]} onPress={() => setTab(value)}>
-      <Text style={[styles.tabText, tab === value && styles.tabTextActive]}>{label}</Text>
-    </Pressable>
-  );
+  const tabs = [
+    { value: 'add', label: 'Add Friends' },
+    { value: 'friends', label: friendCount ? `My Friends (${friendCount})` : 'My Friends' },
+  ] as const;
 
   const searchResults = (
     <FlatList
@@ -168,7 +162,7 @@ export default function AddFriendsScreen() {
         />
       )}
       ListEmptyComponent={
-        search.isFetching ? undefined : <Text style={styles.empty}>{`No one found for "${query}".`}</Text>
+        search.isFetching ? undefined : <EmptyState icon="search-outline" title="No one found" body={`Nobody goes by "${query}".`} />
       }
     />
   );
@@ -186,7 +180,7 @@ export default function AddFriendsScreen() {
       keyboardShouldPersistTaps="handled"
       stickySectionHeadersEnabled={false}
       renderSectionHeader={({ section }) =>
-        section.data.length ? <Text style={styles.sectionTitle}>{section.title}</Text> : null
+        section.data.length ? <AppText variant="overline" color="textMuted" style={styles.sectionTitle}>{section.title}</AppText> : null
       }
       renderItem={({ item }) =>
         item.kind === 'request' ? <RequestRow request={item.request} /> : <SuggestionRow suggestion={item.suggestion} />
@@ -194,16 +188,18 @@ export default function AddFriendsScreen() {
       ListHeaderComponent={
         contacts.access === 'ask' || contacts.access === 'blocked' ? (
           <Pressable style={styles.contactsCard} onPress={contacts.allow}>
-            <Ionicons name="people" size={22} color={theme.colors.primary} />
+            <View style={styles.contactsIcon}>
+              <Ionicons name="people" size={22} color={t.colors.onSecondary} />
+            </View>
             <View style={styles.contactsText}>
-              <Text style={styles.contactsTitle}>Find friends from your contacts</Text>
-              <Text style={styles.contactsBody}>
+              <AppText variant="bodyStrong">Find friends from your contacts</AppText>
+              <AppText variant="caption" color="textSecondary">
                 {contacts.access === 'blocked'
                   ? 'Allow contacts access in Settings.'
                   : "See who's already here. Your contacts aren't saved."}
-              </Text>
+              </AppText>
             </View>
-            <Ionicons name="chevron-forward" size={18} color={theme.colors.textSecondary} />
+            <Ionicons name="chevron-forward" size={18} color={t.colors.textSecondary} />
           </Pressable>
         ) : undefined
       }
@@ -211,15 +207,19 @@ export default function AddFriendsScreen() {
         <>
           {isEmpty &&
             (requests.isLoading || suggestions.isLoading ? (
-              <ActivityIndicator color={theme.colors.primary} style={styles.loader} />
+              <Spinner style={styles.loader} />
             ) : (
-              <Text style={styles.empty}>Search for friends by their username.</Text>
+              <EmptyState icon="people-outline" title="Find your people" body="Search for friends by their username." />
             ))}
           {me.data && (
-            <Pressable style={styles.inviteBtn} onPress={() => shareInvite(me.data.username)}>
-              <Ionicons name="share-outline" size={18} color={theme.colors.text} />
-              <Text style={styles.inviteText}>Invite friends to the app</Text>
-            </Pressable>
+            <Button
+              title="Invite friends to the app"
+              icon="share-outline"
+              variant="secondary"
+              fullWidth
+              onPress={() => shareInvite(me.data.username)}
+              style={styles.inviteBtn}
+            />
           )}
         </>
       }
@@ -231,36 +231,23 @@ export default function AddFriendsScreen() {
       style={[styles.root, { paddingTop: insets.top }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Text style={styles.headerBack}>‹ Back</Text>
-        </Pressable>
-        <Text style={styles.headerTitle}>Friends</Text>
-        <View style={styles.headerSpacer} />
-      </View>
-
-      <View style={styles.tabs}>
-        {tabButton('add', 'Add Friends')}
-        {tabButton('friends', friendCount ? `My Friends (${friendCount})` : 'My Friends')}
-      </View>
+      <ScreenHeader title="Friends" onBack={() => router.back()} backIcon="close" />
+      <SegmentedControl options={tabs} value={tab} onChange={setTab} style={styles.tabs} />
 
       <View style={[styles.body, { paddingBottom: insets.bottom }]}>
         {tab === 'add' ? (
           <>
-            <View style={styles.searchRow}>
-              <Ionicons name="search" size={18} color={theme.colors.icon} />
-              <TextInput
-                style={styles.searchInput}
-                value={input}
-                onChangeText={setInput}
-                placeholder="Search by username"
-                placeholderTextColor={theme.colors.textMuted}
-                autoCapitalize="none"
-                autoCorrect={false}
-                returnKeyType="search"
-              />
-              {search.isFetching && <ActivityIndicator size="small" color={theme.colors.primary} />}
-            </View>
+            <TextField
+              leftIcon="search"
+              value={input}
+              onChangeText={setInput}
+              placeholder="Search by username"
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="search"
+              right={search.isFetching ? <Spinner size="small" /> : undefined}
+              containerStyle={styles.searchRow}
+            />
             {query ? searchResults : home}
           </>
         ) : (
@@ -270,9 +257,9 @@ export default function AddFriendsScreen() {
             renderItem={({ item }) => <FriendRow friend={item} />}
             ListEmptyComponent={
               friends.isLoading ? (
-                <ActivityIndicator color={theme.colors.primary} style={styles.loader} />
+                <Spinner style={styles.loader} />
               ) : (
-                <Text style={styles.empty}>No friends yet. Find people on the Add Friends tab.</Text>
+                <EmptyState icon="heart-outline" title="No friends yet" body="Find people on the Add Friends tab." />
               )
             }
           />
@@ -282,150 +269,60 @@ export default function AddFriendsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(t => ({
   root: {
     flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  headerBack: {
-    color: theme.colors.primary,
-    fontSize: 18,
-    fontWeight: '600',
-    width: 64,
-  },
-  headerTitle: {
-    flex: 1,
-    color: theme.colors.text,
-    fontSize: 18,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  headerSpacer: {
-    width: 64,
+    backgroundColor: t.colors.background,
   },
   tabs: {
-    flexDirection: 'row',
-    marginHorizontal: 24,
-    backgroundColor: theme.colors.surface,
-    borderRadius: 12,
-    padding: 4,
-    marginBottom: 16,
-  },
-  tab: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderRadius: 9,
-  },
-  tabActive: {
-    backgroundColor: theme.colors.primary,
-  },
-  tabText: {
-    color: theme.colors.textSecondary,
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  tabTextActive: {
-    color: theme.colors.primaryText,
+    marginHorizontal: t.space.xl,
+    marginBottom: t.space.lg,
   },
   body: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: t.space.xl,
   },
   searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: theme.colors.surface,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    paddingHorizontal: 14,
-    marginBottom: 8,
-  },
-  searchInput: {
-    flex: 1,
-    color: theme.colors.text,
-    fontSize: 15,
-    paddingVertical: 12,
+    marginBottom: t.space.sm,
   },
   sectionTitle: {
-    color: theme.colors.placeholder,
-    fontSize: 13,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginTop: 16,
-    marginBottom: 4,
+    marginTop: t.space.lg,
+    marginBottom: t.space.xs,
   },
   rowActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-  },
-  acceptBtn: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-  },
-  acceptText: {
-    color: theme.colors.primaryText,
-    fontWeight: '700',
-    fontSize: 14,
+    gap: t.space.xs,
   },
   contactsCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    backgroundColor: theme.colors.surface,
-    borderRadius: 12,
+    gap: t.space.md,
+    backgroundColor: t.colors.surface,
+    borderRadius: t.radius.lg,
+    borderWidth: t.borderWidth.thick,
+    borderColor: t.colors.border,
     padding: 14,
-    marginTop: 8,
+    marginTop: t.space.sm,
+    ...t.shadows.sticker,
+  },
+  contactsIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: t.radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: t.colors.secondary,
+    transform: [{ rotate: '-6deg' }],
   },
   contactsText: {
     flex: 1,
-  },
-  contactsTitle: {
-    color: theme.colors.text,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  contactsBody: {
-    color: theme.colors.textSecondary,
-    fontSize: 12,
-    marginTop: 2,
+    gap: 2,
   },
   inviteBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: theme.colors.borderSubtle,
-    paddingVertical: 14,
-    marginTop: 24,
-    marginBottom: 24,
-  },
-  inviteText: {
-    color: theme.colors.text,
-    fontWeight: '600',
-    fontSize: 15,
+    marginVertical: t.space.xl,
   },
   loader: {
-    marginTop: 32,
+    marginTop: t.space.xxl,
   },
-  empty: {
-    color: theme.colors.textMuted,
-    fontSize: 14,
-    textAlign: 'center',
-    marginTop: 32,
-  },
-});
+}));

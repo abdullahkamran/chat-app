@@ -1,18 +1,41 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
+import type { ComponentProps } from 'react';
+import type { ColorValue } from 'react-native';
+
 import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTheme } from '@/constants/theme';
+
+type IconName = ComponentProps<typeof Ionicons>['name'];
+
+/** A tab icon: outlined, filled while its tab is selected. */
+function tabIcon(name: IconName, selectedName: IconName) {
+  return function TabIcon({ color, focused }: { color: ColorValue; focused: boolean }) {
+    return <Ionicons size={26} name={focused ? selectedName : name} color={color as string} />;
+  };
+}
+
+const RoomsIcon = tabIcon('home-outline', 'home');
+const ShopIcon = tabIcon('storefront-outline', 'storefront');
+const InventoryIcon = tabIcon('cube-outline', 'cube');
+const ProfileIcon = tabIcon('person-circle-outline', 'person-circle');
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const t = useTheme();
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme].tint,
         headerShown: false,
         tabBarButton: HapticTab,
+        tabBarActiveTintColor: t.colors.tabIconSelected,
+        tabBarInactiveTintColor: t.colors.tabIconDefault,
+        tabBarStyle: {
+          backgroundColor: t.colors.tabBar,
+          borderTopColor: t.colors.border,
+          borderTopWidth: t.borderWidth.thin,
+        },
+        tabBarLabelStyle: { ...t.type.caption, fontFamily: t.fontFamily.bodyBold },
       }}>
       <Tabs.Screen
         name="index"
@@ -20,31 +43,19 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="conversations"
-        options={{
-          title: 'Conversations',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
-        }}
+        options={{ title: 'Rooms', tabBarIcon: RoomsIcon }}
       />
       <Tabs.Screen
         name="shop"
-        options={{
-          title: 'Shop',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="cart.fill" color={color} />,
-        }}
+        options={{ title: 'Shop', tabBarIcon: ShopIcon }}
       />
       <Tabs.Screen
         name="inventory"
-        options={{
-          title: 'Inventory',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="bag.fill" color={color} />,
-        }}
+        options={{ title: 'Inventory', tabBarIcon: InventoryIcon }}
       />
       <Tabs.Screen
         name="profile"
-        options={{
-          title: 'Profile',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
-        }}
+        options={{ title: 'Profile', tabBarIcon: ProfileIcon }}
       />
     </Tabs>
   );

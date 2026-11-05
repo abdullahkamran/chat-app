@@ -7,7 +7,7 @@ import {
   type SkColor,
 } from '@shopify/react-native-skia';
 
-import { theme } from '@/constants/theme';
+import { artPalette } from '@/constants/theme';
 import type { Facing } from '@chat-app/shared-types';
 import { facingToView } from '../../core/facing';
 import type { ClipId } from './skeleton/clips';
@@ -43,14 +43,14 @@ const tintCache = new Map<string, Record<TintGroup, SkColor>>();
 export function placeholderTints(id: string): Record<TintGroup, SkColor> {
   let tints = tintCache.get(id);
   if (!tints) {
-    const n = theme.avatarPalette.length;
+    const n = artPalette.clothing.length;
     const h = hashId(id);
     tints = {
-      skin: Skia.Color(theme.colors.avatarPlaceholderSkin),
-      tops: Skia.Color(theme.avatarPalette[h % n]),
-      bottoms: Skia.Color(theme.avatarPalette[(h + 3) % n]),
-      footwear: Skia.Color(theme.colors.avatarPlaceholderHair),
-      hair: Skia.Color(theme.colors.avatarPlaceholderHair),
+      skin: Skia.Color(artPalette.skin),
+      tops: Skia.Color(artPalette.clothing[h % n]),
+      bottoms: Skia.Color(artPalette.clothing[(h + 3) % n]),
+      footwear: Skia.Color(artPalette.hair),
+      hair: Skia.Color(artPalette.hair),
     };
     tintCache.set(id, tints);
   }

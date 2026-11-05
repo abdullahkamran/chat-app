@@ -1,16 +1,24 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Pressable, View } from 'react-native';
 import { Image } from 'expo-image';
+import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Animation, AvatarItem, Item } from '@chat-app/shared-types';
 import { useAuth } from '@/context/auth.context';
 import { api } from '@/lib/api';
-import { theme } from '@/constants/theme';
+import { AppText, Badge, EmptyState, ScreenHeader, SegmentedControl, Spinner } from '@/components/ui';
+import { makeStyles, useTheme } from '@/constants/theme';
 import { resolveAvatarSource, resolveItemSource } from '@/constants/avatarAssets';
 import ItemDetailModal from './ItemDetailModal';
 
 type InventoryTab = 'items' | 'outfits' | 'animations';
+
+const TABS = [
+    { value: 'items', label: 'Items' },
+    { value: 'outfits', label: 'Outfits' },
+    { value: 'animations', label: 'Animations' },
+] as const;
 
 // Populated entry returned from the API: item field is the full AvatarItem object
 type PopulatedAvatarInventoryEntry = {
@@ -24,7 +32,52 @@ const ANIMATION_CATEGORY_LABEL: Record<string, string> = {
     SIT: 'Sit',
 };
 
+const useStyles = makeStyles(t => ({
+    container: { flex: 1, backgroundColor: t.colors.background },
+    tabSwitcher: { marginHorizontal: t.space.lg, marginBottom: t.space.md },
+    loader: { flex: 1 },
+    list: { paddingBottom: t.space.xl, gap: t.space.sm + 2 },
+    row: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: t.space.md,
+        marginHorizontal: t.space.lg,
+        padding: t.space.md,
+        borderRadius: t.radius.lg,
+        borderWidth: t.borderWidth.thick,
+        borderColor: t.colors.border,
+        backgroundColor: t.colors.surface,
+    },
+    thumbTile: {
+        width: 52,
+        height: 52,
+        borderRadius: t.radius.md,
+        backgroundColor: t.colors.surfaceElevated,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    itemThumb: { width: 44, height: 44 },
+    info: { flex: 1, gap: 2 },
+    swatch: {
+        width: 40,
+        height: 40,
+        borderRadius: t.radius.pill,
+    },
+    swatchColor: {
+        borderWidth: t.borderWidth.thick,
+        borderColor: t.colors.outline,
+    },
+    tag: {
+        paddingHorizontal: t.space.sm + 2,
+        paddingVertical: t.space.xs,
+        borderRadius: t.radius.pill,
+        backgroundColor: t.colors.surfaceElevated,
+    },
+}));
+
 export default function InventoryScreen(): React.JSX.Element {
+    const t = useTheme();
+    const styles = useStyles();
     const { userId } = useAuth();
     const insets = useSafeAreaInsets();
     const [inventoryTab, setInventoryTab] = useState<InventoryTab>('items');
@@ -61,131 +114,98 @@ export default function InventoryScreen(): React.JSX.Element {
     const [selectedItem, setSelectedItem] = useState<Item | null>(null);
     const [modalVisible, setModalVisible] = useState(false);
 
+    const tag = (label: string) => (
+        <View style={styles.tag}>
+            <AppText variant="overline" color="textSecondary">{label}</AppText>
+        </View>
+    );
+
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
-            {/* ── Tab switcher ── */}
-            <View style={styles.tabSwitcher}>
-                <TouchableOpacity
-                    style={[styles.pill, inventoryTab === 'items' && styles.pillActive]}
-                    onPress={() => setInventoryTab('items')}
-                    activeOpacity={0.7}
-                >
-                    <Text style={[styles.pillText, inventoryTab === 'items' && styles.pillTextActive]}>
-                        Items
-                    </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.pill, inventoryTab === 'outfits' && styles.pillActive]}
-                    onPress={() => setInventoryTab('outfits')}
-                    activeOpacity={0.7}
-                >
-                    <Text style={[styles.pillText, inventoryTab === 'outfits' && styles.pillTextActive]}>
-                        Outfits
-                    </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.pill, inventoryTab === 'animations' && styles.pillActive]}
-                    onPress={() => setInventoryTab('animations')}
-                    activeOpacity={0.7}
-                >
-                    <Text style={[styles.pillText, inventoryTab === 'animations' && styles.pillTextActive]}>
-                        Animations
-                    </Text>
-                </TouchableOpacity>
-            </View>
+            <ScreenHeader large title="Inventory" />
+            <SegmentedControl options={TABS} value={inventoryTab} onChange={setInventoryTab} style={styles.tabSwitcher} />
 
             {inventoryTab === 'animations' ? (
                 isLoadingAnimations ? (
-                    <ActivityIndicator style={styles.loader} size="large" color={theme.colors.primary} />
+                    <Spinner style={styles.loader} size="large" />
                 ) : (
                     <FlatList
                         data={animations}
                         keyExtractor={(a) => a._id}
+                        contentContainerStyle={styles.list}
                         renderItem={({ item: anim }) => (
                             <View style={styles.row}>
-                                <Text style={styles.name}>{anim.name}</Text>
-                                <Text style={styles.categoryChip}>
-                                    {ANIMATION_CATEGORY_LABEL[anim.category] ?? anim.category}
-                                </Text>
+                                <View style={styles.thumbTile}>
+                                    <Ionicons name="musical-notes" size={22} color={t.colors.primary} />
+                                </View>
+                                <AppText variant="heading" style={styles.info}>{anim.name}</AppText>
+                                {tag(ANIMATION_CATEGORY_LABEL[anim.category] ?? anim.category)}
                             </View>
                         )}
                         ListEmptyComponent={
-                            <Text style={styles.empty}>
-                                No animations yet. Visit the Shop to buy some!
-                            </Text>
+                            <EmptyState icon="musical-notes-outline" title="No animations yet" body="Visit the Shop to pick up some moves!" />
                         }
                     />
                 )
             ) : inventoryTab === 'items' ? (
                 isLoadingItems ? (
-                    <ActivityIndicator style={styles.loader} size="large" color={theme.colors.primary} />
+                    <Spinner style={styles.loader} size="large" />
                 ) : (
                     <FlatList
                         data={groupedItems}
                         keyExtractor={({ item }) => item._id}
+                        contentContainerStyle={styles.list}
                         renderItem={({ item: { item, count } }) => {
                             const source = resolveItemSource(item.assetUrl);
                             return (
-                                <TouchableOpacity
-                                    style={styles.row}
+                                <Pressable
+                                    style={({ pressed }) => [styles.row, pressed ? { transform: [{ translateY: t.pressDepth }] } : t.shadows.sticker]}
                                     onPress={() => { setSelectedItem(item); setModalVisible(true); }}
-                                    activeOpacity={0.7}
                                 >
-                                    <View style={styles.thumbWrapper}>
-                                        {source
-                                            ? <Image source={source} style={styles.itemThumb} contentFit="contain" />
-                                            : <View style={[styles.itemThumb, styles.thumbPlaceholder]} />
-                                        }
-                                        {count > 1 && (
-                                            <View style={styles.countBadge}>
-                                                <Text style={styles.countBadgeText}>{count}</Text>
-                                            </View>
-                                        )}
+                                    <View style={styles.thumbTile}>
+                                        {source && <Image source={source} style={styles.itemThumb} contentFit="contain" />}
+                                        {count > 1 && <Badge count={count} ringColor={t.colors.surface} />}
                                     </View>
-                                    <View style={styles.itemInfo}>
-                                        <Text style={styles.name}>{item.name}</Text>
-                                        <Text style={styles.category}>{item.category}</Text>
+                                    <View style={styles.info}>
+                                        <AppText variant="heading" numberOfLines={1}>{item.name}</AppText>
+                                        <AppText variant="caption" color="textSecondary">{item.category}</AppText>
                                     </View>
-                                </TouchableOpacity>
+                                    <Ionicons name="chevron-forward" size={20} color={t.colors.textMuted} />
+                                </Pressable>
                             );
                         }}
                         ListEmptyComponent={
-                            <Text style={styles.empty}>
-                                Your inventory is empty. Visit the Shop to buy items!
-                            </Text>
+                            <EmptyState icon="cube-outline" title="Your inventory is empty" body="Visit the Shop to find furniture for your room!" />
                         }
                     />
                 )
             ) : (
                 isLoadingOutfits ? (
-                    <ActivityIndicator style={styles.loader} size="large" color={theme.colors.primary} />
+                    <Spinner style={styles.loader} size="large" />
                 ) : (
                     <FlatList
                         data={avatarInventory}
                         keyExtractor={(entry, index) => `${entry.item?._id ?? index}-${entry.variantId}`}
+                        contentContainerStyle={styles.list}
                         renderItem={({ item: entry }) => {
                             const variant = entry.item?.variants?.find((v) => v._id === entry.variantId);
                             const source = resolveAvatarSource(variant?.sourceUrl ?? '');
                             return (
                                 <View style={styles.row}>
-                                    <View style={styles.outfitLeft}>
-                                        {source
-                                            ? <Image source={source} style={styles.swatch} contentFit="contain" />
-                                            : <View style={[styles.swatch, { backgroundColor: variant?.color ?? theme.colors.border }]} />
-                                        }
-                                        <View>
-                                            <Text style={styles.name}>{entry.item?.name ?? '—'}</Text>
-                                            <Text style={styles.category}>{variant?.name ?? entry.variantId}</Text>
-                                        </View>
+                                    {source
+                                        ? <Image source={source} style={styles.swatch} contentFit="contain" />
+                                        : <View style={[styles.swatch, styles.swatchColor, { backgroundColor: variant?.color ?? t.colors.border }]} />
+                                    }
+                                    <View style={styles.info}>
+                                        <AppText variant="heading" numberOfLines={1}>{entry.item?.name ?? '—'}</AppText>
+                                        <AppText variant="caption" color="textSecondary">{variant?.name ?? entry.variantId}</AppText>
                                     </View>
-                                    <Text style={styles.categoryChip}>{entry.item?.category ?? ''}</Text>
+                                    {entry.item?.category ? tag(entry.item.category) : null}
                                 </View>
                             );
                         }}
                         ListEmptyComponent={
-                            <Text style={styles.empty}>
-                                No outfits yet. Visit the Shop to buy some!
-                            </Text>
+                            <EmptyState icon="shirt-outline" title="No outfits yet" body="Visit the Shop to find something to wear!" />
                         }
                     />
                 )
@@ -199,73 +219,3 @@ export default function InventoryScreen(): React.JSX.Element {
         </View>
     );
 }
-
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: theme.colors.background },
-    tabSwitcher: {
-        flexDirection: 'row',
-        padding: 12,
-        gap: 8,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: theme.colors.border,
-    },
-    pill: {
-        flex: 1,
-        paddingVertical: 8,
-        borderRadius: 20,
-        alignItems: 'center',
-        backgroundColor: theme.colors.surface,
-    },
-    pillActive: { backgroundColor: theme.colors.primary },
-    pillText: { color: theme.colors.textSecondary, fontWeight: '600', fontSize: 14 },
-    pillTextActive: { color: theme.colors.primaryText },
-    loader: { flex: 1, justifyContent: 'center' },
-    row: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        gap: 12,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: theme.colors.border,
-    },
-    thumbWrapper: { position: 'relative' },
-    itemThumb: { width: 48, height: 48, borderRadius: 8 },
-    thumbPlaceholder: { backgroundColor: theme.colors.border },
-    countBadge: {
-        position: 'absolute',
-        top: -4,
-        right: -4,
-        minWidth: 18,
-        height: 18,
-        borderRadius: 9,
-        backgroundColor: theme.colors.primary,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingHorizontal: 4,
-    },
-    countBadgeText: {
-        color: theme.colors.primaryText,
-        fontSize: 11,
-        fontWeight: '700',
-        lineHeight: 14,
-    },
-    itemInfo: { flex: 1, gap: 2 },
-    outfitLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
-    swatch: { width: 36, height: 36, borderRadius: 18 },
-    name: { color: theme.colors.text, fontSize: 16, fontWeight: '600' },
-    category: { color: theme.colors.textSecondary, fontSize: 13, marginTop: 2 },
-    categoryChip: {
-        color: theme.colors.textMuted,
-        fontSize: 11,
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
-    },
-    empty: {
-        color: theme.colors.textMuted,
-        textAlign: 'center',
-        marginTop: 40,
-        fontSize: 15,
-        paddingHorizontal: 24,
-    },
-});

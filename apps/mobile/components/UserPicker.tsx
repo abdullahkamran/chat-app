@@ -1,20 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { FlatList, ScrollView, View } from 'react-native';
 
 import type { PublicUser } from '@chat-app/shared-types';
 import UserRow from '@/components/UserRow';
-import { theme } from '@/constants/theme';
+import { AppText, Button, Chip, EmptyState, Spinner, TextField } from '@/components/ui';
+import { makeStyles, useTheme } from '@/constants/theme';
 import { useFriends } from '@/hooks/useFriends';
 
 interface Props {
@@ -26,11 +18,39 @@ interface Props {
   maxSelected?: number;
 }
 
+const useStyles = makeStyles(t => ({
+  root: {
+    flex: 1,
+  },
+  chips: {
+    flexGrow: 0,
+    marginBottom: t.space.md,
+  },
+  chipsContent: {
+    gap: t.space.sm,
+  },
+  counter: {
+    marginTop: 6,
+  },
+  list: {
+    flex: 1,
+    marginTop: t.space.sm,
+  },
+  loader: {
+    marginTop: t.space.xxl,
+  },
+  noFriends: {
+    flex: 1,
+  },
+}));
+
 /**
  * Pick several of your friends to add to a room; only friends can be added. Lists them all,
  * narrowed by typing. Picked people show as chips above the search.
  */
 export default function UserPicker({ selected, onChange, excludeIds = [], maxSelected }: Readonly<Props>) {
+  const t = useTheme();
+  const styles = useStyles();
   const router = useRouter();
   const [input, setInput] = useState('');
   const { data: friends = [], isLoading } = useFriends();
@@ -49,11 +69,12 @@ export default function UserPicker({ selected, onChange, excludeIds = [], maxSel
   if (!isLoading && friends.length === 0) {
     return (
       <View style={styles.noFriends}>
-        <Text style={styles.empty}>{"You can add your friends to rooms. You don't have any yet."}</Text>
-        <Pressable style={styles.findBtn} onPress={() => router.push('/add-friends')}>
-          <Ionicons name="person-add" size={16} color={theme.colors.primaryText} />
-          <Text style={styles.findText}>Find Friends</Text>
-        </Pressable>
+        <EmptyState
+          icon="people-outline"
+          title="No friends yet"
+          body="You can add your friends to rooms. Find some first!"
+          action={<Button title="Find Friends" icon="person-add" onPress={() => router.push('/add-friends')} />}
+        />
       </View>
     );
   }
@@ -63,32 +84,25 @@ export default function UserPicker({ selected, onChange, excludeIds = [], maxSel
       {selected.length > 0 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chips} contentContainerStyle={styles.chipsContent}>
           {selected.map((user) => (
-            <Pressable key={user._id} style={styles.chip} onPress={() => toggle(user)} hitSlop={4}>
-              <Text style={styles.chipText}>{user.username}</Text>
-              <Ionicons name="close" size={14} color={theme.colors.primaryText} />
-            </Pressable>
+            <Chip key={user._id} label={user.username} selected trailingIcon="close" onPress={() => toggle(user)} />
           ))}
         </ScrollView>
       )}
 
-      <View style={styles.searchRow}>
-        <Ionicons name="search" size={18} color={theme.colors.icon} />
-        <TextInput
-          style={styles.searchInput}
-          value={input}
-          onChangeText={setInput}
-          placeholder="Search your friends"
-          placeholderTextColor={theme.colors.textMuted}
-          autoCapitalize="none"
-          autoCorrect={false}
-          returnKeyType="search"
-        />
-      </View>
+      <TextField
+        leftIcon="search"
+        value={input}
+        onChangeText={setInput}
+        placeholder="Search your friends"
+        autoCapitalize="none"
+        autoCorrect={false}
+        returnKeyType="search"
+      />
 
       {maxSelected !== undefined && (
-        <Text style={styles.counter}>
+        <AppText variant="caption" color="textSecondary" align="right" style={styles.counter}>
           {isFull ? 'Room is full' : `${selected.length}/${maxSelected} picked`}
-        </Text>
+        </AppText>
       )}
 
       <FlatList
@@ -107,12 +121,12 @@ export default function UserPicker({ selected, onChange, excludeIds = [], maxSel
               disabled={added || (isFull && !picked)}
               right={
                 added ? (
-                  <Text style={styles.addedText}>Added</Text>
+                  <AppText variant="label" color="textSecondary">Added</AppText>
                 ) : (
                   <Ionicons
                     name={picked ? 'checkmark-circle' : 'ellipse-outline'}
-                    size={24}
-                    color={picked ? theme.colors.primary : theme.colors.textMuted}
+                    size={26}
+                    color={picked ? t.colors.primary : t.colors.textMuted}
                   />
                 )
               }
@@ -121,98 +135,12 @@ export default function UserPicker({ selected, onChange, excludeIds = [], maxSel
         }}
         ListEmptyComponent={
           isLoading ? (
-            <ActivityIndicator color={theme.colors.primary} style={styles.loader} />
+            <Spinner style={styles.loader} />
           ) : (
-            <Text style={styles.empty}>{`No friends match "${input.trim()}".`}</Text>
+            <EmptyState icon="search-outline" title="No match" body={`No friends match "${input.trim()}".`} />
           )
         }
       />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
-  chips: {
-    flexGrow: 0,
-    marginBottom: 12,
-  },
-  chipsContent: {
-    gap: 8,
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: theme.colors.primary,
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  chipText: {
-    color: theme.colors.primaryText,
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: theme.colors.surface,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    paddingHorizontal: 14,
-  },
-  searchInput: {
-    flex: 1,
-    color: theme.colors.text,
-    fontSize: 15,
-    paddingVertical: 12,
-  },
-  counter: {
-    color: theme.colors.textSecondary,
-    fontSize: 12,
-    textAlign: 'right',
-    marginTop: 6,
-  },
-  list: {
-    flex: 1,
-    marginTop: 8,
-  },
-  addedText: {
-    color: theme.colors.textSecondary,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  loader: {
-    marginTop: 32,
-  },
-  noFriends: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 16,
-  },
-  findBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: theme.colors.primary,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-  },
-  findText: {
-    color: theme.colors.primaryText,
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  empty: {
-    color: theme.colors.textMuted,
-    fontSize: 14,
-    textAlign: 'center',
-    marginTop: 32,
-  },
-});

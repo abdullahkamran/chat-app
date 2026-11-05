@@ -1,41 +1,52 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { useCallback, useState } from 'react';
-import { Keyboard, StyleSheet, TextInput, View } from 'react-native';
-import { Button } from 'react-native-elements';
+import { useCallback, useState, type ReactNode } from 'react';
+import { Keyboard, TextInput, View } from 'react-native';
+
+import { IconButton } from '@/components/ui';
+import { makeStyles, useTheme } from '@/constants/theme';
+
+/** The input grows with the message up to about four lines, then scrolls. */
+const MIN_INPUT_H = 40;
+const MAX_INPUT_H = 104;
 
 interface ChatInputProps {
   onTyping: () => void;
   onSubmit: (message: string) => void;
+  /** A button inside the bar, before the input. */
+  left?: ReactNode;
 }
 
-const styles = StyleSheet.create({
-  container: {
-    display: 'flex',
+const useStyles = makeStyles(t => ({
+  bar: {
     flexDirection: 'row',
-    gap: 8,
     alignItems: 'flex-end',
-    padding: 4,
+    gap: t.space.xs,
+    padding: t.space.xs,
+    borderRadius: t.radius.xl,
+    borderWidth: t.borderWidth.thick,
+    borderColor: t.colors.border,
+    backgroundColor: t.colors.surface,
+    ...t.shadows.floating,
   },
-  chatInput: {
+  barFocused: {
+    borderColor: t.colors.primary,
+  },
+  input: {
+    ...t.type.body,
     flex: 1,
-    zIndex: 1001,
-    backgroundColor: 'grey',
-    borderRadius: 25,
-    color: 'white',
-    fontSize: 18,
-    padding: 10,
+    color: t.colors.text,
+    paddingHorizontal: t.space.sm,
+    paddingTop: 10,
+    paddingBottom: 10,
   },
-  sendButton: {
-    borderRadius: 24,
-    backgroundColor: 'white',
-    height: 48,
-    width: 48,
-  },
-});
+}));
 
-export function ChatInput({ onTyping, onSubmit }: Readonly<ChatInputProps>) {
-  const [inputHeight, setInputHeight] = useState(42);
+export function ChatInput({ onTyping, onSubmit, left }: Readonly<ChatInputProps>) {
+  const t = useTheme();
+  const styles = useStyles();
+  const [inputHeight, setInputHeight] = useState(MIN_INPUT_H);
   const [message, setMessage] = useState('');
+  const [focused, setFocused] = useState(false);
+  const canSend = message.trim().length > 0;
 
   // Every keystroke reports typing; the session shows it at once and throttles what it sends.
   const handleMessageChange = useCallback((text: string) => {
@@ -44,30 +55,38 @@ export function ChatInput({ onTyping, onSubmit }: Readonly<ChatInputProps>) {
   }, [onTyping]);
 
   function handleSubmit() {
-    if (!message.trim()) return;
+    if (!canSend) return;
     onSubmit(message);
     setMessage('');
     Keyboard.dismiss();
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.bar, focused && styles.barFocused]}>
+      {left}
       <TextInput
-        style={[styles.chatInput, { height: inputHeight }]}
+        style={[styles.input, { height: Math.min(MAX_INPUT_H, Math.max(MIN_INPUT_H, inputHeight)) }]}
         multiline
         // Multiline keeps long messages wrapping, but Enter sends instead of adding a newline.
         submitBehavior="submit"
         returnKeyType="send"
         onSubmitEditing={handleSubmit}
-        placeholder="Type a message..."
+        placeholder="Say something…"
+        placeholderTextColor={t.colors.placeholder}
+        selectionColor={t.colors.primary}
+        cursorColor={t.colors.primary}
         value={message}
         onChangeText={handleMessageChange}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
         onContentSizeChange={e => setInputHeight(e.nativeEvent.contentSize.height)}
       />
-      <Button
-        buttonStyle={styles.sendButton}
-        icon={<Ionicons name="send" size={24} color="black" />}
+      <IconButton
+        icon="arrow-up"
+        variant="primary"
         onPress={handleSubmit}
+        disabled={!canSend}
+        accessibilityLabel="Send"
       />
     </View>
   );

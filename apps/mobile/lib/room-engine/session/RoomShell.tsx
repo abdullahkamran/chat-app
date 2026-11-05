@@ -1,12 +1,11 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Keyboard, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Button } from 'react-native-elements';
+import { Keyboard, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { RoomCategory } from '@chat-app/shared-types';
-import { theme } from '@/constants/theme';
+import { AppText, Button, EmptyState, IconButton, Spinner } from '@/components/ui';
+import { makeStyles } from '@/constants/theme';
 import { useMailbox } from '@/hooks/useMailbox';
 import { AvatarDrawer } from '../components/AvatarDrawer';
 import { ChatInput } from '../components/ChatInput';
@@ -21,31 +20,28 @@ import { InventoryDrawer } from '../EditMode/InventoryDrawer';
 import { useUsernames } from '../hooks/useUsernames';
 import type { RoomSession } from './useRoomSession';
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(t => ({
   container: {
     flex: 1,
+    backgroundColor: t.colors.background,
+  },
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   roomHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 4,
-    paddingBottom: 10,
-    backgroundColor: theme.colors.background,
-  },
-  backBtn: {
-    padding: 8,
+    gap: t.space.xs,
+    paddingHorizontal: t.space.sm,
+    paddingBottom: t.space.sm,
+    backgroundColor: t.colors.background,
+    borderBottomWidth: t.borderWidth.thin,
+    borderBottomColor: t.colors.border,
   },
   roomHeaderTitle: {
     flex: 1,
-    textAlign: 'center',
-    color: theme.colors.text,
-    fontWeight: '600',
-    fontSize: 17,
-  },
-  headerBtn: {
-    width: 40,
-    padding: 8,
-    alignItems: 'center',
+    marginHorizontal: t.space.xs,
   },
   fabColumn: {
     position: 'absolute',
@@ -53,14 +49,14 @@ const styles = StyleSheet.create({
     right: 20,
     left: 20,
     alignItems: 'flex-end',
-    gap: 12,
+    gap: t.space.md,
   },
-  chatRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    paddingLeft: 4,
+  dock: {
+    paddingHorizontal: t.space.sm,
+    paddingTop: t.space.xs,
+    paddingBottom: t.space.sm,
   },
-});
+}));
 
 interface Props {
   session: RoomSession;
@@ -75,6 +71,7 @@ interface Props {
 export function RoomShell({ session, children }: Readonly<Props>) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const styles = useStyles();
   // One drawer at a time takes the chat input's place.
   const [drawer, setDrawer] = useState<'avatars' | 'emotes' | null>(null);
   const toggleDrawer = (next: 'avatars' | 'emotes') => setDrawer(open => (open === next ? null : next));
@@ -103,18 +100,21 @@ export function RoomShell({ session, children }: Readonly<Props>) {
 
   if (isLoading) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" />
+      <View style={[styles.container, styles.centered]}>
+        <Spinner size="large" />
       </View>
     );
   }
 
   if (error || !roomDetails) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <View>
-          <Button title="Failed to load room." />
-        </View>
+      <View style={[styles.container, styles.centered, { paddingTop: insets.top }]}>
+        <EmptyState
+          icon="cloud-offline-outline"
+          title="Couldn't open this room"
+          body="Check your connection and try again."
+          action={<Button title="Go back" variant="secondary" icon="chevron-back" onPress={() => router.back()} />}
+        />
       </View>
     );
   }
@@ -133,45 +133,34 @@ export function RoomShell({ session, children }: Readonly<Props>) {
           isPlacing={edit.selectedItem !== null}
         />
       ) : (
-        <View style={[styles.roomHeader, { paddingTop: insets.top }]}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={24} color={theme.colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.roomHeaderTitle} numberOfLines={1}>{roomDetails.name}</Text>
+        <View style={[styles.roomHeader, { paddingTop: insets.top + 4 }]}>
+          <IconButton icon="chevron-back" onPress={() => router.back()} accessibilityLabel="Back" />
+          <AppText variant="heading" style={styles.roomHeaderTitle} numberOfLines={1}>{roomDetails.name}</AppText>
           {/* A personal room has no members: it's open to its owner's friends. */}
           {roomDetails.category !== RoomCategory.PERSONAL && (
-            <TouchableOpacity
-              style={styles.headerBtn}
+            <IconButton
+              icon="people-outline"
+              variant="surface"
               onPress={() => router.push({ pathname: '/room-members', params: { roomId: roomDetails._id } })}
               accessibilityLabel="Members"
-            >
-              <Ionicons name="people-outline" size={22} color={theme.colors.text} />
-            </TouchableOpacity>
+            />
           )}
           {canEmote && (
-            <TouchableOpacity
-              style={styles.headerBtn}
+            <IconButton
+              icon={drawer === 'emotes' ? 'happy' : 'happy-outline'}
+              variant="surface"
+              active={drawer === 'emotes'}
               onPress={() => toggleDrawer('emotes')}
               accessibilityLabel="Emotes"
-            >
-              <Ionicons
-                name={drawer === 'emotes' ? 'happy' : 'happy-outline'}
-                size={22}
-                color={drawer === 'emotes' ? theme.colors.primary : theme.colors.text}
-              />
-            </TouchableOpacity>
+            />
           )}
-          <TouchableOpacity
-            style={styles.headerBtn}
+          <IconButton
+            icon={drawer === 'avatars' ? 'shirt' : 'shirt-outline'}
+            variant="surface"
+            active={drawer === 'avatars'}
             onPress={() => toggleDrawer('avatars')}
             accessibilityLabel="Change avatar"
-          >
-            <Ionicons
-              name={drawer === 'avatars' ? 'shirt' : 'shirt-outline'}
-              size={22}
-              color={drawer === 'avatars' ? theme.colors.primary : theme.colors.text}
-            />
-          </TouchableOpacity>
+          />
         </View>
       )}
 
@@ -205,11 +194,12 @@ export function RoomShell({ session, children }: Readonly<Props>) {
       {showChat && (
         <>
           <TypingIndicator names={typingNames} />
-          <View style={styles.chatRow}>
-            <TranscriptButton open={transcriptOpen} onPress={() => setTranscriptOpen(open => !open)} />
-            <View style={{ flex: 1 }}>
-              <ChatInput onTyping={intents.typing} onSubmit={intents.submitMessage} />
-            </View>
+          <View style={styles.dock}>
+            <ChatInput
+              onTyping={intents.typing}
+              onSubmit={intents.submitMessage}
+              left={<TranscriptButton open={transcriptOpen} onPress={() => setTranscriptOpen(open => !open)} />}
+            />
           </View>
         </>
       )}

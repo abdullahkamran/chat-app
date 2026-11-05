@@ -1,5 +1,6 @@
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { theme } from '@/constants/theme';
+import { View } from 'react-native';
+import { AppText, Button } from '@/components/ui';
+import { makeStyles } from '@/constants/theme';
 import { ItemPlacement, type RoomItem } from '@chat-app/shared-types';
 
 interface Props {
@@ -14,121 +15,76 @@ interface Props {
   topInset?: number;
 }
 
-/** Save / Cancel bar shown at the top while in edit mode. */
+const useStyles = makeStyles(t => ({
+  toolbar: {
+    paddingHorizontal: t.space.md,
+    paddingBottom: t.space.sm + 2,
+    gap: t.space.sm,
+    backgroundColor: t.colors.surface,
+    borderBottomWidth: t.borderWidth.thick,
+    borderBottomColor: t.colors.secondary,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: t.space.sm,
+  },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  actions: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: t.space.sm,
+  },
+}));
+
+/** Save / Cancel bar shown at the top while in edit mode, edged in the edit-mode accent. */
 export function EditModeToolbar({
   isSaving, onSave, onCancel, selectedPlacedItem, onRemovePlacedItem, onRotatePlacedItem, isPlacing = false,
   topInset = 0,
 }: Props) {
+  const styles = useStyles();
   const hint = selectedPlacedItem
     ? 'Tap the floor to move it'
     : isPlacing
       ? 'Tap the floor to place'
       : 'Tap furniture to move it';
   return (
-    <View style={[styles.toolbar, { paddingTop: topInset + 10 }]}>
-      <TouchableOpacity style={styles.cancelBtn} onPress={onCancel} disabled={isSaving}>
-        <Text style={styles.cancelText}>Cancel</Text>
-      </TouchableOpacity>
-
-      <View style={styles.center}>
-        {selectedPlacedItem ? (
-          <View style={styles.actions}>
-            {selectedPlacedItem.itemId.placement === ItemPlacement.FLOOR && (
-              <TouchableOpacity style={styles.rotateBtn} onPress={onRotatePlacedItem} disabled={isSaving}>
-                <Text style={styles.rotateText}>↻ Rotate</Text>
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity style={styles.removeBtn} onPress={onRemovePlacedItem} disabled={isSaving}>
-              <Text style={styles.removeText}>🗑 Remove</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <Text style={styles.label}>Edit Room</Text>
-        )}
-        <Text style={styles.hint}>{hint}</Text>
+    <View style={[styles.toolbar, { paddingTop: topInset + 8 }]}>
+      <View style={styles.row}>
+        <Button title="Cancel" variant="ghost" size="sm" onPress={onCancel} disabled={isSaving} />
+        <View style={styles.center}>
+          <AppText variant="heading" color="secondary">Decorating</AppText>
+          <AppText variant="caption" color="textSecondary">{hint}</AppText>
+        </View>
+        <Button title="Save" size="sm" onPress={onSave} loading={isSaving} />
       </View>
 
-      <TouchableOpacity style={styles.saveBtn} onPress={onSave} disabled={isSaving}>
-        {isSaving
-          ? <ActivityIndicator size="small" color={theme.colors.primaryText} />
-          : <Text style={styles.saveText}>Save</Text>
-        }
-      </TouchableOpacity>
+      {selectedPlacedItem && (
+        <View style={styles.actions}>
+          {selectedPlacedItem.itemId.placement === ItemPlacement.FLOOR && (
+            <Button
+              title="Rotate"
+              icon="refresh"
+              variant="secondary"
+              size="sm"
+              onPress={onRotatePlacedItem}
+              disabled={isSaving}
+            />
+          )}
+          <Button
+            title="Remove"
+            icon="trash-outline"
+            variant="danger"
+            size="sm"
+            onPress={onRemovePlacedItem}
+            disabled={isSaving}
+          />
+        </View>
+      )}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  toolbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-    backgroundColor: theme.colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  center: {
-    alignItems: 'center',
-    gap: 4,
-  },
-  label: {
-    color: theme.colors.text,
-    fontWeight: '600',
-    fontSize: 15,
-  },
-  hint: {
-    color: theme.colors.textSecondary,
-    fontSize: 12,
-  },
-  cancelBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  cancelText: {
-    color: theme.colors.textSecondary,
-    fontSize: 15,
-  },
-  saveBtn: {
-    backgroundColor: theme.colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 8,
-    minWidth: 60,
-    alignItems: 'center',
-  },
-  saveText: {
-    color: theme.colors.primaryText,
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  rotateBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: theme.colors.borderSubtle,
-  },
-  rotateText: {
-    color: theme.colors.text,
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  removeBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: theme.colors.error,
-  },
-  removeText: {
-    color: theme.colors.error,
-    fontWeight: '600',
-    fontSize: 14,
-  },
-});

@@ -17,7 +17,7 @@ import {
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { gridToScreen, isMirrored, type GridOrigin } from '@/constants/grid';
-import { theme } from '@/constants/theme';
+import { useTheme } from '@/constants/theme';
 import type { ActorAction, ActorActionKind, Facing, RoomItem } from '@chat-app/shared-types';
 import type { ActorState } from '../../core/contract';
 import { steadyFacingFromDelta } from '../../core/facing';
@@ -275,11 +275,12 @@ export function useWorldPicture({
     }];
   }), [items, itemImages, selectedPlaced, origin]);
 
+  const theme = useTheme();
   const colors = useMemo(() => ({
-    shadow: Skia.Color(theme.colors.background),
-    local: Skia.Color(theme.colors.primary),
-    tint: Skia.Color(theme.colors.primary),
-  }), []);
+    shadow: Skia.Color(theme.colors.roomShadow),
+    local: Skia.Color(theme.colors.roomLocalActor),
+    tint: Skia.Color(theme.colors.roomLocalActor),
+  }), [theme]);
 
   const actorsInput = useSharedValue<ActorDraw[]>([]);
   const itemsInput = useSharedValue<ItemDraw[]>([]);

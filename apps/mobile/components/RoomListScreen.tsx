@@ -1,18 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Modal, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { io } from 'socket.io-client';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { PaginatedRooms, Room, RoomCategory } from '@chat-app/shared-types';
+import { AppText, Button, EmptyState, IconButton, ScreenHeader, Spinner } from '@/components/ui';
 import { useAuth } from '@/context/auth.context';
 import { useIncomingRequests } from '@/hooks/useFriends';
 import { api } from '@/lib/api';
+import { makeStyles, useTheme } from '@/constants/theme';
 import { SERVER_ORIGIN } from '../utils/config';
 import { listenForAccountEvents, socketUtils } from '../utils/socketUtils';
 import RoomListItem from './RoomListItem';
-import { theme } from '@/constants/theme';
 
 const LIMIT = 20;
 
@@ -22,7 +23,66 @@ function roomKindLabel(room: Room, userId: string | null): string {
   return room.ownerId === userId ? 'Your room' : "Friend's room";
 }
 
+const useStyles = makeStyles(t => ({
+  container: {
+    flex: 1,
+    backgroundColor: t.colors.background,
+  },
+  loader: {
+    flex: 1,
+  },
+  list: {
+    paddingTop: t.space.sm,
+    // Clear of the floating button.
+    paddingBottom: 112,
+    gap: t.space.md,
+  },
+  footer: {
+    paddingVertical: t.space.lg,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: t.space.xl,
+    right: t.space.xl,
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: t.colors.overlay,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: t.space.xl,
+  },
+  dialog: {
+    backgroundColor: t.colors.surfaceElevated,
+    borderRadius: t.radius.xl,
+    borderWidth: t.borderWidth.thick,
+    borderColor: t.colors.border,
+    padding: t.space.xl,
+    width: '100%',
+    maxWidth: 340,
+    alignItems: 'center',
+    gap: t.space.md,
+    ...t.shadows.floating,
+  },
+  dialogIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: t.radius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: t.colors.primarySoft,
+    transform: [{ rotate: '-6deg' }],
+  },
+  dialogActions: {
+    alignSelf: 'stretch',
+    gap: t.space.xs,
+    marginTop: t.space.sm,
+  },
+}));
+
 export default function RoomListScreen(): React.JSX.Element {
+  const t = useTheme();
+  const styles = useStyles();
   const { userId, selectedAvatar } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -76,23 +136,26 @@ export default function RoomListScreen(): React.JSX.Element {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Rooms</Text>
-        <Pressable onPress={() => router.push('/add-friends')} hitSlop={8} accessibilityLabel="Add friends">
-          <Ionicons name="person-add-outline" size={24} color={theme.colors.text} />
-          {requestCount > 0 && (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{requestCount > 9 ? '9+' : requestCount}</Text>
-            </View>
-          )}
-        </Pressable>
-      </View>
+      <ScreenHeader
+        large
+        title="Rooms"
+        right={
+          <IconButton
+            icon="person-add-outline"
+            variant="surface"
+            badge={requestCount}
+            onPress={() => router.push('/add-friends')}
+            accessibilityLabel="Add friends"
+          />
+        }
+      />
       {isLoading ? (
-        <ActivityIndicator style={styles.loader} size="large" color="#FFFC00" />
+        <Spinner style={styles.loader} size="large" />
       ) : (
         <FlatList
           data={rooms}
           keyExtractor={(room) => room._id}
+          contentContainerStyle={styles.list}
           renderItem={({ item }) => (
             <RoomListItem
               name={item.name}
@@ -103,152 +166,47 @@ export default function RoomListScreen(): React.JSX.Element {
           )}
           onEndReached={() => { if (hasNextPage && !isFetchingNextPage) fetchNextPage(); }}
           onEndReachedThreshold={0.4}
-          ListFooterComponent={
-            isFetchingNextPage ? <ActivityIndicator style={styles.footer} color={theme.colors.primary} /> : undefined
+          ListEmptyComponent={
+            <EmptyState
+              icon="planet-outline"
+              title="No rooms yet"
+              body="Start one and invite your friends over."
+            />
           }
+          ListFooterComponent={isFetchingNextPage ? <Spinner style={styles.footer} /> : undefined}
         />
       )}
 
-      <Pressable style={styles.fab} onPress={() => router.push('/create-room')}>
-        <Text style={styles.fabIcon}>+</Text>
-      </Pressable>
+      <IconButton
+        icon="add"
+        variant="primary"
+        size={60}
+        style={styles.fab}
+        onPress={() => router.push('/create-room')}
+        accessibilityLabel="New room"
+      />
 
       <Modal visible={showAvatarDialog && !selectedAvatar} transparent animationType="fade">
         <View style={styles.overlay}>
           <View style={styles.dialog}>
-            <Text style={styles.dialogTitle}>Set up your avatar</Text>
-            <Text style={styles.dialogBody}>
+            <View style={styles.dialogIcon}>
+              <Ionicons name="happy" size={32} color={t.colors.primary} />
+            </View>
+            <AppText variant="title" align="center">Set up your avatar</AppText>
+            <AppText color="textSecondary" align="center">
               You need an avatar before joining conversations.
-            </Text>
-            <Pressable
-              style={styles.dialogButton}
-              onPress={() => { setShowAvatarDialog(false); router.push('/(avatar)/create'); }}
-            >
-              <Text style={styles.dialogButtonText}>Create Avatar</Text>
-            </Pressable>
-            <Pressable
-              style={styles.dialogCancelButton}
-              onPress={() => setShowAvatarDialog(false)}
-            >
-              <Text style={styles.dialogCancelText}>Maybe Later</Text>
-            </Pressable>
+            </AppText>
+            <View style={styles.dialogActions}>
+              <Button
+                title="Create Avatar"
+                fullWidth
+                onPress={() => { setShowAvatarDialog(false); router.push('/(avatar)/create'); }}
+              />
+              <Button title="Maybe Later" variant="ghost" fullWidth onPress={() => setShowAvatarDialog(false)} />
+            </View>
           </View>
         </View>
       </Modal>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  headerTitle: {
-    color: theme.colors.text,
-    fontSize: 24,
-    fontWeight: '700',
-  },
-  badge: {
-    position: 'absolute',
-    top: -6,
-    right: -8,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    paddingHorizontal: 4,
-    backgroundColor: theme.colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeText: {
-    color: theme.colors.primaryText,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  loader: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  footer: {
-    paddingVertical: 16,
-  },
-  fab: {
-    position: 'absolute',
-    bottom: 24,
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: theme.colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: theme.colors.background,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 6,
-    elevation: 8,
-  },
-  fabIcon: {
-    color: theme.colors.primaryText,
-    fontSize: 28,
-    fontWeight: '600',
-    lineHeight: 32,
-  },
-  overlay: {
-    flex: 1,
-    backgroundColor: theme.colors.overlay,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  dialog: {
-    backgroundColor: theme.colors.surfaceElevated,
-    borderRadius: 16,
-    padding: 28,
-    width: '100%',
-    maxWidth: 340,
-    alignItems: 'center',
-    gap: 12,
-  },
-  dialogTitle: {
-    color: theme.colors.text,
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  dialogBody: {
-    color: theme.colors.placeholder,
-    fontSize: 15,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  dialogButton: {
-    marginTop: 8,
-    backgroundColor: theme.colors.primary,
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 32,
-    width: '100%',
-    alignItems: 'center',
-  },
-  dialogButtonText: {
-    color: theme.colors.primaryText,
-    fontWeight: '700',
-    fontSize: 16,
-  },
-  dialogCancelButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 32,
-  },
-  dialogCancelText: {
-    color: theme.colors.textSecondary,
-    fontSize: 15,
-  },
-});

@@ -1,10 +1,10 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 import type { User } from '@chat-app/shared-types';
-import { theme } from '@/constants/theme';
+import { AppText, IconButton } from '@/components/ui';
+import { makeStyles, useTheme, type Theme } from '@/constants/theme';
 import type { TranscriptEntry } from '../session/useRoomSession';
 
 /** The peek shows at most this many of the latest messages... */
@@ -20,17 +20,74 @@ interface LineProps {
 }
 
 /** A sender's color, the same on every line and every device. */
-function nameColor(uid: string): string {
+function nameColor(t: Theme, uid: string): string {
   let hash = 0;
   for (let i = 0; i < uid.length; i++) hash = (hash * 31 + uid.charCodeAt(i)) | 0;
-  return theme.avatarPalette[Math.abs(hash) % theme.avatarPalette.length];
+  return t.avatarPalette[Math.abs(hash) % t.avatarPalette.length];
 }
 
+const useStyles = makeStyles(t => ({
+  peek: {
+    position: 'absolute',
+    left: t.space.sm,
+    // Clear of the postbox and edit buttons on the right.
+    right: 88,
+    bottom: t.space.sm,
+    alignItems: 'flex-start',
+    gap: t.space.xs,
+  },
+  peekLine: {
+    backgroundColor: t.colors.transcriptBackground,
+    borderRadius: t.radius.md,
+    paddingHorizontal: 10,
+    paddingVertical: t.space.xs,
+  },
+  lineText: {
+    ...t.type.body,
+    fontSize: 14,
+    lineHeight: 19,
+    color: t.colors.text,
+  },
+  name: {
+    fontFamily: t.fontFamily.bodyExtraBold,
+  },
+  panel: {
+    position: 'absolute',
+    left: t.space.sm,
+    right: t.space.sm,
+    bottom: 0,
+    height: '45%',
+    backgroundColor: t.colors.transcriptBackground,
+    borderRadius: t.radius.lg,
+    borderWidth: t.borderWidth.thin,
+    borderColor: t.colors.border,
+    overflow: 'hidden',
+  },
+  panelContent: {
+    paddingHorizontal: t.space.md,
+    paddingVertical: 10,
+    gap: 6,
+  },
+  panelRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: t.space.sm,
+  },
+  time: {
+    lineHeight: 19,
+  },
+  empty: {
+    marginTop: t.space.xl,
+  },
+}));
+
 function Line({ entry, userId, names }: Readonly<LineProps>) {
+  const t = useTheme();
+  const styles = useStyles();
   const mine = entry.userId === userId;
   return (
     <Text style={styles.lineText}>
-      <Text style={[styles.name, { color: mine ? theme.colors.primary : nameColor(entry.userId) }]}>
+      <Text style={[styles.name, { color: mine ? t.colors.primary : nameColor(t, entry.userId) }]}>
         {mine ? 'You' : names[entry.userId] ?? '…'}
       </Text>
       {'  '}
@@ -49,6 +106,7 @@ function clockTime(at: number): string {
  * it was sent. Touches pass through to the room.
  */
 export function TranscriptPeek({ entries, userId, names }: Readonly<{ entries: TranscriptEntry[] } & Omit<LineProps, 'entry'>>) {
+  const styles = useStyles();
   const [now, setNow] = useState(Date.now);
   const shown = entries.slice(-PEEK_LINES).filter(e => e.sentAt + PEEK_MS > now);
 
@@ -73,10 +131,11 @@ export function TranscriptPeek({ entries, userId, names }: Readonly<{ entries: T
 
 /** Every message since entering, newest at the bottom, scrollable. */
 export function TranscriptPanel({ entries, userId, names }: Readonly<{ entries: TranscriptEntry[] } & Omit<LineProps, 'entry'>>) {
+  const styles = useStyles();
   return (
     <Animated.View style={styles.panel} entering={FadeIn.duration(150)} exiting={FadeOut.duration(150)}>
       {entries.length === 0 ? (
-        <Text style={styles.empty}>No messages since you came in</Text>
+        <AppText color="textSecondary" align="center" style={styles.empty}>No messages since you came in</AppText>
       ) : (
         // Inverted, so it opens on the newest message and stays there as more arrive.
         <FlatList
@@ -89,7 +148,7 @@ export function TranscriptPanel({ entries, userId, names }: Readonly<{ entries: 
               <View style={{ flex: 1 }}>
                 <Line entry={item} userId={userId} names={names} />
               </View>
-              <Text style={styles.time}>{clockTime(item.sentAt)}</Text>
+              <AppText variant="caption" color="textMuted" style={styles.time}>{clockTime(item.sentAt)}</AppText>
             </View>
           )}
         />
@@ -98,78 +157,14 @@ export function TranscriptPanel({ entries, userId, names }: Readonly<{ entries: 
   );
 }
 
-/** Opens and closes the transcript panel. */
+/** Opens and closes the transcript panel. Sits inside the chat bar. */
 export function TranscriptButton({ open, onPress }: Readonly<{ open: boolean; onPress: () => void }>) {
   return (
-    <TouchableOpacity style={styles.button} onPress={onPress} accessibilityLabel={open ? 'Hide chat' : 'Show chat'}>
-      <Ionicons
-        name={open ? 'chatbubbles' : 'chatbubbles-outline'}
-        size={24}
-        color={open ? theme.colors.primary : theme.colors.text}
-      />
-    </TouchableOpacity>
+    <IconButton
+      icon={open ? 'chatbubbles' : 'chatbubbles-outline'}
+      active={open}
+      onPress={onPress}
+      accessibilityLabel={open ? 'Hide chat' : 'Show chat'}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  peek: {
-    position: 'absolute',
-    left: 8,
-    // Clear of the postbox and edit buttons on the right.
-    right: 88,
-    bottom: 8,
-    alignItems: 'flex-start',
-    gap: 4,
-  },
-  peekLine: {
-    backgroundColor: theme.colors.transcriptBackground,
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  lineText: {
-    color: theme.colors.text,
-    fontSize: 14,
-    lineHeight: 19,
-  },
-  name: {
-    fontWeight: '700',
-  },
-  panel: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: '45%',
-    backgroundColor: theme.colors.transcriptBackground,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-  },
-  panelContent: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 6,
-  },
-  panelRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-  },
-  time: {
-    color: theme.colors.textSecondary,
-    fontSize: 11,
-    lineHeight: 19,
-  },
-  empty: {
-    color: theme.colors.textSecondary,
-    fontSize: 14,
-    textAlign: 'center',
-    marginTop: 24,
-  },
-  button: {
-    height: 48,
-    width: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-});

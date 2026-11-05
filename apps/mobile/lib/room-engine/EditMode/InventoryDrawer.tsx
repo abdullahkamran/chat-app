@@ -1,16 +1,11 @@
 import { Image } from 'expo-image';
-import {
-  ActivityIndicator,
-  FlatList,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { theme } from '@/constants/theme';
+import { FlatList, TouchableOpacity, View } from 'react-native';
+import { AppText, Badge, Spinner } from '@/components/ui';
+import { makeStyles, useTheme } from '@/constants/theme';
 import { resolveItemSource } from '@/constants/avatarAssets';
 import { useInventory } from '@/hooks/useInventory';
 import { type Item, type RoomItem } from '@chat-app/shared-types';
+import { Drawer } from '../components/Drawer';
 
 interface Props {
   selectedItem: Item | null;
@@ -19,8 +14,47 @@ interface Props {
   pendingItems: RoomItem[];
 }
 
+const useStyles = makeStyles(t => ({
+  list: {
+    gap: t.space.sm + 2,
+    paddingTop: t.space.xs,
+    paddingBottom: t.space.xs,
+  },
+  itemCard: {
+    width: 76,
+    alignItems: 'center',
+    borderRadius: t.radius.md,
+    padding: 6,
+    backgroundColor: t.colors.surfaceElevated,
+    borderWidth: t.borderWidth.thick,
+    borderColor: t.colors.border,
+  },
+  itemCardSelected: {
+    borderColor: t.colors.secondary,
+    backgroundColor: t.colors.secondarySoft,
+  },
+  itemCardExhausted: {
+    opacity: 0.4,
+  },
+  itemImageExhausted: {
+    opacity: 0.5,
+  },
+  imageWrapper: {
+    position: 'relative',
+  },
+  itemImage: {
+    width: 48,
+    height: 48,
+  },
+  itemName: {
+    marginTop: t.space.xs,
+  },
+}));
+
 /** Bottom drawer showing the user's room-item inventory for placement. */
 export function InventoryDrawer({ selectedItem, onSelectItem, pendingItems }: Props) {
+  const t = useTheme();
+  const styles = useStyles();
   const { data: rawItems, isLoading } = useInventory();
 
   const groupedItems = (rawItems ?? []).reduce<Array<{ item: Item; ownedCount: number }>>((acc, item) => {
@@ -34,10 +68,8 @@ export function InventoryDrawer({ selectedItem, onSelectItem, pendingItems }: Pr
   }, []);
 
   return (
-    <View style={styles.drawer}>
-      <Text style={styles.title}>Inventory</Text>
-
-      {isLoading && <ActivityIndicator color={theme.colors.primary} />}
+    <Drawer title="Inventory">
+      {isLoading && <Spinner color="secondary" />}
 
       <FlatList
         data={groupedItems}
@@ -66,92 +98,21 @@ export function InventoryDrawer({ selectedItem, onSelectItem, pendingItems }: Pr
                   contentFit="contain"
                 />
                 {ownedCount > 1 && (
-                  <View style={[styles.countBadge, exhausted && styles.countBadgeExhausted]}>
-                    <Text style={styles.countBadgeText}>{remaining}</Text>
-                  </View>
+                  <Badge
+                    count={Math.max(remaining, 0)}
+                    showZero
+                    tone={exhausted ? 'muted' : 'primary'}
+                    ringColor={t.colors.surfaceElevated}
+                  />
                 )}
               </View>
-              <Text style={styles.itemName} numberOfLines={1}>
+              <AppText variant="caption" color="textSecondary" align="center" style={styles.itemName} numberOfLines={1}>
                 {item.name}
-              </Text>
+              </AppText>
             </TouchableOpacity>
           );
         }}
       />
-    </View>
+    </Drawer>
   );
 }
-
-const styles = StyleSheet.create({
-  drawer: {
-    backgroundColor: theme.colors.surface,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-  },
-  title: {
-    color: theme.colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    marginBottom: 10,
-  },
-  list: {
-    gap: 10,
-    paddingBottom: 4,
-  },
-  itemCard: {
-    width: 72,
-    alignItems: 'center',
-    borderRadius: 8,
-    padding: 6,
-    backgroundColor: theme.colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  itemCardSelected: {
-    borderColor: theme.colors.primary,
-  },
-  itemCardExhausted: {
-    opacity: 0.4,
-  },
-  itemImageExhausted: {
-    opacity: 0.5,
-  },
-  countBadgeExhausted: {
-    backgroundColor: theme.colors.textMuted,
-  },
-  imageWrapper: {
-    position: 'relative',
-  },
-  itemImage: {
-    width: 48,
-    height: 48,
-  },
-  countBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: theme.colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-  },
-  countBadgeText: {
-    color: theme.colors.primaryText,
-    fontSize: 11,
-    fontWeight: '700',
-    lineHeight: 14,
-  },
-  itemName: {
-    color: theme.colors.textSecondary,
-    fontSize: 10,
-    marginTop: 4,
-    textAlign: 'center',
-  },
-});

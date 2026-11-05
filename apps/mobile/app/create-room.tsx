@@ -1,24 +1,57 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { KeyboardAvoidingView, Platform, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import UserPicker from '@/components/UserPicker';
-import { theme } from '@/constants/theme';
+import { AppText, Button, ScreenHeader, TextField } from '@/components/ui';
+import { makeStyles } from '@/constants/theme';
 import { api } from '@/lib/api';
 import { PublicUser, Room } from '@chat-app/shared-types';
 
+const useStyles = makeStyles(t => ({
+  root: {
+    flex: 1,
+    backgroundColor: t.colors.background,
+  },
+  dots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: t.space.sm,
+    paddingBottom: t.space.xl,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: t.radius.pill,
+    backgroundColor: t.colors.borderStrong,
+  },
+  dotActive: {
+    width: 24,
+    backgroundColor: t.colors.primary,
+  },
+  stepContainer: {
+    flex: 1,
+    paddingHorizontal: t.space.xl,
+  },
+  stepLabel: {
+    marginBottom: t.space.md,
+  },
+  charCount: {
+    marginTop: 6,
+    marginBottom: t.space.xxl,
+  },
+  errorText: {
+    marginBottom: t.space.md,
+  },
+  primaryBtn: {
+    marginBottom: t.space.xl,
+  },
+}));
+
 export default function CreateRoom() {
+  const styles = useStyles();
   const [step, setStep] = useState<1 | 2>(1);
   const [name, setName] = useState('');
   const [members, setMembers] = useState<PublicUser[]>([]);
@@ -49,14 +82,11 @@ export default function CreateRoom() {
       style={[styles.root, { paddingTop: insets.top }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      {/* Header */}
-      <View style={styles.header}>
-        <Pressable onPress={() => (step === 2 ? setStep(1) : router.back())} hitSlop={12}>
-          <Text style={styles.headerBack}>‹ Back</Text>
-        </Pressable>
-        <Text style={styles.headerTitle}>{step === 1 ? 'New Room' : 'Add People'}</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <ScreenHeader
+        title={step === 1 ? 'New Room' : 'Add People'}
+        onBack={() => (step === 2 ? setStep(1) : router.back())}
+        backIcon={step === 1 ? 'close' : 'chevron-back'}
+      />
 
       {/* Step dots */}
       <View style={styles.dots}>
@@ -67,145 +97,38 @@ export default function CreateRoom() {
       {step === 1 ? (
         /* ── Step 1: Room name ── */
         <View style={[styles.stepContainer, { paddingBottom: insets.bottom }]}>
-          <Text style={styles.stepLabel}>Room name</Text>
-          <TextInput
-            style={styles.nameInput}
+          <AppText variant="overline" color="textMuted" style={styles.stepLabel}>Room name</AppText>
+          <TextField
+            size="lg"
             value={name}
             onChangeText={setName}
             placeholder="e.g. Late night crew"
-            placeholderTextColor={theme.colors.textMuted}
             autoFocus
             maxLength={60}
             returnKeyType="next"
             onSubmitEditing={() => { if (name.trim()) setStep(2); }}
           />
-          <Text style={styles.charCount}>{name.length}/60</Text>
+          <AppText variant="caption" color="textMuted" align="right" style={styles.charCount}>{name.length}/60</AppText>
 
-          <Pressable
-            style={[styles.primaryBtn, !name.trim() && styles.primaryBtnDisabled]}
-            onPress={() => setStep(2)}
-            disabled={!name.trim()}
-          >
-            <Text style={styles.primaryBtnText}>Next</Text>
-          </Pressable>
+          <Button title="Next" size="lg" fullWidth disabled={!name.trim()} onPress={() => setStep(2)} style={styles.primaryBtn} />
         </View>
       ) : (
         /* ── Step 2: Add people ── */
         <View style={[styles.stepContainer, { paddingBottom: insets.bottom }]}>
           <UserPicker selected={members} onChange={setMembers} />
 
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          {error ? <AppText variant="label" color="error" align="center" style={styles.errorText}>{error}</AppText> : null}
 
-          <Pressable
-            style={[styles.primaryBtn, isCreating && styles.primaryBtnDisabled]}
+          <Button
+            title={members.length ? `Create Room with ${members.length}` : 'Create Room'}
+            size="lg"
+            fullWidth
+            loading={isCreating}
             onPress={createRoom}
-            disabled={isCreating}
-          >
-            {isCreating ? (
-              <ActivityIndicator color={theme.colors.primaryText} />
-            ) : (
-              <Text style={styles.primaryBtnText}>
-                {members.length ? `Create Room with ${members.length}` : 'Create Room'}
-              </Text>
-            )}
-          </Pressable>
+            style={styles.primaryBtn}
+          />
         </View>
       )}
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  headerBack: {
-    color: theme.colors.primary,
-    fontSize: 18,
-    fontWeight: '600',
-    width: 64,
-  },
-  headerTitle: {
-    flex: 1,
-    color: theme.colors.text,
-    fontSize: 18,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  headerSpacer: {
-    width: 64,
-  },
-  dots: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-    paddingBottom: 24,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: theme.colors.borderSubtle,
-  },
-  dotActive: {
-    backgroundColor: theme.colors.primary,
-  },
-  stepContainer: {
-    flex: 1,
-    paddingHorizontal: 24,
-  },
-  stepLabel: {
-    color: theme.colors.placeholder,
-    fontSize: 13,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: 12,
-  },
-  nameInput: {
-    backgroundColor: theme.colors.surface,
-    color: theme.colors.text,
-    fontSize: 22,
-    fontWeight: '600',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  charCount: {
-    color: theme.colors.textMuted,
-    fontSize: 12,
-    textAlign: 'right',
-    marginTop: 6,
-    marginBottom: 32,
-  },
-  errorText: {
-    color: theme.colors.error,
-    fontSize: 14,
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  primaryBtn: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  primaryBtnDisabled: {
-    opacity: 0.35,
-  },
-  primaryBtnText: {
-    color: theme.colors.primaryText,
-    fontWeight: '700',
-    fontSize: 17,
-  },
-});

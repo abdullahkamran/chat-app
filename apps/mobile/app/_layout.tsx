@@ -1,8 +1,13 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 // import * as Notifications from 'expo-notifications';
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider, enableLegacyHeaderAppearance, useRouter } from 'expo-router';
+import { Fredoka_600SemiBold, Fredoka_700Bold } from '@expo-google-fonts/fredoka';
+import { Nunito_600SemiBold, Nunito_700Bold, Nunito_800ExtraBold } from '@expo-google-fonts/nunito';
+import { useFonts } from 'expo-font';
+import {
+  DarkTheme, DefaultTheme, Stack, ThemeProvider as NavigationThemeProvider, enableLegacyHeaderAppearance, useRouter,
+} from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -11,7 +16,7 @@ import { ToastHost } from '@/components/Toast';
 import { ActiveRoomContext } from '@/context/activeRoom.context';
 import { AuthProvider, useAuth } from '@/context/auth.context';
 import { UserContext } from '@/context/user.context';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { ThemeProvider, useTheme } from '@/constants/theme';
 // import { registerForPushNotificationsAsync, savePushTokenToServer } from '@/utils/notifications';
 import { queryClient } from '@/utils/queryClient';
 
@@ -34,7 +39,7 @@ enableLegacyHeaderAppearance();
 // });
 
 function AppNavigator() {
-  const colorScheme = useColorScheme();
+  const t = useTheme();
   const router = useRouter();
   const { userId, isLoading, isAuthenticated } = useAuth();
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
@@ -65,13 +70,30 @@ function AppNavigator() {
   //   return () => sub.remove();
   // }, [router]);
 
+  // React Navigation's own theme, from ours: screen backgrounds, headers and the tab bar.
+  const navigationTheme = useMemo(() => {
+    const base = t.scheme === 'dark' ? DarkTheme : DefaultTheme;
+    return {
+      ...base,
+      colors: {
+        ...base.colors,
+        primary: t.colors.primary,
+        background: t.colors.background,
+        card: t.colors.surface,
+        text: t.colors.text,
+        border: t.colors.border,
+        notification: t.colors.primary,
+      },
+    };
+  }, [t]);
+
   if (isLoading) return null;
 
   return (
     <UserContext.Provider value={{ user: { userId: userId ?? '' }, setUser: () => {} }}>
       <ActiveRoomContext.Provider value={{ activeRoomId, setActiveRoomId }}>
         <QueryClientProvider client={queryClient}>
-          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <NavigationThemeProvider value={navigationTheme}>
             <Stack>
               <Stack.Protected guard={isAuthenticated}>
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -80,15 +102,14 @@ function AppNavigator() {
                 <Stack.Screen name="create-room" options={{ headerShown: false, presentation: 'modal' }} />
                 <Stack.Screen name="room-members" options={{ headerShown: false, presentation: 'modal' }} />
                 <Stack.Screen name="add-friends" options={{ headerShown: false, presentation: 'modal' }} />
-                <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
               </Stack.Protected>
               <Stack.Protected guard={!isAuthenticated}>
                 <Stack.Screen name="(auth)" options={{ headerShown: false }} />
               </Stack.Protected>
             </Stack>
-            <StatusBar style="auto" />
+            <StatusBar style={t.scheme === 'dark' ? 'light' : 'dark'} />
             <ToastHost />
-          </ThemeProvider>
+          </NavigationThemeProvider>
         </QueryClientProvider>
       </ActiveRoomContext.Provider>
     </UserContext.Provider>
@@ -96,12 +117,25 @@ function AppNavigator() {
 }
 
 export default function RootLayout() {
+  // Every font the theme's type styles name (constants/theme/tokens.ts).
+  const [fontsLoaded, fontError] = useFonts({
+    Fredoka_600SemiBold,
+    Fredoka_700Bold,
+    Nunito_600SemiBold,
+    Nunito_700Bold,
+    Nunito_800ExtraBold,
+  });
+  // On a font error, carry on with system fonts rather than a blank screen.
+  if (!fontsLoaded && !fontError) return null;
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <AuthProvider>
-          <AppNavigator />
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <AppNavigator />
+          </AuthProvider>
+        </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

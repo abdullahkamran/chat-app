@@ -1,26 +1,27 @@
-import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 
 import type { FriendRelation } from '@chat-app/shared-types';
-import { theme } from '@/constants/theme';
+import { Button } from '@/components/ui';
+import { makeStyles } from '@/constants/theme';
 import { useFriendActions } from '@/hooks/useFriends';
+
+const useStyles = makeStyles(() => ({
+  btn: {
+    minWidth: 104,
+  },
+}));
 
 /**
  * The friend action for another user, by how they relate to the viewer:
  * Add, Requested (tap to cancel), Accept, or Friends.
  */
 export default function FriendButton({ userId, relation }: Readonly<{ userId: string; relation: FriendRelation }>) {
+  const styles = useStyles();
   const { send, accept, removeRequest } = useFriendActions();
   const busy = send.isPending || accept.isPending || removeRequest.isPending;
 
   if (relation === 'friends') {
-    return (
-      <Pressable style={[styles.btn, styles.quiet]} disabled>
-        <Ionicons name="checkmark" size={14} color={theme.colors.textSecondary} />
-        <Text style={styles.quietText}>Friends</Text>
-      </Pressable>
-    );
+    return <Button title="Friends" icon="checkmark" variant="secondary" size="sm" disabled style={styles.btn} />;
   }
 
   const isRequested = relation === 'requested';
@@ -31,51 +32,15 @@ export default function FriendButton({ userId, relation }: Readonly<{ userId: st
   };
 
   return (
-    <Pressable
-      style={[styles.btn, isRequested ? styles.quiet : styles.loud]}
+    <Button
+      title={isRequested ? 'Requested' : relation === 'none' ? 'Add' : 'Accept'}
+      icon={relation === 'none' ? 'person-add' : undefined}
+      variant={isRequested ? 'secondary' : 'primary'}
+      size="sm"
+      loading={busy}
       onPress={onPress}
-      disabled={busy}
+      style={styles.btn}
       accessibilityLabel={isRequested ? 'Cancel friend request' : undefined}
-    >
-      {busy ? (
-        <ActivityIndicator size="small" color={isRequested ? theme.colors.textSecondary : theme.colors.primaryText} />
-      ) : isRequested ? (
-        <Text style={styles.quietText}>Requested</Text>
-      ) : (
-        <>
-          {relation === 'none' && <Ionicons name="person-add" size={14} color={theme.colors.primaryText} />}
-          <Text style={styles.loudText}>{relation === 'none' ? 'Add' : 'Accept'}</Text>
-        </>
-      )}
-    </Pressable>
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  btn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    minWidth: 92,
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  loud: {
-    backgroundColor: theme.colors.primary,
-  },
-  loudText: {
-    color: theme.colors.primaryText,
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  quiet: {
-    backgroundColor: theme.colors.surfaceElevated,
-  },
-  quietText: {
-    color: theme.colors.textSecondary,
-    fontWeight: '600',
-    fontSize: 14,
-  },
-});

@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Monorepo chat app with a Snapchat-inspired design: **black backgrounds, yellow (`#FFFC00`) accents**.
+Monorepo social hangout app (rooms, avatars, shop). Its look is **"Tide"**: cozy, playful, fun. Mint green and sky blue on deep navy, gold for rewards, rounded type (Fredoka + Nunito), and chunky "sticker" UI with thick edges, generous radii and hard drop shadows that buttons sink into when pressed. Dark-first; the theme system is built so a light theme can be added later.
 
 Structure:
 - `apps/mobile` — React Native / Expo mobile app
@@ -11,81 +11,76 @@ Structure:
 
 ---
 
-## Theming — ALWAYS use the centralized theme
+## Theming: ALWAYS use the design system
 
-**Never hardcode color values.** All colors must come from the centralized theme file:
+**Never hardcode colors, font sizes, font families, radii or spacing in components.** Everything comes from `apps/mobile/constants/theme/`:
 
-```
-apps/mobile/constants/theme.ts
-```
+| File | Holds |
+|------|-------|
+| `palette.ts` | Raw hex values (`palette`), plus `artPalette` for avatar programmer art, which stays the same in every theme |
+| `tokens.ts` | Theme-independent tokens: `space`, `radius`, `borderWidth`, `controlHeight`, `fontFamily`, `type`, `motion`, `pressDepth` |
+| `themes.ts` | The `Theme` type, `ThemeColors` (semantic colors), and each theme (`darkTheme` today). The `themes` registry lists them all |
+| `ThemeProvider.tsx` | `ThemeProvider` (mounted in `app/_layout.tsx`), `useTheme()`, `makeStyles()`, `useThemeName()` |
 
-### Imports
+### Styling a component
 
-```ts
-import { theme } from '@/constants/theme';
-// or if you need raw values:
-import { palette } from '@/constants/theme';
-```
+Themes can switch at runtime, so **never read the theme at module level** (no `StyleSheet.create` with theme values, no `import { theme }`). Use `makeStyles` for stylesheets and `useTheme()` for values used in JSX:
 
-### Use semantic tokens from `theme.colors` in components
+```tsx
+import { makeStyles, useTheme } from '@/constants/theme';
 
-```ts
-// backgrounds
-theme.colors.background        // #000000 — main screen background
-theme.colors.surface           // #111111 — cards, bottom sheets
-theme.colors.surfaceElevated   // #1a1a1a — dialogs, modals
-theme.colors.border            // #222222 — dividers, input borders
-theme.colors.borderSubtle      // #333333 — lighter borders
+const useStyles = makeStyles(t => ({
+  card: {
+    padding: t.space.lg,
+    borderRadius: t.radius.lg,
+    borderWidth: t.borderWidth.thick,
+    borderColor: t.colors.border,
+    backgroundColor: t.colors.surface,
+    ...t.shadows.sticker,
+  },
+  title: { ...t.type.heading, color: t.colors.text },
+}));
 
-// text
-theme.colors.text              // #FFFFFF — primary text
-theme.colors.textSecondary     // #888888 — subtitles, labels
-theme.colors.textMuted         // #555555 — disabled-ish text
-theme.colors.placeholder       // #aaaaaa — input placeholders
-
-// brand / interactive
-theme.colors.primary           // #FFFC00 — buttons, active states, loaders
-theme.colors.primaryText       // #000000 — text rendered ON a yellow element
-
-// status
-theme.colors.error             // #ff4d4d — error messages, destructive actions
-
-// misc
-theme.colors.overlay           // rgba(0,0,0,0.75) — modal backdrops
-theme.colors.icon              // #888888 — icon tint
-theme.colors.tabBar            // #000000 — tab bar background
-theme.colors.tabIconDefault    // #888888 — unselected tab icon
-theme.colors.tabIconSelected   // #FFFC00 — selected tab icon
+function Card() {
+  const t = useTheme();
+  const styles = useStyles();
+  return <Ionicons name="star" color={t.colors.reward} />;
+}
 ```
 
-### Avatar accent colors
+Non-component code that draws (e.g. Skia) gets colors passed in from a hook or component. It must not import a theme directly.
 
-Use the ordered array — never redefine these colors inline:
+### Semantic colors (`t.colors`)
 
-```ts
-const bg = theme.avatarPalette[index % theme.avatarPalette.length];
-```
+Name by purpose, never by look. Highlights (see `ThemeColors` in `themes.ts` for all of them):
 
-### Raw palette — only when semantic tokens don't fit
+- **Surfaces:** `background`, `surface`, `surfaceElevated`, `surfaceSunken` (inputs), `border`, `borderStrong`, `outline` (the ink edge and drop of sticker elements)
+- **Text:** `text`, `textSecondary`, `textSubtle`, `textMuted`, `textDisabled`, `placeholder`
+- **Accents:** each comes as a set of base, `…Deep` (the drop under a filled button), `…Soft` (tinted background) and `on…` (text on top):
+  - `primary`: mint green, the main action
+  - `secondary`: sky blue, edit mode and highlights
+  - `reward`: gold, coins and prices
+  - `error`: red, destructive actions
+- **Room:** `bubble*`, `transcriptBackground`, `roomDoor*`, `roomEditGrid`, `roomLocalActor`, `roomShadow`
+- **Letter avatars and sender names:** `t.avatarPalette[i % t.avatarPalette.length]`. Use `avatarColor(t, name)` from `components/UserAvatar.tsx`.
 
-Only reach for `palette.*` when no semantic token covers the case (e.g. a one-off illustration color). Even then, prefer adding a new semantic token to `theme.colors` instead.
+### Text
 
-```ts
-palette.yellow      // #FFFC00
-palette.black       // #000000
-palette.white       // #FFFFFF
-palette.surface100  // #111111
-palette.surface200  // #1a1a1a
-// ... etc. (see theme.ts for full list)
-```
+Use `t.type.*` (`display`, `title`, `heading`, `button`, `body`, `bodyStrong`, `label`, `caption`, `overline`) or the `<AppText variant color>` component. Custom fonts carry their weight in the family name, so **never set `fontWeight`**. Switch `fontFamily` instead.
 
-### Adding new colors
+### UI primitives: use these before hand-rolling
 
-1. Add the raw value to `palette` in `theme.ts`.
-2. Add a semantic token to `theme.colors` that references it.
-3. Use the semantic token in the component.
+`apps/mobile/components/ui/` (import from `@/components/ui`): `AppText`, `Button` (primary / secondary / reward / ghost / danger), `IconButton` (plain / surface / primary / secondary, with `active` and `badge`), `TextField`, `SegmentedControl`, `Chip`, `ScreenHeader`, `Badge`, `EmptyState`, `Spinner`, `CoinPill`. The room's bottom drawers use `lib/room-engine/components/Drawer.tsx`.
 
-Do **not** skip straight to adding a hex code in a component stylesheet.
+### Adding a color
+
+1. Add the raw value to `palette` in `palette.ts`.
+2. Add a semantic key to `ThemeColors` and set it in **every** theme in `themes.ts`.
+3. Use `t.colors.<key>` in the component.
+
+### Adding a theme (e.g. light)
+
+Write another `Theme` in `themes.ts` with every key filled, add it to `themes`, and pass its name to `ThemeProvider` (or call `setThemeName` from `useThemeName()`). The navigation theme and status bar follow `theme.scheme`.
 
 ---
 

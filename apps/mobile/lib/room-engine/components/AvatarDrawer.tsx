@@ -1,20 +1,55 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import {
-  ActivityIndicator,
-  FlatList,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { FlatList, StyleSheet, TouchableOpacity, View } from 'react-native';
 import AvatarPreview from '@/components/AvatarPreview';
-import { theme } from '@/constants/theme';
+import { AppText, Spinner } from '@/components/ui';
+import { makeStyles, useTheme } from '@/constants/theme';
 import { useAuth } from '@/context/auth.context';
 import { useMyAvatars, useWearAvatar } from '@/hooks/useMyAvatars';
 import { type Avatar } from '@chat-app/shared-types';
+import { Drawer } from './Drawer';
 
 const NEW_AVATAR = 'new';
+
+const useStyles = makeStyles(t => ({
+  list: {
+    gap: t.space.sm + 2,
+    paddingBottom: t.space.xs,
+  },
+  card: {
+    width: 76,
+    alignItems: 'center',
+    borderRadius: t.radius.md,
+    padding: 6,
+    backgroundColor: t.colors.surfaceElevated,
+    borderWidth: t.borderWidth.thick,
+    borderColor: t.colors.border,
+  },
+  cardWorn: {
+    borderColor: t.colors.primary,
+    backgroundColor: t.colors.primarySoft,
+  },
+  newCard: {
+    justifyContent: 'center',
+    gap: t.space.xs,
+    borderColor: t.colors.borderStrong,
+    borderStyle: 'dashed',
+    backgroundColor: 'transparent',
+  },
+  preview: {
+    position: 'relative',
+  },
+  wearing: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: t.colors.overlay,
+    borderRadius: t.radius.sm,
+  },
+  editLabel: {
+    marginTop: t.space.xs,
+  },
+}));
 
 interface Props {
   onClose: () => void;
@@ -26,6 +61,8 @@ interface Props {
  * and everyone in the room sees the change.
  */
 export function AvatarDrawer({ onClose }: Readonly<Props>) {
+  const t = useTheme();
+  const styles = useStyles();
   const router = useRouter();
   const { selectedAvatar } = useAuth();
   const { data, isLoading } = useMyAvatars();
@@ -35,15 +72,8 @@ export function AvatarDrawer({ onClose }: Readonly<Props>) {
   const cards: (Avatar | typeof NEW_AVATAR)[] = [...(data?.avatars ?? []), NEW_AVATAR];
 
   return (
-    <View style={styles.drawer}>
-      <View style={styles.titleRow}>
-        <Text style={styles.title}>Avatars</Text>
-        <TouchableOpacity onPress={onClose} hitSlop={8} accessibilityLabel="Close avatars">
-          <Ionicons name="close" size={18} color={theme.colors.icon} />
-        </TouchableOpacity>
-      </View>
-
-      {isLoading && <ActivityIndicator color={theme.colors.primary} />}
+    <Drawer title="Avatars" onClose={onClose}>
+      {isLoading && <Spinner />}
 
       <FlatList
         data={cards}
@@ -55,8 +85,8 @@ export function AvatarDrawer({ onClose }: Readonly<Props>) {
           if (card === NEW_AVATAR) {
             return (
               <TouchableOpacity style={[styles.card, styles.newCard]} onPress={() => router.push('/(avatar)/create')}>
-                <Ionicons name="add" size={28} color={theme.colors.primary} />
-                <Text style={styles.cardLabel}>New</Text>
+                <Ionicons name="add-circle" size={30} color={t.colors.primary} />
+                <AppText variant="caption" color="textSecondary">New</AppText>
               </TouchableOpacity>
             );
           }
@@ -73,82 +103,17 @@ export function AvatarDrawer({ onClose }: Readonly<Props>) {
                 <AvatarPreview avatar={card} size={60} animated={false} />
                 {isWearing && (
                   <View style={styles.wearing}>
-                    <ActivityIndicator size="small" color={theme.colors.primary} />
+                    <Spinner size="small" />
                   </View>
                 )}
               </TouchableOpacity>
               <TouchableOpacity onPress={() => router.push(`/(avatar)/edit/${card._id}`)} hitSlop={6}>
-                <Text style={styles.editLabel}>Edit</Text>
+                <AppText variant="label" color="primary" style={styles.editLabel}>Edit</AppText>
               </TouchableOpacity>
             </View>
           );
         }}
       />
-    </View>
+    </Drawer>
   );
 }
-
-const styles = StyleSheet.create({
-  drawer: {
-    backgroundColor: theme.colors.surface,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  title: {
-    color: theme.colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
-  list: {
-    gap: 10,
-    paddingBottom: 4,
-  },
-  card: {
-    width: 72,
-    alignItems: 'center',
-    borderRadius: 8,
-    padding: 6,
-    backgroundColor: theme.colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  cardWorn: {
-    borderColor: theme.colors.primary,
-  },
-  newCard: {
-    justifyContent: 'center',
-    borderColor: theme.colors.borderSubtle,
-    borderStyle: 'dashed',
-  },
-  preview: {
-    position: 'relative',
-  },
-  wearing: {
-    ...StyleSheet.absoluteFill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.overlay,
-    borderRadius: 6,
-  },
-  cardLabel: {
-    color: theme.colors.textSecondary,
-    fontSize: 10,
-    marginTop: 4,
-  },
-  editLabel: {
-    color: theme.colors.primary,
-    fontSize: 11,
-    fontWeight: '600',
-    marginTop: 4,
-  },
-});

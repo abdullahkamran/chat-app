@@ -2,7 +2,7 @@ import { Group, Path, Skia } from '@shopify/react-native-skia';
 import { useMemo } from 'react';
 
 import { gridToScreen, type GridOrigin } from '@/constants/grid';
-import { theme } from '@/constants/theme';
+import { useTheme } from '@/constants/theme';
 import type { Dimensions } from '@chat-app/shared-types';
 
 const FILL_OPACITY = 0.08;
@@ -17,6 +17,7 @@ interface Props {
  * Cells are centred on grid vertices, matching item anchoring.
  */
 export function EditGrid({ dimensions, origin }: Props) {
+  const { colors } = useTheme();
   const path = useMemo(() => {
     const builder = Skia.PathBuilder.Make();
     for (let gx = 0; gx < dimensions.x; gx++) {
@@ -34,8 +35,8 @@ export function EditGrid({ dimensions, origin }: Props) {
 
   return (
     <Group>
-      <Path path={path} color={theme.colors.primary} opacity={FILL_OPACITY} />
-      <Path path={path} color={theme.colors.primary} style="stroke" strokeWidth={1} />
+      <Path path={path} color={colors.roomEditGrid} opacity={FILL_OPACITY} />
+      <Path path={path} color={colors.roomEditGrid} style="stroke" strokeWidth={1} />
     </Group>
   );
 }

@@ -1,7 +1,7 @@
 import { Skia } from '@shopify/react-native-skia';
 import { useEffect, useMemo, useState } from 'react';
 
-import { theme } from '@/constants/theme';
+import { artPalette } from '@/constants/theme';
 import type { Avatar, AvatarItemVariant, WearableAsset } from '@chat-app/shared-types';
 import type { ActorState } from '../../../core/contract';
 import type { AvatarArt } from '../skeleton/avatarArt';
@@ -39,7 +39,7 @@ interface Outfit {
 /** The selected variant's packed art for each worn part, or null when nothing is packed yet. */
 function outfitOf(avatar: AvatarOutfit | null | undefined): Outfit | null {
   if (!avatar) return null;
-  const skin = avatar.skin?.variants[0]?.color ?? theme.colors.avatarPlaceholderSkin;
+  const skin = avatar.skin?.variants[0]?.color ?? artPalette.skin;
   const assets: WearableAsset[] = [];
   const colors: (string | null)[] = [];
   for (const part of PARTS) {

@@ -1,23 +1,13 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Alert, FlatList, KeyboardAvoidingView, Platform, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import UserPicker from '@/components/UserPicker';
 import UserRow from '@/components/UserRow';
-import { theme } from '@/constants/theme';
+import { AppText, Button, IconButton, ScreenHeader, Spinner } from '@/components/ui';
+import { makeStyles } from '@/constants/theme';
 import { useAuth } from '@/context/auth.context';
 import { api } from '@/lib/api';
 import { PublicUser, RoomMembers } from '@chat-app/shared-types';
@@ -32,6 +22,7 @@ export default function RoomMembersScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
+  const styles = useStyles();
   const [isAdding, setIsAdding] = useState(false);
   const [picked, setPicked] = useState<PublicUser[]>([]);
 
@@ -82,23 +73,13 @@ export default function RoomMembersScreen() {
       { text: 'Leave', style: 'destructive', onPress: () => leave.mutate() },
     ]);
 
-  const header = (title: string, onBack: () => void, backLabel: string) => (
-    <View style={styles.header}>
-      <Pressable onPress={onBack} hitSlop={12}>
-        <Text style={styles.headerBack}>{backLabel}</Text>
-      </Pressable>
-      <Text style={styles.headerTitle}>{title}</Text>
-      <View style={styles.headerSpacer} />
-    </View>
-  );
-
   if (isLoading || !data) {
     return (
       <View style={[styles.root, styles.centered, { paddingTop: insets.top }]}>
         {error ? (
-          <Text style={styles.errorText}>{(error as Error).message}</Text>
+          <AppText color="error" align="center">{(error as Error).message}</AppText>
         ) : (
-          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Spinner size="large" />
         )}
       </View>
     );
@@ -115,7 +96,7 @@ export default function RoomMembersScreen() {
         style={[styles.root, { paddingTop: insets.top }]}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        {header('Add People', () => { setIsAdding(false); setPicked([]); }, '‹ Back')}
+        <ScreenHeader title="Add People" onBack={() => { setIsAdding(false); setPicked([]); }} />
         <View style={[styles.body, { paddingBottom: insets.bottom }]}>
           <UserPicker
             selected={picked}
@@ -123,17 +104,15 @@ export default function RoomMembersScreen() {
             excludeIds={[owner._id, ...members.map((m) => m._id)]}
             maxSelected={spaceLeft}
           />
-          <Pressable
-            style={[styles.primaryBtn, (!picked.length || add.isPending) && styles.primaryBtnDisabled]}
+          <Button
+            title={picked.length ? `Add ${picked.length}` : 'Add'}
+            size="lg"
+            fullWidth
+            loading={add.isPending}
+            disabled={!picked.length}
             onPress={() => add.mutate(picked)}
-            disabled={!picked.length || add.isPending}
-          >
-            {add.isPending ? (
-              <ActivityIndicator color={theme.colors.primaryText} />
-            ) : (
-              <Text style={styles.primaryBtnText}>{picked.length ? `Add ${picked.length}` : 'Add'}</Text>
-            )}
-          </Pressable>
+            style={styles.bottomBtn}
+          />
         </View>
       </KeyboardAvoidingView>
     );
@@ -145,11 +124,11 @@ export default function RoomMembersScreen() {
       subtitle={`Level ${user.level}`}
       right={
         isRoomOwner ? (
-          <Text style={styles.ownerBadge}>Owner</Text>
+          <View style={styles.ownerBadge}>
+            <AppText variant="overline" color="onReward">Owner</AppText>
+          </View>
         ) : canManageMembers && user._id !== userId ? (
-          <Pressable onPress={() => confirmRemove(user)} hitSlop={8} accessibilityLabel={`Remove ${user.username}`}>
-            <Ionicons name="person-remove-outline" size={20} color={theme.colors.error} />
-          </Pressable>
+          <IconButton icon="person-remove-outline" size={36} onPress={() => confirmRemove(user)} accessibilityLabel={`Remove ${user.username}`} />
         ) : null
       }
     />
@@ -157,17 +136,17 @@ export default function RoomMembersScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
-      {header(`Members · ${count}/${personLimit}`, () => router.back(), '‹ Done')}
+      <ScreenHeader title={`Members · ${count}/${personLimit}`} onBack={() => router.back()} backIcon="close" />
       <View style={[styles.body, { paddingBottom: insets.bottom }]}>
         {canManageMembers && (
-          <Pressable
-            style={[styles.addBtn, spaceLeft <= 0 && styles.primaryBtnDisabled]}
-            onPress={() => setIsAdding(true)}
+          <Button
+            title={spaceLeft > 0 ? 'Add People' : 'Room is full'}
+            icon="person-add"
+            fullWidth
             disabled={spaceLeft <= 0}
-          >
-            <Ionicons name="person-add" size={18} color={theme.colors.primaryText} />
-            <Text style={styles.primaryBtnText}>{spaceLeft > 0 ? 'Add People' : 'Room is full'}</Text>
-          </Pressable>
+            onPress={() => setIsAdding(true)}
+            style={styles.addBtn}
+          />
         )}
 
         <FlatList
@@ -179,104 +158,49 @@ export default function RoomMembersScreen() {
         />
 
         {!isOwner && (
-          <Pressable style={styles.leaveBtn} onPress={confirmLeave} disabled={leave.isPending}>
-            {leave.isPending ? (
-              <ActivityIndicator color={theme.colors.error} />
-            ) : (
-              <Text style={styles.leaveText}>Leave Room</Text>
-            )}
-          </Pressable>
+          <Button
+            title="Leave Room"
+            icon="exit-outline"
+            variant="danger"
+            fullWidth
+            loading={leave.isPending}
+            onPress={confirmLeave}
+            style={styles.bottomBtn}
+          />
         )}
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(t => ({
   root: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: t.colors.background,
   },
   centered: {
     justifyContent: 'center',
     alignItems: 'center',
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  headerBack: {
-    color: theme.colors.primary,
-    fontSize: 18,
-    fontWeight: '600',
-    width: 64,
-  },
-  headerTitle: {
-    flex: 1,
-    color: theme.colors.text,
-    fontSize: 18,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  headerSpacer: {
-    width: 64,
-  },
   body: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 12,
+    paddingHorizontal: t.space.xl,
+    paddingTop: t.space.md,
   },
   list: {
     flex: 1,
   },
   ownerBadge: {
-    color: theme.colors.primary,
-    fontSize: 13,
-    fontWeight: '700',
+    paddingHorizontal: 10,
+    paddingVertical: t.space.xs,
+    borderRadius: t.radius.pill,
+    backgroundColor: t.colors.reward,
   },
   addBtn: {
-    flexDirection: 'row',
-    gap: 8,
-    backgroundColor: theme.colors.primary,
-    borderRadius: 14,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: t.space.md,
   },
-  primaryBtn: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginBottom: 24,
+  bottomBtn: {
+    marginTop: t.space.sm,
+    marginBottom: t.space.xl,
   },
-  primaryBtnDisabled: {
-    opacity: 0.35,
-  },
-  primaryBtnText: {
-    color: theme.colors.primaryText,
-    fontWeight: '700',
-    fontSize: 17,
-  },
-  leaveBtn: {
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: theme.colors.error,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  leaveText: {
-    color: theme.colors.error,
-    fontWeight: '700',
-    fontSize: 16,
-  },
-  errorText: {
-    color: theme.colors.error,
-    fontSize: 14,
-    textAlign: 'center',
-  },
-});
+}));

@@ -1,24 +1,12 @@
 import React, { useState } from 'react';
-import {
-    ActivityIndicator,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-} from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { Image } from 'expo-image';
-import { Amount, AvatarItem, AvatarItemVariant } from '@chat-app/shared-types';
-import { theme } from '@/constants/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { AvatarItem, AvatarItemVariant } from '@chat-app/shared-types';
+import { AppText, Button } from '@/components/ui';
+import { makeStyles, useTheme } from '@/constants/theme';
 import { resolveAvatarSource } from '@/constants/avatarAssets';
-
-function formatPrice(price: Amount): string {
-    const parts: string[] = [];
-    if (price.realMoney > 0) parts.push(`$${price.realMoney.toFixed(2)}`);
-    if (price.cash > 0) parts.push(`${price.cash} cash`);
-    if (price.coins > 0) parts.push(`${price.coins} coins`);
-    return parts.length > 0 ? parts.join(' + ') : 'Free';
-}
+import { formatPrice } from '@/utils/formatPrice';
 
 interface AvatarShopItemCardProps {
     item: AvatarItem;
@@ -27,12 +15,72 @@ interface AvatarShopItemCardProps {
     buyingKey: string | null; // `${itemId}:${variantId}` while purchase is in-flight
 }
 
+const useStyles = makeStyles(t => ({
+    card: {
+        backgroundColor: t.colors.surface,
+        marginHorizontal: t.space.lg,
+        borderRadius: t.radius.lg,
+        borderWidth: t.borderWidth.thick,
+        borderColor: t.colors.border,
+        overflow: 'hidden',
+        ...t.shadows.sticker,
+    },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 14,
+        paddingTop: 14,
+        paddingBottom: 10,
+    },
+    info: { flex: 1, marginRight: t.space.md, gap: 2 },
+    category: { marginTop: t.space.xs },
+    variantScroll: {
+        borderTopWidth: t.borderWidth.thin,
+        borderTopColor: t.colors.border,
+    },
+    variantContent: {
+        paddingHorizontal: t.space.md,
+        paddingVertical: 10,
+        gap: t.space.sm,
+        flexDirection: 'row',
+    },
+    variantItem: {
+        alignItems: 'center',
+        padding: t.space.sm,
+        borderRadius: t.radius.md,
+        borderWidth: t.borderWidth.thick,
+        borderColor: 'transparent',
+        backgroundColor: t.colors.surfaceElevated,
+        minWidth: 68,
+        gap: 2,
+    },
+    variantItemSelected: {
+        borderColor: t.colors.primary,
+        backgroundColor: t.colors.primarySoft,
+    },
+    variantSwatch: {
+        width: 34,
+        height: 34,
+        borderRadius: t.radius.pill,
+        marginBottom: 2,
+    },
+    variantSwatchColor: {
+        borderWidth: t.borderWidth.thick,
+        borderColor: t.colors.outline,
+    },
+    variantText: {
+        maxWidth: 60,
+    },
+}));
+
 export default function AvatarShopItemCard({
     item,
     ownedVariantIds,
     onBuy,
     buyingKey,
 }: AvatarShopItemCardProps) {
+    const t = useTheme();
+    const styles = useStyles();
     const [selectedVariant, setSelectedVariant] = useState<AvatarItemVariant>(item.variants[0]);
 
     if (!selectedVariant) return null;
@@ -45,22 +93,19 @@ export default function AvatarShopItemCard({
             {/* Item info */}
             <View style={styles.header}>
                 <View style={styles.info}>
-                    <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
-                    <Text style={styles.description} numberOfLines={2}>{item.description}</Text>
-                    <Text style={styles.category}>{item.category}</Text>
+                    <AppText variant="heading" numberOfLines={1}>{item.name}</AppText>
+                    <AppText variant="caption" color="textSecondary" numberOfLines={2}>{item.description}</AppText>
+                    <AppText variant="overline" color="textMuted" style={styles.category}>{item.category}</AppText>
                 </View>
-                <TouchableOpacity
-                    style={[styles.buyButton, (isOwned || isBuying) && styles.buyButtonDisabled]}
+                <Button
+                    title={isOwned ? 'Owned' : 'Buy'}
+                    icon={isOwned ? 'checkmark' : undefined}
+                    variant={isOwned ? 'secondary' : 'reward'}
+                    size="sm"
+                    loading={isBuying}
+                    disabled={isOwned}
                     onPress={() => onBuy(item._id, selectedVariant._id)}
-                    disabled={isOwned || isBuying}
-                    activeOpacity={0.7}
-                >
-                    {isBuying ? (
-                        <ActivityIndicator color={theme.colors.primaryText} size="small" />
-                    ) : (
-                        <Text style={styles.buyText}>{isOwned ? 'Owned' : 'Buy'}</Text>
-                    )}
-                </TouchableOpacity>
+                />
             </View>
 
             {/* Variants */}
@@ -75,113 +120,29 @@ export default function AvatarShopItemCard({
                     const owned = ownedVariantIds.includes(variant._id);
                     const source = resolveAvatarSource(variant.sourceUrl);
                     return (
-                        <TouchableOpacity
+                        <Pressable
                             key={variant._id}
                             style={[styles.variantItem, isSelected && styles.variantItemSelected]}
                             onPress={() => setSelectedVariant(variant)}
-                            activeOpacity={0.7}
                         >
                             {source
                                 ? <Image source={source} style={styles.variantSwatch} contentFit="contain" />
-                                : <View style={[styles.variantSwatch, { backgroundColor: variant.color ?? theme.colors.border }]} />
+                                : <View style={[styles.variantSwatch, styles.variantSwatchColor, { backgroundColor: variant.color ?? t.colors.border }]} />
                             }
-                            <Text style={styles.variantName} numberOfLines={1}>{variant.name}</Text>
-                            {owned && <Text style={styles.ownedBadge}>✓</Text>}
-                            {!owned && (
-                                <Text style={styles.variantPrice} numberOfLines={1}>
+                            <AppText variant="caption" color="textSecondary" align="center" style={styles.variantText} numberOfLines={1}>
+                                {variant.name}
+                            </AppText>
+                            {owned ? (
+                                <Ionicons name="checkmark-circle" size={14} color={t.colors.success} />
+                            ) : (
+                                <AppText variant="caption" color="reward" align="center" style={styles.variantText} numberOfLines={1}>
                                     {formatPrice(variant.price)}
-                                </Text>
+                                </AppText>
                             )}
-                        </TouchableOpacity>
+                        </Pressable>
                     );
                 })}
             </ScrollView>
         </View>
     );
 }
-
-const styles = StyleSheet.create({
-    card: {
-        backgroundColor: theme.colors.surface,
-        marginHorizontal: 12,
-        marginVertical: 6,
-        borderRadius: 12,
-        overflow: 'hidden',
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 14,
-        paddingTop: 14,
-        paddingBottom: 10,
-    },
-    info: { flex: 1, marginRight: 12 },
-    name: { color: theme.colors.text, fontSize: 16, fontWeight: '600' },
-    description: { color: theme.colors.textSecondary, fontSize: 13, marginTop: 2 },
-    category: {
-        color: theme.colors.textMuted,
-        fontSize: 11,
-        marginTop: 4,
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
-    },
-    buyButton: {
-        backgroundColor: theme.colors.primary,
-        borderRadius: 8,
-        paddingHorizontal: 14,
-        paddingVertical: 8,
-        minWidth: 64,
-        alignItems: 'center',
-    },
-    buyButtonDisabled: {
-        backgroundColor: theme.colors.border,
-    },
-    buyText: { color: theme.colors.primaryText, fontWeight: '700', fontSize: 14 },
-    variantScroll: {
-        borderTopWidth: StyleSheet.hairlineWidth,
-        borderTopColor: theme.colors.border,
-    },
-    variantContent: {
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-        gap: 8,
-        flexDirection: 'row',
-    },
-    variantItem: {
-        alignItems: 'center',
-        padding: 8,
-        borderRadius: 10,
-        borderWidth: 2,
-        borderColor: 'transparent',
-        backgroundColor: theme.colors.surfaceElevated,
-        minWidth: 64,
-    },
-    variantItemSelected: {
-        borderColor: theme.colors.primary,
-    },
-    variantSwatch: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        marginBottom: 4,
-    },
-    variantName: {
-        color: theme.colors.textSecondary,
-        fontSize: 10,
-        textAlign: 'center',
-        maxWidth: 60,
-    },
-    variantPrice: {
-        color: theme.colors.primary,
-        fontSize: 10,
-        marginTop: 2,
-        textAlign: 'center',
-        maxWidth: 60,
-    },
-    ownedBadge: {
-        color: theme.colors.primary,
-        fontSize: 12,
-        fontWeight: '700',
-        marginTop: 2,
-    },
-});

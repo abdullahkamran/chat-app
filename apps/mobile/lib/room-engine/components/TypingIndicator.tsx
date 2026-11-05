@@ -1,34 +1,32 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { View } from 'react-native';
 
-import { theme } from '@/constants/theme';
+import { AppText } from '@/components/ui';
+import { makeStyles } from '@/constants/theme';
 
 interface TypingIndicatorProps {
   /** Usernames of the others typing. */
   names: string[];
 }
 
+const useStyles = makeStyles(t => ({
+  container: {
+    paddingHorizontal: t.space.lg,
+    paddingBottom: t.space.xxs,
+  },
+}));
+
 export function TypingIndicator({ names }: TypingIndicatorProps) {
+  const styles = useStyles();
   if (names.length === 0) return null;
 
   const verb = names.length === 1 ? 'is' : 'are';
 
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>
+      <AppText variant="caption" color="textSecondary">
         {names.join(', ')} {verb} typing...
-      </Text>
+      </AppText>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: 8,
-    paddingBottom: 4,
-  },
-  text: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-  },
-});
