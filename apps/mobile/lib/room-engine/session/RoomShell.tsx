@@ -10,6 +10,7 @@ import { theme } from '@/constants/theme';
 import { useMailbox } from '@/hooks/useMailbox';
 import { AvatarDrawer } from '../components/AvatarDrawer';
 import { ChatInput } from '../components/ChatInput';
+import { TranscriptButton, TranscriptPanel, TranscriptPeek } from '../components/ChatTranscript';
 import { EmoteDrawer } from '../components/EmoteDrawer';
 import { MailboxButton } from '../components/MailboxButton';
 import { MailboxModal } from '../components/MailboxModal';
@@ -17,6 +18,7 @@ import { TypingIndicator } from '../components/TypingIndicator';
 import { EditModeButton } from '../EditMode/EditModeButton';
 import { EditModeToolbar } from '../EditMode/EditModeToolbar';
 import { InventoryDrawer } from '../EditMode/InventoryDrawer';
+import { useUsernames } from '../hooks/useUsernames';
 import type { RoomSession } from './useRoomSession';
 
 const styles = StyleSheet.create({
@@ -53,6 +55,11 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     gap: 12,
   },
+  chatRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingLeft: 4,
+  },
 });
 
 interface Props {
@@ -77,9 +84,13 @@ export function RoomShell({ session, children }: Readonly<Props>) {
   const bottomInset = keyboardOpen ? 0 : insets.bottom;
   const {
     roomDetails, isLoading, error, isOwner, isSaving, mode, edit, scene, typingNames, intents, canEmote, isSeated,
-    isAlone, userId,
+    isAlone, userId, transcript,
   } = session;
   const isEditMode = mode === 'edit';
+  // The full transcript, in place of the peek. Tapping the room closes it.
+  const [transcriptOpen, setTranscriptOpen] = useState(false);
+  const names = useUsernames(transcript.filter(e => e.userId !== userId).map(e => e.userId));
+  const showChat = !isEditMode && drawer === null;
   const [mailboxOpen, setMailboxOpen] = useState(false);
   // The empty-room hint goes once the user has opened the postbox.
   const [hintSeen, setHintSeen] = useState(false);
@@ -165,14 +176,21 @@ export function RoomShell({ session, children }: Readonly<Props>) {
       )}
 
       <View style={{ flex: 1 }}>
-        {children}
+        {/* onTouchStart sees the touch without taking it from the room. */}
+        <View style={{ flex: 1 }} onTouchStart={transcriptOpen ? () => setTranscriptOpen(false) : undefined}>
+          {children}
+        </View>
 
-        {!isEditMode && (
+        {!isEditMode && !(showChat && transcriptOpen) && (
           <View style={styles.fabColumn} pointerEvents="box-none">
             <MailboxButton unread={mailbox?.unread ?? 0} hint={mailHint} onPress={openMailbox} />
             {isOwner && <EditModeButton onPress={intents.enterEdit} />}
           </View>
         )}
+
+        {showChat && (transcriptOpen
+          ? <TranscriptPanel entries={transcript} userId={userId} names={names} />
+          : <TranscriptPeek entries={transcript} userId={userId} names={names} />)}
       </View>
 
       <MailboxModal room={roomDetails} userId={userId} visible={mailboxOpen} onClose={() => setMailboxOpen(false)} />
@@ -184,10 +202,15 @@ export function RoomShell({ session, children }: Readonly<Props>) {
       {!isEditMode && drawer === 'emotes' && (
         <EmoteDrawer disabled={isSeated} onEmote={intents.emote} onClose={closeDrawer} />
       )}
-      {!isEditMode && drawer === null && (
+      {showChat && (
         <>
           <TypingIndicator names={typingNames} />
-          <ChatInput onTyping={intents.typing} onSubmit={intents.submitMessage} />
+          <View style={styles.chatRow}>
+            <TranscriptButton open={transcriptOpen} onPress={() => setTranscriptOpen(open => !open)} />
+            <View style={{ flex: 1 }}>
+              <ChatInput onTyping={intents.typing} onSubmit={intents.submitMessage} />
+            </View>
+          </View>
         </>
       )}
     </View>

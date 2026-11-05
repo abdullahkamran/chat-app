@@ -38,6 +38,19 @@ type EmoteAction = Extract<ActorAction, { kind: 'emote' }>;
 const TYPING_SHOW_MS = 2500;
 /** At most one typing report per this interval while the user types. */
 const TYPING_SEND_MS = 1500;
+/** The transcript keeps this many of the latest messages. */
+const TRANSCRIPT_MAX = 50;
+/** A message seen late this close to one already in the transcript is the same message. */
+const TRANSCRIPT_SAME_MS = 3000;
+
+/** One line of the room's chat transcript. */
+export interface TranscriptEntry {
+  id: string;
+  userId: User['_id'];
+  text: string;
+  /** When it was sent, by this device's clock; earlier for one seen late, from the presence snapshot. */
+  sentAt: number;
+}
 
 /**
  * Engine-agnostic room state: socket events, characters, chat and edit mode.
@@ -76,6 +89,8 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
   // Whether a typing report went out within the last TYPING_SEND_MS.
   const typingSentRef = useRef(false);
   const bubbleIdRef = useRef(0);
+  // Messages seen since entering, oldest first, including those still up when we came in.
+  const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
 
   // Edit mode
   const [mode, setMode] = useState<RoomMode>('play');
@@ -348,6 +363,14 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
   /** `elapsedMs` is how long ago it was sent, for a message seen late. */
   function pushChatMessage(uid: string, message: string, elapsedMs = 0) {
     const bubble = { id: `${bubbleIdRef.current++}`, text: message, sentAt: Date.now() - elapsedMs };
+    // Sorted, since the presence snapshot's messages come in per occupant, not in the order sent.
+    // A reconnect's snapshot repeats messages already here: their send times differ only by clock drift.
+    setTranscript(current => {
+      const seen = elapsedMs > 0 && current.some(e =>
+        e.userId === uid && e.text === message && Math.abs(e.sentAt - bubble.sentAt) < TRANSCRIPT_SAME_MS);
+      if (seen) return current;
+      return [...current, { ...bubble, userId: uid }].sort((a, b) => a.sentAt - b.sentAt).slice(-TRANSCRIPT_MAX);
+    });
     setActors(current => {
       const actor = current[uid];
       if (!actor) return current;
@@ -748,6 +771,8 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     localActorId: userId,
     edit,
     typingUserIds,
+    /** Chat messages since entering, oldest first, capped at TRANSCRIPT_MAX. */
+    transcript,
     /** Names of the others typing, for the line above the chat input. */
     typingNames: [...typingUserIds].filter(id => id !== userId).map(id => typingNames[id] ?? 'Someone'),
     onActionComplete,

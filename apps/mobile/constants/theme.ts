@@ -28,6 +28,7 @@ export const palette = {
 
   // Overlay
   overlay: 'rgba(0,0,0,0.75)',
+  scrim: 'rgba(0,0,0,0.55)',
 
   // Avatar accent palette (used for auto-generated avatar backgrounds)
   avatarRed: '#FF6B6B',
@@ -82,6 +83,9 @@ export const theme = {
     bubble: palette.white,
     bubbleText: palette.black,
     bubbleTyping: palette.neutral600,
+
+    // Room chat transcript: see-through so the room stays visible behind it
+    transcriptBackground: palette.scrim,
 
     // Placeholder avatar parts (Skia room engine programmer art)
     avatarPlaceholderSkin: palette.avatarSkin,
