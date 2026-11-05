@@ -5,7 +5,7 @@ import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { gridToScreen, type GridOrigin } from '@/constants/grid';
 import type { ActorAction, ActorActionKind } from '@chat-app/shared-types';
 import type { ActorState, ChatBubble } from '../../core/contract';
-import Bubble from '../../components/Bubble';
+import Bubble, { TypingBubble } from '../../components/Bubble';
 import { AVATAR_HEIGHT } from './skeleton/humanoidV1';
 import { useActorWalk, type ActorMotion } from './actorMotion';
 import type { Camera } from './useCamera';
@@ -44,8 +44,8 @@ export function ActorOverlay({ actor, motion, camera, origin, canvasHeight, onAc
 
   if (!actor.isTyping && bubbles.items.length === 0) return null;
 
-  // Oldest message on top, newest below it, and the typing bubble last, nearest the head;
-  // only that bottom bubble points at the speaker.
+  // Oldest message on top, newest below it, and the typing thought bubble last, nearest
+  // the head; only that bottom bubble points at the speaker.
   const last = bubbles.items.length - 1;
   return (
     <Animated.View pointerEvents="none" style={[styles.column, style]}>
@@ -59,7 +59,7 @@ export function ActorOverlay({ actor, motion, camera, origin, canvasHeight, onAc
           tail={!actor.isTyping && i === last}
         />
       ))}
-      {actor.isTyping && <Bubble isTyping tail />}
+      {actor.isTyping && <TypingBubble />}
     </Animated.View>
   );
 }
