@@ -3,8 +3,9 @@ import { User } from '@chat-app/shared-types';
 
 // Override ref-array fields with ObjectId since mongoose stores references, not populated docs
 export interface IUser
-    extends Omit<User, '_id' | 'rooms' | 'ownedRooms' | 'favouriteRooms' | 'inventory' | 'avatarInventory' | 'avatars' | 'selectedAvatar' | 'animations'>,
+    extends Omit<User, '_id' | 'rooms' | 'ownedRooms' | 'favouriteRooms' | 'inventory' | 'avatarInventory' | 'avatars' | 'selectedAvatar' | 'animations' | 'dateOfBirth'>,
         Document {
+    dateOfBirth?: Date;
     rooms: mongoose.Types.ObjectId[];
     ownedRooms: mongoose.Types.ObjectId[];
     favouriteRooms: mongoose.Types.ObjectId[];
@@ -37,10 +38,13 @@ const UserSchema = new Schema<IUser, IUserModel>(
         username: { type: String, required: true, unique: true },
         password: { type: String, required: true },
         email: { type: String, required: true, unique: true },
-        phoneNumber: { type: String, required: true, unique: true },
-        city: { type: String, required: true },
-        state: { type: String, required: true },
-        country: { type: String, required: true },
+        // Sparse so any number of users can have no phone number.
+        phoneNumber: { type: String, unique: true, sparse: true },
+        city: { type: String },
+        state: { type: String },
+        country: { type: String },
+        // Required at signup (auth.controller.ts), not here: users from before that have none.
+        dateOfBirth: { type: Date },
         lastLogin: { type: Number, default: 0 },
         lastActive: { type: Number, default: 0 },
         lastLocation: {
@@ -107,6 +111,8 @@ const UserSchema = new Schema<IUser, IUserModel>(
                 delete ret.contactMatches;
                 delete ret.contactSyncs;
                 delete ret.dismissedSuggestions;
+                // Stored at UTC midnight, so the date part is the birthday in every timezone.
+                if (ret.dateOfBirth instanceof Date) ret.dateOfBirth = ret.dateOfBirth.toISOString().slice(0, 10);
                 return ret;
             },
         },

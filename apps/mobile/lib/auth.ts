@@ -85,10 +85,12 @@ export interface SignupPayload {
     username: string;
     password: string;
     email: string;
-    phoneNumber: string;
-    city: string;
-    state: string;
-    country: string;
+    /** YYYY-MM-DD */
+    dateOfBirth: string;
+    phoneNumber?: string;
+    city?: string;
+    state?: string;
+    country?: string;
 }
 
 export async function signupRequest(payload: SignupPayload): Promise<void> {

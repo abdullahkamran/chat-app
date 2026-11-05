@@ -9,10 +9,13 @@ export interface User {
     username: string;
     password: string;
     email: string;
-    phoneNumber: string;
-    city: string;
-    state: string;
-    country: string;
+    /** E.164. Optional: only used to find friends through contacts. */
+    phoneNumber?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    /** ISO date (YYYY-MM-DD). Asked at signup; users from before that have none. Never shown to others. */
+    dateOfBirth?: string;
     lastLogin: number;
     lastActive: number;
     lastLocation: UserLocation;

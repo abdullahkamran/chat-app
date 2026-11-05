@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, View } from 'react-native';
 
@@ -44,6 +45,7 @@ const useStyles = makeStyles(t => ({
 export default function LoginScreen() {
     const t = useTheme();
     const styles = useStyles();
+    const router = useRouter();
     const { mutate: login, isPending, error } = useLoginMutation();
 
     const [username, setUsername] = useState('');
@@ -119,6 +121,7 @@ export default function LoginScreen() {
                 {displayError ? <AppText variant="label" color="error">{displayError}</AppText> : null}
 
                 <Button title="Log in" size="lg" fullWidth loading={isPending} onPress={handleLogin} style={styles.button} />
+                <Button title="New here? Create an account" variant="ghost" fullWidth onPress={() => router.push('/(auth)/signup')} />
             </View>
         </KeyboardAvoidingView>
     );

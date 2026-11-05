@@ -148,6 +148,10 @@ Found on 2026-10-23 while adding search-and-pick on Create Room, adding and remo
 - **`refreshTokens` grows forever:** each login adds one to the user document, and only logout or refresh
   removes one. Drop expired tokens on login, or cap the array (`$push` with `$slice`).
 - **CORS is open:** `cors()` allows every origin. Restrict it once there's a web client or admin page.
+- **Two signups racing for one username or email get a 500:** signup checks for a duplicate, then saves.
+  When both pass the check, the unique index rejects the second save and the client sees "Internal Server
+  Error" instead of "username already exists". Catch Mongo's duplicate-key error (code 11000) on save and
+  answer 409 from its `keyPattern`.
 
 ---
 

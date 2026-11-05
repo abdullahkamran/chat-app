@@ -86,7 +86,7 @@
                         },
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"username\": \"johndoe\",\n    \"password\": \"password123\",\n    \"email\": \"johndoe@example.com\",\n    \"phoneNumber\": \"+11234567890\",\n    \"city\": \"New York\",\n    \"state\": \"NY\",\n    \"country\": \"US\"\n}",
+                            "raw": "{\n    \"username\": \"johndoe\",\n    \"password\": \"password123\",\n    \"email\": \"johndoe@example.com\",\n    \"dateOfBirth\": \"2000-01-15\"\n}",
                             "options": { "raw": { "language": "json" } }
                         }
                     }
