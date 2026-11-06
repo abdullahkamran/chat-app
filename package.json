@@ -11,8 +11,9 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "type-check": "turbo run type-check",
-    "mobile": "pnpm --filter=@chat-app/mobile dev",
-    "backend": "turbo run dev --filter=@chat-app/backend"
+    "set-api-url": "node scripts/set-api-url.mjs",
+    "mobile": "pnpm set-api-url && pnpm --filter=@chat-app/mobile dev",
+    "backend": "pnpm set-api-url && turbo run dev --filter=@chat-app/backend"
   },
   "devDependencies": {
     "turbo": "^2.11.7",
