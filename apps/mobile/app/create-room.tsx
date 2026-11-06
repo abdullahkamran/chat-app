@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
+import { usePreventRemove, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -61,6 +61,8 @@ export default function CreateRoom() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
+  // Back from step 2 returns to step 1. Off while creating, so the sheet can close on success.
+  usePreventRemove(step === 2 && !isCreating, () => setStep(1));
 
   const createRoom = async () => {
     if (!name.trim() || isCreating) return;

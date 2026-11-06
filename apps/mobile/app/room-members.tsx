@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, usePreventRemove, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, FlatList, KeyboardAvoidingView, Platform, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -25,6 +25,12 @@ export default function RoomMembersScreen() {
   const styles = useStyles();
   const [isAdding, setIsAdding] = useState(false);
   const [picked, setPicked] = useState<PublicUser[]>([]);
+  const closeAdding = () => {
+    setIsAdding(false);
+    setPicked([]);
+  };
+  // Back from "Add People" returns to the member list, not out of the sheet.
+  usePreventRemove(isAdding, closeAdding);
 
   const membersKey = ['roomMembers', roomId];
   const { data, isLoading, error } = useQuery({
@@ -96,7 +102,7 @@ export default function RoomMembersScreen() {
         style={[styles.root, { paddingTop: insets.top }]}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <ScreenHeader title="Add People" onBack={() => { setIsAdding(false); setPicked([]); }} />
+        <ScreenHeader title="Add People" onBack={closeAdding} />
         <View style={[styles.body, { paddingBottom: insets.bottom }]}>
           <UserPicker
             selected={picked}

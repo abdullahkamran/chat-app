@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { usePreventRemove, useRouter } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import Animated, { useAnimatedKeyboard, useAnimatedStyle, useDerivedValue } from 'react-native-reanimated';
@@ -105,6 +105,13 @@ export function RoomShell({ session, children }: Readonly<Props>) {
     setHintSeen(true);
   };
   const mailHint = isAlone && mailbox?.canPost && !hintSeen ? 'No one is here. Leave a mail' : null;
+  // Back (hardware, swipe or the header arrow) closes edit mode, a drawer or the transcript
+  // before it leaves the room. The mailbox is a Modal and handles back itself.
+  usePreventRemove(isEditMode || drawer !== null || (showChat && transcriptOpen), () => {
+    if (isEditMode) intents.cancelEdit();
+    else if (drawer !== null) closeDrawer();
+    else setTranscriptOpen(false);
+  });
 
   if (isLoading) {
     return (

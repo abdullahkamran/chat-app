@@ -186,7 +186,12 @@ export default function RoomListScreen(): React.JSX.Element {
         accessibilityLabel="New room"
       />
 
-      <Modal visible={showAvatarDialog && !selectedAvatar} transparent animationType="fade">
+      <Modal
+        visible={showAvatarDialog && !selectedAvatar}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowAvatarDialog(false)}
+      >
         <View style={styles.overlay}>
           <View style={styles.dialog}>
             <View style={styles.dialogIcon}>
