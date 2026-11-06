@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
-import { useEffect, useState, type ReactNode } from 'react';
-import { Keyboard, View } from 'react-native';
+import { useState, type ReactNode } from 'react';
+import { View } from 'react-native';
+import Animated, { useAnimatedKeyboard, useAnimatedStyle, useDerivedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { RoomCategory } from '@chat-app/shared-types';
@@ -43,6 +44,10 @@ const useStyles = makeStyles(t => ({
     flex: 1,
     marginHorizontal: t.space.xs,
   },
+  body: {
+    flex: 1,
+    overflow: 'hidden',
+  },
   fabColumn: {
     position: 'absolute',
     bottom: 100,
@@ -76,9 +81,12 @@ export function RoomShell({ session, children }: Readonly<Props>) {
   const [drawer, setDrawer] = useState<'avatars' | 'emotes' | null>(null);
   const toggleDrawer = (next: 'avatars' | 'emotes') => setDrawer(open => (open === next ? null : next));
   const closeDrawer = () => setDrawer(null);
-  // The bottom chrome clears the system nav bar, except while the keyboard covers it.
-  const keyboardOpen = useKeyboardOpen();
-  const bottomInset = keyboardOpen ? 0 : insets.bottom;
+  // The chrome under the header rides up with the keyboard, which covers the nav bar inset.
+  // The room is shifted back down by the same amount so it stays put, keyboard over its bottom edge.
+  const keyboard = useAnimatedKeyboard();
+  const lift = useDerivedValue(() => Math.max(0, keyboard.height.value - insets.bottom));
+  const liftStyle = useAnimatedStyle(() => ({ transform: [{ translateY: -lift.value }] }));
+  const roomStyle = useAnimatedStyle(() => ({ transform: [{ translateY: lift.value }] }));
   const {
     roomDetails, isLoading, error, isOwner, isSaving, mode, edit, scene, typingNames, intents, canEmote, isSeated,
     isAlone, userId, transcript,
@@ -120,7 +128,7 @@ export function RoomShell({ session, children }: Readonly<Props>) {
   }
 
   return (
-    <View style={[styles.container, { paddingBottom: bottomInset }]}>
+    <View style={[styles.container, { paddingBottom: insets.bottom }]}>
       {isEditMode ? (
         <EditModeToolbar
           topInset={insets.top}
@@ -164,58 +172,52 @@ export function RoomShell({ session, children }: Readonly<Props>) {
         </View>
       )}
 
-      <View style={{ flex: 1 }}>
-        {/* onTouchStart sees the touch without taking it from the room. */}
-        <View style={{ flex: 1 }} onTouchStart={transcriptOpen ? () => setTranscriptOpen(false) : undefined}>
-          {children}
-        </View>
+      <View style={styles.body}>
+        <Animated.View style={[{ flex: 1 }, liftStyle]}>
+          <View style={{ flex: 1 }}>
+            {/* onTouchStart sees the touch without taking it from the room. */}
+            <Animated.View
+              style={[{ flex: 1 }, roomStyle]}
+              onTouchStart={transcriptOpen ? () => setTranscriptOpen(false) : undefined}
+            >
+              {children}
+            </Animated.View>
 
-        {!isEditMode && !(showChat && transcriptOpen) && (
-          <View style={styles.fabColumn} pointerEvents="box-none">
-            <MailboxButton unread={mailbox?.unread ?? 0} hint={mailHint} onPress={openMailbox} />
-            {isOwner && <EditModeButton onPress={intents.enterEdit} />}
+            {!isEditMode && !(showChat && transcriptOpen) && (
+              <View style={styles.fabColumn} pointerEvents="box-none">
+                <MailboxButton unread={mailbox?.unread ?? 0} hint={mailHint} onPress={openMailbox} />
+                {isOwner && <EditModeButton onPress={intents.enterEdit} />}
+              </View>
+            )}
+
+            {showChat && (transcriptOpen
+              ? <TranscriptPanel entries={transcript} userId={userId} names={names} />
+              : <TranscriptPeek entries={transcript} userId={userId} names={names} />)}
           </View>
-        )}
 
-        {showChat && (transcriptOpen
-          ? <TranscriptPanel entries={transcript} userId={userId} names={names} />
-          : <TranscriptPeek entries={transcript} userId={userId} names={names} />)}
+          {isEditMode && (
+            <InventoryDrawer selectedItem={edit.selectedItem} onSelectItem={intents.selectInventoryItem} pendingItems={scene?.items ?? []} />
+          )}
+          {!isEditMode && drawer === 'avatars' && <AvatarDrawer onClose={closeDrawer} />}
+          {!isEditMode && drawer === 'emotes' && (
+            <EmoteDrawer disabled={isSeated} onEmote={intents.emote} onClose={closeDrawer} />
+          )}
+          {showChat && (
+            <>
+              <TypingIndicator names={typingNames} />
+              <View style={styles.dock}>
+                <ChatInput
+                  onTyping={intents.typing}
+                  onSubmit={intents.submitMessage}
+                  left={<TranscriptButton open={transcriptOpen} onPress={() => setTranscriptOpen(open => !open)} />}
+                />
+              </View>
+            </>
+          )}
+        </Animated.View>
       </View>
 
       <MailboxModal room={roomDetails} userId={userId} visible={mailboxOpen} onClose={() => setMailboxOpen(false)} />
-
-      {isEditMode && (
-        <InventoryDrawer selectedItem={edit.selectedItem} onSelectItem={intents.selectInventoryItem} pendingItems={scene?.items ?? []} />
-      )}
-      {!isEditMode && drawer === 'avatars' && <AvatarDrawer onClose={closeDrawer} />}
-      {!isEditMode && drawer === 'emotes' && (
-        <EmoteDrawer disabled={isSeated} onEmote={intents.emote} onClose={closeDrawer} />
-      )}
-      {showChat && (
-        <>
-          <TypingIndicator names={typingNames} />
-          <View style={styles.dock}>
-            <ChatInput
-              onTyping={intents.typing}
-              onSubmit={intents.submitMessage}
-              left={<TranscriptButton open={transcriptOpen} onPress={() => setTranscriptOpen(open => !open)} />}
-            />
-          </View>
-        </>
-      )}
     </View>
   );
-}
-
-function useKeyboardOpen(): boolean {
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', () => setOpen(true));
-    const hide = Keyboard.addListener('keyboardDidHide', () => setOpen(false));
-    return () => {
-      show.remove();
-      hide.remove();
-    };
-  }, []);
-  return open;
 }
