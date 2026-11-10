@@ -121,36 +121,6 @@ export function blendPose(from: Pose, to: Pose, w: number): Pose {
   return { rotate: mix(from.rotate, to.rotate), tx: mix(from.tx, to.tx), ty: mix(from.ty, to.ty) };
 }
 
-/** Seconds an overlay takes to take over the arms, and to hand them back. */
-const OVERLAY_FADE_S = 0.2;
-/** Torso bones an overlay adds to the base pose (a lean on top of a lean). */
-const OVERLAY_ADD = (['spine', 'chest', 'neck', 'head'] as const).map(b => BONE_INDEX[b]);
-/** Arm bones an overlay takes over, where it animates them. */
-const OVERLAY_ARMS = (['upperArm.L', 'foreArm.L', 'hand.L', 'upperArm.R', 'foreArm.R', 'hand.R'] as const).map(b => BONE_INDEX[b]);
-const HIP = BONE_INDEX.hip;
-
-/**
- * Play an upper-body clip over a base pose (an emote over the sit pose): the torso adds
- * the clip's lean, the arms it moves blend from the base to the clip and back over
- * OVERLAY_FADE_S at each end, and the hip takes its small bobs. Legs keep the base pose.
- */
-export function overlayPose(base: Pose, clip: CompiledClip, time: number): Pose {
-  'worklet';
-  const t = clipTime(clip, time);
-  const w = Math.max(0, Math.min(1, t / OVERLAY_FADE_S, (clip.duration - t) / OVERLAY_FADE_S));
-  const over = samplePose(clip, t);
-  const rotate = base.rotate.slice();
-  const tx = base.tx.slice();
-  const ty = base.ty.slice();
-  for (const i of OVERLAY_ADD) rotate[i] += over.rotate[i];
-  for (const i of OVERLAY_ARMS) {
-    if (clip.rotate[i] !== null) rotate[i] += (over.rotate[i] - base.rotate[i]) * w;
-  }
-  tx[HIP] += over.tx[HIP];
-  ty[HIP] += over.ty[HIP];
-  return { rotate, tx, ty };
-}
-
 /** One forward pass over the bone tree (parents precede children). Followers add a share of their source's rotation. */
 export function solveWorld(pose: Pose, view: RigView): WorldBones {
   'worklet';

@@ -26,7 +26,7 @@ import type { ActorMotion } from './actorMotion';
 import { drawAvatar, placeholderTints, type AvatarPlayhead } from './drawAvatar';
 import { drawEffects, type EffectDraw, type PropColors } from './drawEffects';
 import { itemDepth, itemRect } from './geometry';
-import { WALK_AUTHORED_MS_PER_CELL, isEmoteClip, isSeatedEmoteClip, type ClipId } from './skeleton/clips';
+import { WALK_AUTHORED_MS_PER_CELL, isEmoteClip, type ClipId } from './skeleton/clips';
 import type { AvatarArt, TintGroup } from './skeleton/avatarArt';
 import { COMPILED_CLIPS } from './skeleton/sampler';
 import { PLACEHOLDER_ART } from './wearables/useAvatarArts';
@@ -61,9 +61,6 @@ interface ActorDraw {
   emote: ClipId | '';
   /** Seconds into the emote to start at; non-zero when we saw it start late (joined the room mid-emote). */
   emoteStart: number;
-  /** An emote played over the sit pose, or ''. */
-  seatedEmote: ClipId | '';
-  seatedEmoteStart: number;
   /** Changes with every new action, so the same emote sent twice plays twice. */
   actionKey: number;
   /** Depth of the item the actor sits on, or -1. */
@@ -144,7 +141,6 @@ function advance(prev: AnimRuntime | undefined, a: ActorDraw, gx: number, gy: nu
   if (!prev) {
     return {
       clip: want, time: startTime, prevClip: '', prevTime: 0, fade: 1,
-      overlay: a.sitting ? a.seatedEmote : '', overlayTime: a.seatedEmoteStart,
       facing: a.facing, propFacing: a.facing, lastGx: gx, lastGy: gy,
       seatDepth: a.seatDepth, standHold: 0, actionKey: a.actionKey, reportedKey: 0,
     };
@@ -172,20 +168,8 @@ function advance(prev: AnimRuntime | undefined, a: ActorDraw, gx: number, gy: nu
   st.lastGy = gy;
 
   // A new emote restarts its clip even when it is the one already playing.
-  const changed = a.actionKey !== st.actionKey;
-  const replay = a.emoting && changed;
+  const replay = a.emoting && a.actionKey !== st.actionKey;
   st.actionKey = a.actionKey;
-
-  // An emote over the sit pose runs on its own playhead; the sit clip carries on beneath.
-  const overlay = a.sitting ? a.seatedEmote : '';
-  if (overlay === '') {
-    st.overlay = '';
-  } else if (overlay !== st.overlay || changed) {
-    st.overlay = overlay;
-    st.overlayTime = a.seatedEmoteStart;
-  } else {
-    st.overlayTime = (st.overlayTime ?? 0) + dt;
-  }
   if (want !== st.clip || replay) {
     st.prevClip = st.clip;
     st.prevTime = st.time;
@@ -205,17 +189,11 @@ function advance(prev: AnimRuntime | undefined, a: ActorDraw, gx: number, gy: nu
   return st;
 }
 
-/** True once per emote action (or emote over a seat), when its clip has played to the end (at once if it has none). */
+/** True once per emote action, when its clip has played to the end (at once if it has none). */
 function emoteFinished(st: AnimRuntime, a: ActorDraw): boolean {
   'worklet';
-  if (st.reportedKey === a.actionKey) return false;
-  if (a.emoting) {
-    if (a.emote !== '' && (st.clip !== a.emote || st.time < COMPILED_CLIPS[a.emote].front.duration)) return false;
-  } else if (a.sitting && a.seatedEmote !== '') {
-    if (st.overlay !== a.seatedEmote || (st.overlayTime ?? 0) < COMPILED_CLIPS[a.seatedEmote].front.duration) return false;
-  } else {
-    return false;
-  }
+  if (!a.emoting || st.reportedKey === a.actionKey) return false;
+  if (a.emote !== '' && (st.clip !== a.emote || st.time < COMPILED_CLIPS[a.emote].front.duration)) return false;
   st.reportedKey = a.actionKey;
   return true;
 }
@@ -277,10 +255,6 @@ export function useWorldPicture({
       emoting: a.action.kind === 'emote',
       emote: a.action.kind === 'emote' && isEmoteClip(a.action.animation) ? a.action.animation : '',
       emoteStart: a.action.kind === 'emote' ? (a.action.elapsedMs ?? 0) / 1000 : 0,
-      seatedEmote: a.action.kind === 'sit' && a.action.emote && isSeatedEmoteClip(a.action.emote.animation)
-        ? a.action.emote.animation
-        : '',
-      seatedEmoteStart: a.action.kind === 'sit' ? (a.action.emote?.elapsedMs ?? 0) / 1000 : 0,
       actionKey: actionKey(a.action),
       seatDepth: seat ? itemDepth(seat.item) + SEATED_DEPTH : -1,
       facing: a.facing,

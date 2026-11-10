@@ -124,11 +124,6 @@ export interface EngineCapabilities {
   /** Distinct facings the engine can draw. Others are approximated. */
   facings: 2 | 4;
   actions: readonly ActorActionKind[];
-  /**
-   * Emotes the engine can play over the sit pose (upper body only). A seated user picking
-   * one stays seated; any other emote stands them up first.
-   */
-  seatedEmotes?: readonly string[];
   editMode: boolean;
 }
 

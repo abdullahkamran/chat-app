@@ -126,8 +126,6 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
   // Whether the server has told us who was here when we entered. Until then, an empty room may not be.
   const [presenceKnown, setPresenceKnown] = useState(false);
   const canEmote = capabilities.actions.includes('emote');
-  /** Whether a seated actor plays this emote where it sits (the engine draws it over the sit pose). */
-  const playsSeated = (animation: string) => !!capabilities.seatedEmotes?.includes(animation);
 
   // Two-person emotes. `picking`: chosen in the drawer, waiting for a tap on someone.
   // `outgoing`: our request, until answered. `incoming`: requests to us, oldest first.
@@ -786,12 +784,7 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
 
   /** A seat someone is sitting on or walking to. */
   function seatOf(actor: ActorState): SitAction | null {
-    const pending = pendingSitRef.current[actor.id];
-    if (pending) return pending;
-    if (actor.action.kind !== 'sit') return null;
-    // The seat alone: an emote playing over it is this client's to draw, not part of the seat.
-    const { emote: _playing, ...seat } = actor.action;
-    return seat;
+    return pendingSitRef.current[actor.id] ?? (actor.action.kind === 'sit' ? actor.action : null);
   }
 
   /** The free seat on an item nearest the actor. Null when all are taken or it already sits there. */
@@ -821,8 +814,7 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
 
   /**
    * Play an emote on an actor: now when it stands still, after its walk when walking (a
-   * seated user stands up first for a full-body emote, which arrives as a walk). A seated
-   * actor plays an upper-body emote (see playsSeated) where it sits, and skips the rest.
+   * seated user stands up first, which arrives as a walk). Seated actors don't emote.
    * Skipped when the engine has no emotes. Ends any mutual emote the actor was heading to.
    * Decided on the latest state, since standing up may have been queued just before.
    */
@@ -831,13 +823,7 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     clearMutual(uid);
     setActors(current => {
       const a = current[uid];
-      if (!a) return current;
-      if (a.action.kind === 'sit') {
-        if (!playsSeated(action.animation)) return current;
-        const { emote: _done, ...seat } = a.action;
-        const emote = { animation: action.animation, elapsedMs: action.elapsedMs };
-        return { ...current, [uid]: { ...a, action: { ...seat, emote } } };
-      }
+      if (!a || a.action.kind === 'sit') return current;
       if (a.action.kind === 'walk') {
         pendingEmoteRef.current[uid] = action;
         return current;
@@ -873,11 +859,6 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     if (action === 'emote') {
       setActors(current => {
         const actor = current[actorId];
-        if (actor?.action.kind === 'sit' && actor.action.emote) {
-          // An emote over the seat ended: stay seated.
-          const { emote: _done, ...seat } = actor.action;
-          return { ...current, [actorId]: { ...actor, action: seat } };
-        }
         if (!actor || actor.action.kind !== 'emote') return current;
         return { ...current, [actorId]: { ...actor, action: { kind: 'idle' } } };
       });
@@ -976,9 +957,8 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
       return;
     }
     setPicking(null);
-    // Upper-body emotes play in the seat. Otherwise standing up goes out as a point first,
-    // so others see the stand, then the emote.
-    if (!(actors[userId].action.kind === 'sit' && playsSeated(animation))) standUpMe();
+    // Standing up goes out as a point first, so others see the stand, then the emote.
+    standUpMe();
     const action: EmoteAction = { kind: 'emote', animation };
     sendAction(action);
     playEmote(userId, action);
