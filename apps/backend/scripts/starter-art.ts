@@ -18,7 +18,7 @@ import { WEARABLE_ART_SCALE, type BoneName, type DrawBand, type RigView, type Sl
 
 import { ART_DIR, FRAME_PX_H, FRAME_PX_W, frameOrigins } from './wearables/frame';
 import {
-  GREY, LINE_W, SKIN, cel, circleD, crescent, ellipseD, leftOf, limbD, limbShade, strokeSvg, uid,
+  GREY, LINE_W, SKIN, cel, circleD, crescent, ellipseD, leftOf, limbD, limbEdgeD, limbShade, strokeSvg, transformed, uid,
   type CelInner, type CelPaint,
 } from './wearables/cel';
 import { HEAD_CY, HEAD_R, capsule, disc, shapeSvg, type Shape } from './wearables/shapes';
@@ -33,10 +33,6 @@ const C = {
   feature: '#2b2b2b',
   eyeWhite: '#ffffff',
   shade: 'rgba(0,0,0,0.22)',
-  denim: '#8c949b',
-  denimLine: '#515252',
-  cargo: '#98885f',
-  cargoLine: '#77684a',
   hairDark: '#3e3f4b',
   hairDarkLine: '#2a2b33',
   hairRed: '#8e403b',
@@ -86,54 +82,99 @@ function sided<T extends string>(name: T): [`${T}.L`, `${T}.R`] {
 // Outlined parts with a shadow tone on the left (light from screen right). Tintable
 // parts are drawn in greys (GREY, SKIN in cel.ts) so the runtime tint keeps the shading.
 
-/** Torso outlines, `g` wider all round for clothing over the body. */
+/**
+ * Torso outlines, `g` wider all round for clothing over the body. Each has the closed
+ * outline `d` and the `edge` to line: the end a part laps over (the chest over the
+ * waist, the waist over the hip, the hip over the thighs) is left unlined, so clothes
+ * and skin run on without a seam. The chest has round shoulders centred on the shoulder
+ * joints, which the tops of the arms tuck into at any angle.
+ */
 const TORSO = {
-  chest: (g: number) =>
-    `M ${-4 - g} ${-16.5 - g} Q ${-8.2 - g} ${-16.5 - g} ${-8.2 - g} -12.5 L ${-6.9 - g} 1.5 ` +
-    `Q 0 ${3 + g} ${6.9 + g} 1.5 L ${8.2 + g} -12.5 Q ${8.2 + g} ${-16.5 - g} ${4 + g} ${-16.5 - g} Z`,
-  spine: (g: number, hem = 2) =>
-    `M ${-6.7 - g} -11 L ${6.7 + g} -11 L ${6.9 + g} ${hem} Q 0 ${hem + 1.6 + g} ${-6.9 - g} ${hem} Z`,
-  hip: (g: number) =>
-    `M ${-6.9 - g} -3.5 L ${6.9 + g} -3.5 L ${7.1 + g} 3 Q 0 ${6 + g} ${-7.1 - g} 3 Z`,
+  chest: (g: number) => {
+    const r = 3.4 + g;
+    const edge =
+      `M ${6.9 + g} 1.5 L ${8.2 + g} -7.5 Q ${10.5 + g} -8 ${12.2 + g} -10.4 A ${r} ${r} 0 0 0 9.4 ${-15.4 - g} ` +
+      `Q ${7.6 + g} ${-16.6 - g} ${4 + g} ${-16.6 - g} L ${-4 - g} ${-16.6 - g} Q ${-7.6 - g} ${-16.6 - g} -9.4 ${-15.4 - g} ` +
+      `A ${r} ${r} 0 0 0 ${-12.2 - g} -10.4 Q ${-10.5 - g} -8 ${-8.2 - g} -7.5 L ${-6.9 - g} 1.5`;
+    return { d: `${edge} Q 0 ${3 + g} ${6.9 + g} 1.5 Z`, edge };
+  },
+  /** `hem` lines the bottom: a top's hem shows over the trousers; the body's waist doesn't. */
+  spine: (g: number, bottom = 2, hem = false) => ({
+    d: `M ${-6.7 - g} -11 L ${6.7 + g} -11 L ${6.9 + g} ${bottom} Q 0 ${bottom + 1.6 + g} ${-6.9 - g} ${bottom} Z`,
+    edge: hem
+      ? `M ${6.7 + g} -11 L ${6.9 + g} ${bottom} Q 0 ${bottom + 1.6 + g} ${-6.9 - g} ${bottom} L ${-6.7 - g} -11`
+      : `M ${6.7 + g} -11 L ${6.9 + g} ${bottom} M ${-6.9 - g} ${bottom} L ${-6.7 - g} -11`,
+  }),
+  hip: (g: number) => ({
+    d: `M ${-6.9 - g} -3.5 L ${6.9 + g} -3.5 L ${7.1 + g} 3 Q 0 ${5 + g} ${-7.1 - g} 3 Z`,
+    edge: `M ${6.9 + g} -3.5 L ${7.1 + g} 3 M ${-7.1 - g} 3 L ${-6.9 - g} -3.5`,
+  }),
 };
 
-/** Limb sizes: width at the joint, width at the far end, start and end along the bone. */
+function torso(part: { d: string; edge: string }, paint: CelPaint, inner: CelInner): Shape {
+  return cel(part.d, paint, { ...inner, edge: part.edge });
+}
+
+/**
+ * Limb sizes: width at the joint, width at the far end, start and end along the bone.
+ * Both ends are round caps centred on the joints (bone lengths in the rig), so a limb's
+ * end and the next limb's start are the same circle and overlap cleanly at any angle.
+ */
 type LimbSize = readonly [number, number, number, number];
+const limbSize = (w0: number, w1: number, length: number): LimbSize => [w0, w1, -w0 / 2, length + w1 / 2];
 const LIMB: Record<'upperArm' | 'foreArm' | 'thigh' | 'shin', LimbSize> = {
-  upperArm: [5.4, 4.4, -2.5, 13.5],
-  foreArm: [4.4, 3.6, -1, 12],
-  thigh: [7.6, 6.2, -3, 18.5],
-  shin: [6.2, 4.8, -1, 16],
+  upperArm: limbSize(5.4, 4.4, 12),
+  foreArm: limbSize(4.4, 3.6, 11),
+  thigh: limbSize(7.6, 6.2, 17),
+  shin: limbSize(6.2, 4.8, 15),
 };
 
+/** A limb, its joint end unlined (it laps over the part above). */
 function limb(size: LimbSize, paint: CelPaint, inner: CelInner = {}): Shape {
-  return cel(limbD(...size), paint, { ...inner, shade: [limbShade(...size), ...(inner.shade ?? [])] });
+  return cel(limbD(...size), paint, { ...inner, shade: [limbShade(...size), ...(inner.shade ?? [])], edge: limbEdgeD(...size) });
 }
 
 const HAND = 'M -1.9 -0.6 L 1.9 -0.6 Q 2.4 2.5 1.4 4.3 Q 0 5.3 -1.4 4.3 Q -2.4 2.5 -1.9 -0.6 Z';
+const HAND_EDGE = 'M 1.9 -0.6 Q 2.4 2.5 1.4 4.3 Q 0 5.3 -1.4 4.3 Q -2.4 2.5 -1.9 -0.6';
 const THUMB = 'M 1.5 0.3 Q 3.5 0.6 3.1 2.6 Q 2.3 3.1 1.6 2.3 Z';
 const FOOT = 'M -3 -2.2 Q -3.6 2.6 -2.4 3.2 L 6.2 3.2 Q 8 2.8 7.2 0.8 Q 5.2 -1.4 1.8 -2.2 Z';
 
+/**
+ * Feet are drawn in profile, toes to screen right, then turned about the ankle for the
+ * three-quarter views: from the front the toes come down towards the viewer, from the
+ * back they go up and away.
+ */
+const FOOT_TURN: Record<RigView, string> = {
+  front: 'rotate(14) scale(0.84 1)',
+  back: 'rotate(-14) scale(0.8 1)',
+};
+
 function body(): Wearable {
   const parts: Partial<Record<BoneName, Shape[]>> = {
-    hip: [cel(TORSO.hip(0), SKIN, { shade: [leftOf(-4.5)] })],
-    spine: [cel(TORSO.spine(0), SKIN, { shade: [leftOf(-4.2)] })],
-    chest: [cel(TORSO.chest(0), SKIN, { shade: [leftOf(-4.8)] })],
+    hip: [torso(TORSO.hip(0), SKIN, { shade: [leftOf(-4.5)] })],
+    spine: [torso(TORSO.spine(0), SKIN, { shade: [leftOf(-4.2)] })],
+    chest: [torso(TORSO.chest(0), SKIN, { shade: [leftOf(-4.8)] })],
     // The chin shades the top of the neck.
-    neck: [cel(limbD(5.4, 4.8, 1.5, -5), SKIN, { shade: [leftOf(-0.8), 'M -40 -60 H 40 V -2.2 H -40 Z'] })],
+    neck: [cel(limbD(5.4, 4.8, 1.5, -5), SKIN, {
+      shade: [leftOf(-0.8), 'M -40 -60 H 40 V -2.2 H -40 Z'], edge: limbEdgeD(5.4, 4.8, 1.5, -5),
+    })],
     head: [cel(circleD(0, HEAD_CY, HEAD_R), SKIN, { shade: [crescent(0, HEAD_CY, HEAD_R)] })],
   };
   for (const side of ['L', 'R'] as const) {
     parts[`upperArm.${side}`] = [limb(LIMB.upperArm, SKIN)];
     parts[`foreArm.${side}`] = [limb(LIMB.foreArm, SKIN)];
-    parts[`hand.${side}`] = [cel(HAND, SKIN, { shade: [leftOf(-0.6)] }), cel(THUMB, SKIN)];
+    parts[`hand.${side}`] = [cel(HAND, SKIN, { shade: [leftOf(-0.6)], edge: HAND_EDGE }), cel(THUMB, SKIN)];
     parts[`thigh.${side}`] = [limb(LIMB.thigh, SKIN)];
     parts[`shin.${side}`] = [limb(LIMB.shin, SKIN)];
-    parts[`foot.${side}`] = [cel(FOOT, SKIN, { shade: [leftOf(-1)] })];
   }
   const pieces = (Object.entries(parts) as [BoneName, Shape[]][]).map(([bone, shapes]): Piece => ({
     bone, layer: 'skin', views: BOTH, shapes: shapes.map(s => [s, '']),
   }));
+  for (const bone of sided('foot')) {
+    for (const view of BOTH) {
+      pieces.push({ bone, layer: 'skin', views: [view], shapes: [[transformed(cel(FOOT, SKIN, { shade: [leftOf(-1)] }), FOOT_TURN[view]), '']] });
+    }
+  }
   return { tintable: true, pieces };
 }
 
@@ -227,15 +268,16 @@ const DENIM: CelPaint = { base: '#3f6699', shade: '#2d4d78', line: '#1e324f', li
 
 /** A crew-neck t-shirt: the collar rib sits on the neck bone so it draws over the neck. */
 function celTee(): Wearable {
-  const sleeve = [6.6, 6, -3.2, 7.5] as const;
+  // The sleeve's top is centred on the shoulder joint and tucks into the shirt's shoulder.
+  const sleeve = [6.6, 6, -3.3, 7.5] as const;
   return {
     pieces: [
-      { bone: 'chest', layer: 'tops', views: BOTH, shapes: [[cel(TORSO.chest(0.6), TEE, {
+      { bone: 'chest', layer: 'tops', views: BOTH, shapes: [[torso(TORSO.chest(0.6), TEE, {
         shade: [leftOf(-4.5)],
         light: ['M 3 -17.6 Q 8.8 -17.6 8.8 -12 Q 6.4 -14.6 3 -15.6 Z'],
         lines: ['M -3.2 -6.5 Q -1.6 -4.2 -3.6 -1.2', 'M 5.6 -10.5 Q 4.6 -8 5.2 -5.5'],
       }), '']] },
-      { bone: 'spine', layer: 'tops', views: BOTH, shapes: [[cel(TORSO.spine(0.6, 3.5), TEE, {
+      { bone: 'spine', layer: 'tops', views: BOTH, shapes: [[torso(TORSO.spine(0.6, 3.5, true), TEE, {
         shade: [leftOf(-4.2)],
         lines: ['M -7.3 2 Q 0 3.6 7.3 2'],
       }), '']] },
@@ -244,6 +286,7 @@ function celTee(): Wearable {
         shade: [limbShade(...sleeve)],
         light: ['M 1.6 -3 Q 3.4 -2 3.2 2 L 2.2 2 Z'],
         lines: ['M -2.9 5.9 Q 0 6.7 2.9 5.9'],
+        edge: limbEdgeD(...sleeve),
       }), '']] })),
     ],
   };
@@ -251,13 +294,14 @@ function celTee(): Wearable {
 
 /** Jeans with gold stitching: a seam down the outside of each leg, a fly and rolled cuffs. */
 function celJeans(): Wearable {
-  const thigh = [8.4, 7.2, -3, 18.8] as const;
-  const shin = [7.2, 6.8, -1.5, 15.6] as const;
+  // Knee caps centred on the knee joint, as on the body; the hem stops at the ankle.
+  const thigh = [8.4, 7.2, -4.2, 20.6] as const;
+  const shin = [7.2, 6.8, -3.6, 16.2] as const;
   const stitch = (d: string) =>
     `<path d="${d}" fill="none" stroke="${C.stitch}" stroke-width="0.3" stroke-dasharray="0.8 0.6"/>`;
   return {
     pieces: [
-      { bone: 'hip', layer: 'bottoms', views: BOTH, shapes: [[cel(TORSO.hip(0.6), DENIM, {
+      { bone: 'hip', layer: 'bottoms', views: BOTH, shapes: [[torso(TORSO.hip(0.6), DENIM, {
         shade: [leftOf(-4.5)],
         lines: ['M -7.6 -1.3 Q 0 0.1 7.6 -1.3', 'M 2.6 -0.9 Q 2.9 2 2.3 4.6'],
         raw: stitch('M -7.6 -2.4 Q 0 -1 7.6 -2.4') + stitch('M 3.4 -0.6 Q 3.7 2 3.1 4.2'),
@@ -267,11 +311,13 @@ function celJeans(): Wearable {
         light: ['M 1.6 -2 L 3.4 -2 L 2.8 17 L 1.4 17 Z'],
         lines: ['M -2 15.4 Q 0 16.4 2 15.5'],
         raw: stitch('M 3.2 -2 L 2.7 18'),
+        edge: limbEdgeD(...thigh),
       }), '']] })),
       ...sided('shin').map((bone): Piece => ({ bone, layer: 'bottoms', views: BOTH, shapes: [[cel(limbD(...shin), DENIM, {
-        shade: [limbShade(...shin), 'M -40 13.2 H 40 V 30 H -40 Z'],
-        lines: ['M -3.6 13.2 H 3.6'],
-        raw: stitch('M 2.9 -1 L 2.7 13'),
+        shade: [limbShade(...shin), 'M -40 13.8 H 40 V 30 H -40 Z'],
+        lines: ['M -3.6 13.8 H 3.6'],
+        raw: stitch('M 2.9 -1 L 2.7 13.6'),
+        edge: limbEdgeD(...shin),
       }), '']] })),
     ],
   };
@@ -311,33 +357,63 @@ function hair(style: 'parted' | 'puffed' | 'spiked', fill: string, line: string)
   };
 }
 
-function top(sleeves: 'short' | 'long', fill: string, line: string): Wearable {
-  const attrs = paint(fill, line);
+/**
+ * Clothing limbs, on the same joint-centred caps as the body (LIMB) but wider, so a sleeve
+ * or trouser leg always covers the skin's joint cap under it. `b` adds bulk.
+ */
+const SLEEVE = {
+  short: (b = 0): LimbSize => [6.6 + b, 6 + b, -3.3 - b / 2, 7.5],
+  upper: (b = 0): LimbSize => limbSize(6.6 + b, 5.6 + b, 12),
+  lower: (b = 0): LimbSize => [5.6 + b, 4.8 + b, -(5.6 + b) / 2, 11.4],
+};
+const LEG = {
+  thigh: (w: number, knee: number, short: boolean): LimbSize => short ? [w, knee, -w / 2, 11] : limbSize(w, knee, 17),
+  /** Ends at the ankle, under the shoe. */
+  shin: (knee: number, w: number): LimbSize => [knee, w, -knee / 2, 16.2],
+};
+
+/** A top: chest and waist on the torso shapes, sleeves as limbs. */
+function topPieces(paint: CelPaint, sleeves: 'none' | 'short' | 'long', opts: { bulk?: number; crop?: boolean } = {}): Piece[] {
+  const b = opts.bulk ?? 0;
+  const chest = TORSO.chest(sleeves === 'none' ? 0.3 : 0.6 + b);
   const pieces: Piece[] = [
-    { bone: 'chest', layer: 'tops', views: BOTH, shapes: [[capsule(16.5, -16.5, 2), attrs]] },
-    { bone: 'spine', layer: 'tops', views: BOTH, shapes: [[capsule(14.5, -11, 4), attrs]] },
+    // A crop top's chest ends in a hem over bare skin, so it's lined all round.
+    { bone: 'chest', layer: 'tops', views: BOTH, shapes: [[torso(opts.crop ? { ...chest, edge: chest.d } : chest, paint, { shade: [leftOf(-4.5)] }), '']] },
   ];
-  for (const arm of sided('upperArm')) {
-    pieces.push({ bone: arm, layer: 'tops', views: BOTH, shapes: [[capsule(6.5, -2.5, sleeves === 'short' ? 7 : 13.5), attrs]] });
+  if (!opts.crop) {
+    pieces.push({ bone: 'spine', layer: 'tops', views: BOTH, shapes: [[torso(TORSO.spine(0.6 + b, 3.5, true), paint, { shade: [leftOf(-4.2)] }), '']] });
   }
-  if (sleeves === 'long') {
-    for (const arm of sided('foreArm')) {
-      pieces.push({ bone: arm, layer: 'tops', views: BOTH, shapes: [[capsule(5.8, -1.5, 11), attrs]] });
+  for (const arm of ['L', 'R'] as const) {
+    if (sleeves === 'short') pieces.push({ bone: `upperArm.${arm}`, layer: 'tops', views: BOTH, shapes: [[limb(SLEEVE.short(b / 2), paint), '']] });
+    if (sleeves === 'long') {
+      pieces.push({ bone: `upperArm.${arm}`, layer: 'tops', views: BOTH, shapes: [[limb(SLEEVE.upper(b / 2), paint), '']] });
+      pieces.push({ bone: `foreArm.${arm}`, layer: 'tops', views: BOTH, shapes: [[limb(SLEEVE.lower(b / 2), paint), '']] });
     }
   }
-  return { pieces };
+  return pieces;
 }
 
-function trousers(fill: string, line: string, pockets: boolean): Wearable {
-  const attrs = paint(fill, line);
-  const pieces: Piece[] = [{ bone: 'hip', layer: 'bottoms', views: BOTH, shapes: [[capsule(14, -3.5, 5), attrs]] }];
-  for (const leg of sided('thigh')) {
-    const shapes: Array<[Shape, string]> = [[capsule(8.2, -3, 18.5), attrs]];
-    if (pockets) shapes.push([{ kind: 'path', d: 'M -3 8 h 6 v 5 h -6 Z' }, paint(fill, line)]);
-    pieces.push({ bone: leg, layer: 'bottoms', views: BOTH, shapes });
+/** Trousers: hip on the torso shape, legs as limbs; `short` stops above the knee. */
+function bottomPieces(paint: CelPaint, legs: { thigh: number; knee: number; shin: number; short: boolean }): Piece[] {
+  const pieces: Piece[] = [{ bone: 'hip', layer: 'bottoms', views: BOTH, shapes: [[torso(TORSO.hip(0.6), paint, { shade: [leftOf(-4.5)] }), '']] }];
+  for (const side of ['L', 'R'] as const) {
+    pieces.push({ bone: `thigh.${side}`, layer: 'bottoms', views: BOTH, shapes: [[limb(LEG.thigh(legs.thigh, legs.knee, legs.short), paint), '']] });
+    if (!legs.short) pieces.push({ bone: `shin.${side}`, layer: 'bottoms', views: BOTH, shapes: [[limb(LEG.shin(legs.knee, legs.shin), paint), '']] });
   }
-  for (const leg of sided('shin')) {
-    pieces.push({ bone: leg, layer: 'bottoms', views: BOTH, shapes: [[capsule(7.2, -1.5, 15), attrs]] });
+  return pieces;
+}
+
+const JACKET: CelPaint = { base: '#8c949b', shade: '#6f767c', line: '#45494d', light: '#a9b0b6' };
+const CARGO: CelPaint = { base: '#98885f', shade: '#7a6c49', line: '#4f4530', light: '#b2a37b' };
+
+function denimJacket(): Wearable {
+  return { pieces: topPieces(JACKET, 'long') };
+}
+
+function cargo(): Wearable {
+  const pieces = bottomPieces(CARGO, { thigh: 8.4, knee: 7.2, shin: 7.2, short: false });
+  for (const p of pieces.filter(p => p.bone.startsWith('thigh'))) {
+    p.shapes.push([cel('M -3 8 h 6 v 5 h -6 Z', CARGO, { shade: [leftOf(-1.5)] }), '']);
   }
   return { pieces };
 }
@@ -365,20 +441,29 @@ function roundRect(x: number, y: number, w: number, h: number, r: number): Shape
 }
 
 /**
+ * The face left clear by front-view hair: wide, and cut through the hair past the edge of
+ * the head too, so hair frames the face from the top and the back of the head instead of
+ * wrapping round it.
+ */
+function faceWindow(fringeY: number, bottom: number): string {
+  return ellipseD(3.5, (fringeY + bottom + 2) / 2, 9, (bottom + 2 - fringeY) / 2);
+}
+
+/**
  * Front-view hair: a mass of hair with the face cut out of it, so styles differ by their
  * silhouette and by how low the fringe comes (`fringeY`, the top of the face window).
  */
 function hairMass(massD: string, fringeY: number): [Shape, string] {
   const bottom = CY + 10;
-  const window = ellipseD(4, (fringeY + bottom) / 2, 6.5, (bottom - fringeY) / 2);
-  // The mask removes the face (the window, within the head) from the hair; the clipped
+  const window = faceWindow(fringeY, bottom);
+  // The mask removes the face (the window) from the hair; the clipped
   // stroke outlines the hairline.
   const svg =
     `<defs><clipPath id="head"><path d="${circleD(0, CY, HEAD_R)}"/></clipPath>` +
     `<clipPath id="hair-mass"><path d="${massD}"/></clipPath>` +
     `<mask id="face-window" maskUnits="userSpaceOnUse" x="-40" y="-60" width="80" height="100">` +
     `<rect x="-40" y="-60" width="80" height="100" fill="white"/>` +
-    `<path d="${window}" fill="black" clip-path="url(#head)"/></mask></defs>` +
+    `<path d="${window}" fill="black"/></mask></defs>` +
     `<path d="${massD}" ${TINT} mask="url(#face-window)"/>` +
     `<g clip-path="url(#head)"><path d="${window}" ${ink(C.tintLine, OUTLINE)} clip-path="url(#hair-mass)"/></g>`;
   return [{ kind: 'raw', svg }, ''];
@@ -390,14 +475,14 @@ function hairMass(massD: string, fringeY: number): [Shape, string] {
  */
 function celHairMass(massD: string, fringeY: number, strands: string[]): [Shape, string] {
   const bottom = CY + 10;
-  const window = ellipseD(4, (fringeY + bottom) / 2, 6.5, (bottom - fringeY) / 2);
+  const window = faceWindow(fringeY, bottom);
   const [head, mass, face] = [uid('head'), uid('mass'), uid('face')];
   const svg =
     `<defs><clipPath id="${head}"><path d="${circleD(0, CY, HEAD_R)}"/></clipPath>` +
     `<clipPath id="${mass}"><path d="${massD}"/></clipPath>` +
     `<mask id="${face}" maskUnits="userSpaceOnUse" x="-40" y="-60" width="80" height="100">` +
     `<rect x="-40" y="-60" width="80" height="100" fill="white"/>` +
-    `<path d="${window}" fill="black" clip-path="url(#${head})"/></mask></defs>` +
+    `<path d="${window}" fill="black"/></mask></defs>` +
     `<g mask="url(#${face})"><path d="${massD}" fill="${GREY.base}"/>` +
     `<g clip-path="url(#${mass})"><path d="${crescent(0, CY, R + 1)}" fill="${GREY.shade}" fill-rule="evenodd"/>` +
     strands.map(d => strokeSvg(d, GREY.line, 0.4)).join('') + '</g>' +
@@ -708,7 +793,11 @@ function footwear(style: 'sneakers' | 'high-tops' | 'boots' | 'sandals' | 'slide
     'slides': [[sole, TINT], [{ kind: 'path', d: 'M 1 2.6 Q 4 -1.8 7.2 2.6 Z' }, TINT]],
     'dress': [[lowShoe, TINT], [{ kind: 'path', d: 'M -3.6 3.2 H 8.2' }, ink(C.tintLine, 0.8)]],
   };
-  const pieces: Piece[] = sided('foot').map(bone => ({ bone, layer: 'footwear', views: BOTH, shapes: feet[style] }));
+  // Turned about the ankle for each view, like the bare feet.
+  const pieces: Piece[] = sided('foot').flatMap(bone => BOTH.map((view): Piece => ({
+    bone, layer: 'footwear', views: [view],
+    shapes: [[transformed({ kind: 'raw', svg: feet[style].map(([shape, attrs]) => shapeSvg(shape, attrs)).join('') }, FOOT_TURN[view]), '']],
+  })));
   const shaft = style === 'boots' ? 7 : style === 'high-tops' ? 11 : null;
   if (shaft !== null) {
     for (const bone of sided('shin')) {
@@ -723,26 +812,10 @@ type TopStyle = 'hoodie' | 'tank' | 'polo' | 'sweater' | 'button-up' | 'blazer' 
 function tintedTop(style: TopStyle): Wearable {
   const SLEEVES: Partial<Record<TopStyle, 'none' | 'short'>> = { tank: 'none', crop: 'short', polo: 'short', jersey: 'short' };
   const sleeves: 'none' | 'short' | 'long' = SLEEVES[style] ?? 'long';
-  const bulk = style === 'puffer' ? 1.5 : 0;
-  const pieces: Piece[] = [
-    { bone: 'chest', layer: 'tops', views: BOTH, shapes: [[capsule(16.5 + bulk - (sleeves === 'none' ? 1 : 0), -16.5, 2), TINT]] },
-  ];
-  if (style !== 'crop') pieces.push({ bone: 'spine', layer: 'tops', views: BOTH, shapes: [[capsule(14.5 + bulk, -11, 4), TINT]] });
-  if (sleeves !== 'none') {
-    for (const arm of sided('upperArm')) {
-      pieces.push({ bone: arm, layer: 'tops', views: BOTH, shapes: [[capsule(6.5 + bulk / 2, -2.5, sleeves === 'short' ? 7 : 13.5), TINT]] });
-    }
-  }
-  if (sleeves === 'long') {
-    for (const arm of sided('foreArm')) {
-      const shapes: Array<[Shape, string]> = [[capsule(5.8 + bulk / 2, -1.5, 11), TINT]];
-      if (style === 'track-jacket') shapes.push([roundRect(-0.6, -1.5, 1.2, 12, 0.6), `fill="${C.eyeWhite}"`]);
-      pieces.push({ bone: arm, layer: 'tops', views: BOTH, shapes });
-    }
-    if (style === 'track-jacket') {
-      for (const arm of sided('upperArm')) {
-        pieces.find(p => p.bone === arm)!.shapes.push([roundRect(-0.6, -2.5, 1.2, 16, 0.6), `fill="${C.eyeWhite}"`]);
-      }
+  const pieces = topPieces(GREY, sleeves, { bulk: style === 'puffer' ? 1.5 : 0, crop: style === 'crop' });
+  if (style === 'track-jacket') {
+    for (const p of pieces.filter(p => p.bone.startsWith('upperArm') || p.bone.startsWith('foreArm'))) {
+      p.shapes.push([roundRect(-0.6, -1.5, 1.2, p.bone.startsWith('upper') ? 14 : 12, 0.6), `fill="${C.eyeWhite}"`]);
     }
   }
 
@@ -752,9 +825,17 @@ function tintedTop(style: TopStyle): Wearable {
   const collar: Shape = { kind: 'path', d: 'M -2 -16.5 L 2.5 -12.5 L 6 -16.5' };
   switch (style) {
     case 'hoodie':
+      // The hood differs by view, so the chest splits into a front and a back piece.
+      pieces.push({ ...pieces[0], views: ['back'], shapes: [...chest, [{ kind: 'path', d: 'M -6 -16 Q 0 -21 6 -16 Q 0 -8 -6 -16 Z' }, TINT]] });
+      pieces[0].views = FRONT;
       chest.push([{ kind: 'path', d: 'M -6 -16 Q 0 -20 6 -16 Q 0 -13.5 -6 -16 Z' }, TINT]);
-      spine?.push([roundRect(-3, -7, 9, 4.5, 1.5), TINT]);
-      pieces.push({ bone: 'chest', layer: 'tops', views: ['back'], shapes: [[{ kind: 'path', d: 'M -6 -16 Q 0 -21 6 -16 Q 0 -8 -6 -16 Z' }, TINT]] });
+      // The pocket is on the front only.
+      if (spine) {
+        const waist = pieces.find(p => p.bone === 'spine')!;
+        pieces.push({ ...waist, views: ['back'], shapes: [...spine] });
+        waist.views = FRONT;
+        spine.push([roundRect(-3, -7, 9, 4.5, 1.5), TINT]);
+      }
       break;
     case 'polo':
       chest.push([collar, TINT_LINE], [{ kind: 'path', d: 'M 2.5 -12.5 V -8' }, TINT_LINE]);
@@ -781,9 +862,9 @@ function tintedTop(style: TopStyle): Wearable {
       chest.push([{ kind: 'path', d: 'M -1 -16.5 L 2.5 -6 L 6.5 -16.5' }, TINT_LINE], [{ kind: 'path', d: 'M 2.5 -6 V 2' }, TINT_LINE]);
       // Waist on the hip, then two tails on the skirt bones down past the knees. They
       // overlap in the middle, so no gap opens when the legs part.
-      pieces.push({ bone: 'hip', layer: 'tops', views: BOTH, shapes: [[capsule(15, -4, 5), TINT], [{ kind: 'path', d: 'M 2.5 -4 V 5' }, TINT_LINE]] });
+      pieces.push({ bone: 'hip', layer: 'tops', views: BOTH, shapes: [[torso(TORSO.hip(1), GREY, { shade: [leftOf(-4.5)], lines: ['M 2.5 -4 V 5'] }), '']] });
       for (const [bone, d] of [['skirt.L', 'M -5.5 -4 L 3.5 -4 L 6 26 L -5.5 26 Z'], ['skirt.R', 'M -3.5 -4 L 5.5 -4 L 5.5 26 L -6 26 Z']] as const) {
-        pieces.push({ bone, layer: 'tops', views: BOTH, shapes: [[{ kind: 'path', d }, TINT]] });
+        pieces.push({ bone, layer: 'tops', views: BOTH, shapes: [[cel(d, GREY, { shade: [leftOf(-2.5)] }), '']] });
       }
       break;
     case 'tank':
@@ -797,33 +878,30 @@ function tintedTop(style: TopStyle): Wearable {
 type BottomStyle = 'shorts' | 'cargo-shorts' | 'joggers' | 'chinos' | 'track-pants' | 'ripped' | 'skirt' | 'leggings';
 
 function tintedBottoms(style: BottomStyle): Wearable {
-  const thighW = style === 'leggings' ? 7.4 : style === 'chinos' ? 7.8 : 8.2;
-  const shinW = style === 'leggings' ? 6.4 : style === 'chinos' ? 6.8 : 7.2;
   const short = style === 'shorts' || style === 'cargo-shorts';
-  const pieces: Piece[] = [{ bone: 'hip', layer: 'bottoms', views: BOTH, shapes: [[capsule(14, -3.5, 5), TINT]] }];
   if (style === 'skirt') {
     // Two overlapping panels on the skirt bones, so the hem swings with the legs.
-    pieces.push(
-      { bone: 'skirt.L', layer: 'bottoms', views: BOTH, shapes: [[{ kind: 'path', d: 'M -5 -3 L 3 -3 L 6.5 15 Q 1 16.5 -5 16 Z' }, TINT]] },
-      { bone: 'skirt.R', layer: 'bottoms', views: BOTH, shapes: [[{ kind: 'path', d: 'M -3 -3 L 5 -3 L 5 16 Q -1 16.5 -6.5 15 Z' }, TINT]] },
-    );
-    return { tintable: true, pieces };
+    return { tintable: true, pieces: [
+      { bone: 'hip', layer: 'bottoms', views: BOTH, shapes: [[torso(TORSO.hip(0.6), GREY, { shade: [leftOf(-4.5)] }), '']] },
+      { bone: 'skirt.L', layer: 'bottoms', views: BOTH, shapes: [[cel('M -5 -3 L 3 -3 L 6.5 15 Q 1 16.5 -5 16 Z', GREY, { shade: [leftOf(-2.5)] }), '']] },
+      { bone: 'skirt.R', layer: 'bottoms', views: BOTH, shapes: [[cel('M -3 -3 L 5 -3 L 5 16 Q -1 16.5 -6.5 15 Z', GREY, { shade: [leftOf(-2.5)] }), '']] },
+    ] };
   }
-  for (const leg of sided('thigh')) {
-    const shapes: Array<[Shape, string]> = [[capsule(thighW, -3, short ? 11 : 18.5), TINT]];
+  const legs = style === 'leggings' ? { thigh: 7.6, knee: 6.6, shin: 5.6 }
+    : style === 'chinos' ? { thigh: 8, knee: 7, shin: 6.8 }
+    : { thigh: 8.4, knee: 7.2, shin: 7.2 };
+  const pieces = bottomPieces(GREY, { ...legs, short });
+  for (const leg of pieces.filter(p => p.bone.startsWith('thigh'))) {
+    const shapes = leg.shapes;
     if (style === 'cargo-shorts') shapes.push([roundRect(-3, 3, 6, 5, 0.8), TINT]);
     if (style === 'track-pants') shapes.push([roundRect(-0.6, -3, 1.2, 21, 0.6), `fill="${C.eyeWhite}"`]);
     if (style === 'ripped') shapes.push([{ kind: 'path', d: 'M -2.5 14 L 2.5 13.5 M -2 16 L 2 16.2' }, ink(C.tintLine, 0.6)]);
-    pieces.push({ bone: leg, layer: 'bottoms', views: BOTH, shapes });
   }
-  if (!short) {
-    for (const leg of sided('shin')) {
-      const shapes: Array<[Shape, string]> = [[capsule(shinW, -1.5, 15), TINT]];
-      if (style === 'joggers') shapes.push([roundRect(-shinW / 2, 12.5, shinW, 2.5, 1), TINT_SHADE]);
-      if (style === 'track-pants') shapes.push([roundRect(-0.6, -1.5, 1.2, 16, 0.6), `fill="${C.eyeWhite}"`]);
-      if (style === 'ripped') shapes.push([{ kind: 'path', d: 'M -2 1 L 2 0.5' }, ink(C.tintLine, 0.6)]);
-      pieces.push({ bone: leg, layer: 'bottoms', views: BOTH, shapes });
-    }
+  for (const leg of pieces.filter(p => p.bone.startsWith('shin'))) {
+    const shapes = leg.shapes;
+    if (style === 'joggers') shapes.push([roundRect(-legs.shin / 2, 13.2, legs.shin, 2.5, 1), TINT_SHADE]);
+    if (style === 'track-pants') shapes.push([roundRect(-0.6, -1.5, 1.2, 16, 0.6), `fill="${C.eyeWhite}"`]);
+    if (style === 'ripped') shapes.push([{ kind: 'path', d: 'M -2 1 L 2 0.5' }, ink(C.tintLine, 0.6)]);
   }
   return { tintable: true, pieces };
 }
@@ -922,9 +1000,9 @@ const STARTER: Record<string, Wearable> = {
   'hair-puffed': hair('puffed', C.hairRed, C.hairRedLine),
   'hair-spiked': hair('spiked', C.hairBlond, C.hairBlondLine),
   't-shirt': celTee(),
-  'denim-jacket': top('long', C.denim, C.denimLine),
+  'denim-jacket': denimJacket(),
   'jeans': celJeans(),
-  'cargo': trousers(C.cargo, C.cargoLine, true),
+  'cargo': cargo(),
 
   ...Object.fromEntries((['sleepy', 'wide', 'wink', 'lashes', 'happy', 'star', 'cat', 'heart'] as const).map(s => [`eyes-${s}`, moreEyes(s)])),
   ...Object.fromEntries((['button', 'pointed', 'freckled', 'wide'] as const).map(s => [`nose-${s}`, moreNoses(s)])),
@@ -957,11 +1035,16 @@ function pieceSvg(piece: Piece, view: RigView): string {
 for (const [id, wearable] of Object.entries(STARTER)) {
   const dir = join(ART_DIR, id);
   rmSync(dir, { recursive: true, force: true });
+  const written = new Set<string>();
   for (const piece of wearable.pieces) {
     for (const view of piece.views) {
       mkdirSync(join(dir, view), { recursive: true });
       const band = piece.band && piece.band !== 'body' ? `.${piece.band}` : '';
-      writeFileSync(join(dir, view, `${piece.bone}.${piece.layer}${band}.svg`), pieceSvg(piece, view));
+      const file = join(view, `${piece.bone}.${piece.layer}${band}.svg`);
+      // Two pieces with one file name would silently overwrite each other.
+      if (written.has(file)) throw new Error(`${id}: two pieces write ${file}`);
+      written.add(file);
+      writeFileSync(join(dir, file), pieceSvg(piece, view));
     }
   }
   writeFileSync(join(dir, 'asset.json'), JSON.stringify({ tintable: wearable.tintable ?? false }, null, 2) + '\n');

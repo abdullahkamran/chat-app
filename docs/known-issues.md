@@ -113,6 +113,12 @@ The postbox has the same gap (found on 2026-10-24): `POST /api/v1/rooms/:roomId/
 person can fill a friend's postbox and push them once per mail. Mail is kept forever, so it also grows without
 bound. Limit mails per author per room per hour, and cap or expire old mail per room.
 
+Two-person emotes too (found on 2026-11-10): `SEND_EMOTE_REQUEST` and `SEND_INTERACTION` have no limit. Asking
+again only replaces the asker's own request, so one person can't stack requests on someone, but they can
+re-ask the moment they're declined (the prompt pops up again each time), and throw tomatoes as fast as they
+tap, which plays a sound on every device in the room. Allow a few requests per asker per target per minute,
+and a throw per user every second or so; the clients could also keep a short cooldown on the buttons.
+
 ### 7. Room membership can be left half-written, and room limits can be dodged
 
 Found on 2026-10-23 while adding search-and-pick on Create Room, adding and removing members, and leaving.
@@ -322,3 +328,20 @@ and check owner presence against the shared presence store once that moves.
 
 **Fix:** cache friend IDs per user (shared, dropped on friend changes, like Quick Add in issue 8), add a
 `{ category: 1, updatedAt: -1 }` index, and switch to cursor pagination so `countDocuments` isn't needed.
+
+### 11. Mutual emote requests only work on one instance
+
+**Seen (with two instances):** a high five asked by someone on one instance never reaches a target on the
+other; if it did, the answer could arrive on an instance that has never heard of the request and be ignored.
+Requests also lapse once per instance timer, and a user leaving on one instance doesn't end requests held by
+another.
+
+**Why:** pending requests and their 15 s expiry timers are a `Map` and `setTimeout`s in one process
+(`apps/backend/src/sockets/emoteRequests.ts`), and the request, cancel and answer events are sent to the
+presence entry's socket id, which only reaches sockets on the same instance. Found on 2026-11-10.
+
+**Fix:** with Redis (scaling issue 2): keep each request as a key with a TTL (`emote-request:{id}`, JSON,
+`PX 15000`) plus a per-room per-asker key so asking again replaces the old one; take it on answer with
+`GETDEL` so only one answer wins. Send to a user's sockets in the room through their user channel and let
+the client ignore other rooms, which the Redis adapter carries across instances. For lapses, listen to Redis
+keyspace expiry events on one instance (or have clients send a timed-out decline and let the TTL clean up).

@@ -1,6 +1,14 @@
 import { useEffect, useRef } from 'react';
 
-import type { ActorAction, RoomOccupant, RoomPresenceState } from '@chat-app/shared-types';
+import type {
+  ActorAction,
+  MutualEmoteRequest,
+  MutualEmoteRequestEnded,
+  MutualEmoteStart,
+  RoomInteraction,
+  RoomOccupant,
+  RoomPresenceState,
+} from '@chat-app/shared-types';
 import { SocketEvent } from '@chat-app/socket-constants';
 import { socketUtils } from '@/utils/socketUtils';
 
@@ -21,6 +29,14 @@ interface ReceiveHandlers {
   onAction?: (payload: { userId: string; action: ActorAction }) => void;
   /** The owner saved a new layout. `placed`: users the server stood up or moved off furniture, and where to. */
   onItemsChanged?: (payload: { placed: { userId: string; x: number; y: number }[] }) => void;
+  /** A mutual emote request we made or were asked. */
+  onEmoteRequest?: (payload: MutualEmoteRequest) => void;
+  /** A mutual emote request we made or were asked ended without starting. */
+  onEmoteRequestEnded?: (payload: MutualEmoteRequestEnded) => void;
+  /** A mutual emote was accepted, by anyone in the room. */
+  onMutualEmote?: (payload: MutualEmoteStart) => void;
+  /** Someone did an interactive emote (threw a tomato) at someone. */
+  onInteraction?: (payload: RoomInteraction) => void;
 }
 
 interface UseChatParams {
@@ -94,6 +110,18 @@ export function useChat({ roomId, userId, handlers, getMyState, enabled, onEnter
     const handleItemsChanged = (p: RoomPayload<{ placed: { userId: string; x: number; y: number }[] }>) => {
       if (p.roomId === roomId) handlersRef.current.onItemsChanged?.(p);
     };
+    const handleEmoteRequest = (p: MutualEmoteRequest) => {
+      if (p.roomId === roomId) handlersRef.current.onEmoteRequest?.(p);
+    };
+    const handleEmoteRequestEnded = (p: MutualEmoteRequestEnded) => {
+      if (p.roomId === roomId) handlersRef.current.onEmoteRequestEnded?.(p);
+    };
+    const handleMutualEmote = (p: MutualEmoteStart) => {
+      if (p.roomId === roomId) handlersRef.current.onMutualEmote?.(p);
+    };
+    const handleInteraction = (p: RoomInteraction) => {
+      if (p.roomId === roomId) handlersRef.current.onInteraction?.(p);
+    };
 
     // Fires only on reconnection, not the first connect. Emits made before the
     // socket is connected again are buffered and sent in order once it is.
@@ -113,6 +141,10 @@ export function useChat({ roomId, userId, handlers, getMyState, enabled, onEnter
     socket.on(SocketEvent.RECEIVE_AVATAR_CHANGED, handleAvatarChanged);
     socket.on(SocketEvent.RECEIVE_ACTION, handleAction);
     socket.on(SocketEvent.RECEIVE_ROOM_ITEMS_CHANGED, handleItemsChanged);
+    socket.on(SocketEvent.RECEIVE_EMOTE_REQUEST, handleEmoteRequest);
+    socket.on(SocketEvent.RECEIVE_EMOTE_REQUEST_ENDED, handleEmoteRequestEnded);
+    socket.on(SocketEvent.RECEIVE_MUTUAL_EMOTE, handleMutualEmote);
+    socket.on(SocketEvent.RECEIVE_INTERACTION, handleInteraction);
     socket.io.on('reconnect', handleReconnect);
 
     if (userId) {
@@ -132,6 +164,10 @@ export function useChat({ roomId, userId, handlers, getMyState, enabled, onEnter
       socket.off(SocketEvent.RECEIVE_AVATAR_CHANGED, handleAvatarChanged);
       socket.off(SocketEvent.RECEIVE_ACTION, handleAction);
       socket.off(SocketEvent.RECEIVE_ROOM_ITEMS_CHANGED, handleItemsChanged);
+      socket.off(SocketEvent.RECEIVE_EMOTE_REQUEST, handleEmoteRequest);
+      socket.off(SocketEvent.RECEIVE_EMOTE_REQUEST_ENDED, handleEmoteRequestEnded);
+      socket.off(SocketEvent.RECEIVE_MUTUAL_EMOTE, handleMutualEmote);
+      socket.off(SocketEvent.RECEIVE_INTERACTION, handleInteraction);
       socket.io.off('reconnect', handleReconnect);
     };
   }, [roomId, userId, enabled]);
@@ -152,6 +188,20 @@ export function useChat({ roomId, userId, handlers, getMyState, enabled, onEnter
     sendTyping: () => {
       if (!socketUtils.socket) return;
       socketUtils.socket.emit(SocketEvent.SEND_TYPING, { roomId });
+    },
+    /** Ask `targetId` to do a mutual emote; the server answers with RECEIVE_EMOTE_REQUEST. */
+    sendEmoteRequest: (animation: string, targetId: string) => {
+      socketUtils.socket?.emit(SocketEvent.SEND_EMOTE_REQUEST, { roomId, animation, targetId });
+    },
+    cancelEmoteRequest: (requestId: string) => {
+      socketUtils.socket?.emit(SocketEvent.SEND_EMOTE_REQUEST_CANCEL, { roomId, requestId });
+    },
+    /** Answer a request; `at` is where we stand (after standing up, if we were seated). */
+    respondToEmoteRequest: (requestId: string, accept: boolean, at?: { x: number; y: number }) => {
+      socketUtils.socket?.emit(SocketEvent.SEND_EMOTE_RESPONSE, { roomId, requestId, accept, at });
+    },
+    sendInteraction: (animation: string, targetId: string) => {
+      socketUtils.socket?.emit(SocketEvent.SEND_INTERACTION, { roomId, animation, targetId });
     },
   };
 }

@@ -23,6 +23,7 @@
     "@shopify/react-native-skia": "2.14.0",
     "@tanstack/react-query": "^5.64.0",
     "expo": "~58.0.19",
+    "expo-audio": "~58.0.11",
     "expo-build-properties": "~58.0.11",
     "expo-constants": "~58.0.13",
     "expo-contacts": "~58.0.9",

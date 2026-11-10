@@ -69,6 +69,11 @@ export const roomPresence = {
         room.set(userId, presence);
     },
 
+    /** The user's entry, whichever socket owns it. */
+    get(roomId: string, userId: string): Presence | undefined {
+        return rooms.get(roomId)?.get(userId);
+    },
+
     /** The user's entry, if this socket owns it. */
     own(roomId: string, userId: string, socketId: string): Presence | undefined {
         const p = rooms.get(roomId)?.get(userId);

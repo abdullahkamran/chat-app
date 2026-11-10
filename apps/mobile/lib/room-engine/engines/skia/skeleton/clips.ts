@@ -362,6 +362,114 @@ const BLOW_KISS_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
   chest: { rotate: keys([0, 0.8, 1.15, 1.6], [0, 0, 4, 0]) },
 };
 
+/**
+ * Four gliding steps backwards: one leg slides back flat while the other bends up onto its
+ * toe, swapping every 0.4 s as the body glides 24 px back at a steady pace. A toe-stand
+ * with the near arm thrown up, then two quick steps forward back onto the spot.
+ */
+const MOONWALK_TIMES = [0, 0.2, 0.6, 1, 1.4, 1.8, 2.05, 2.3, 2.6, 2.9];
+const MOONWALK_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
+  hip: {
+    translate: [
+      { t: 0, v: [0, 0], ease: 'inOut' },
+      { t: 0.2, v: [0, 0] },
+      { t: 1.8, v: [-24, 0], ease: 'inOut' },
+      { t: 2.05, v: [-25, -3], ease: 'inOut' },
+      { t: 2.3, v: [-25, -3], ease: 'inOut' },
+      { t: 2.6, v: [-12, 1.5], ease: 'inOut' },
+      { t: 2.9, v: [0, 0] },
+    ],
+  },
+  'thigh.L': { rotate: keys(MOONWALK_TIMES, [0, -15, 8, -15, 8, -15, 0, 0, -25, 0]) },
+  'shin.L': { rotate: keys(MOONWALK_TIMES, [0, 35, 0, 35, 0, 35, 0, 0, 30, 0]) },
+  'foot.L': { rotate: keys(MOONWALK_TIMES, [0, 40, 0, 40, 0, 40, 35, 35, 10, 0]) },
+  'thigh.R': { rotate: keys(MOONWALK_TIMES, [0, 8, -15, 8, -15, 8, 0, 0, 15, 0]) },
+  'shin.R': { rotate: keys(MOONWALK_TIMES, [0, 0, 35, 0, 35, 0, 0, 0, 5, 0]) },
+  'foot.R': { rotate: keys(MOONWALK_TIMES, [0, 0, 40, 0, 40, 0, 35, 35, 0, 0]) },
+  chest: { rotate: keys([0, 0.2, 1.8, 2.05, 2.3, 2.9], [0, 4, 4, -4, -4, 0]) },
+  head: { rotate: keys([0, 0.2, 1.8, 2.05, 2.3, 2.9], [0, 3, 3, -8, -8, 0]) },
+  'upperArm.L': { rotate: keys(MOONWALK_TIMES, [0, 10, -10, 10, -10, 10, -160, -160, 15, 0]) },
+  'foreArm.L': { rotate: keys(MOONWALK_TIMES, [0, -30, -30, -30, -30, -30, -10, -10, -10, 0]) },
+  'upperArm.R': { rotate: keys(MOONWALK_TIMES, [0, -10, 10, -10, 10, -10, 15, 15, -15, 0]) },
+  'foreArm.R': { rotate: keys(MOONWALK_TIMES, [0, -30, -30, -30, -30, -30, -40, -40, -10, 0]) },
+};
+
+/**
+ * Two-person and thrown emotes. Each mutual emote has a clip per role, played at the same
+ * time by two avatars MUTUAL_EMOTE_GAP cells apart and facing each other, so "forward"
+ * (+x, negative arm angles) is towards the partner. Same length per pair.
+ */
+const hop = (times: number[], ys: number[], xs?: number[]) =>
+  times.map((t, i) => ({ t, v: [xs?.[i] ?? 0, ys[i]] as [number, number], ease: 'inOut' as const }));
+
+/** Giver: winds the near hand up high, hops in and swings it onto the partner's at 0.55 s. */
+const HIGH_FIVE_GIVE_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
+  'upperArm.L': { rotate: keys([0, 0.3, 0.5, 0.58, 0.85, 1.4], [0, -165, -150, -120, -120, 0]) },
+  'foreArm.L': { rotate: keys([0, 0.3, 0.5, 0.58, 0.85, 1.4], [0, -20, -10, 0, -30, 0]) },
+  'upperArm.R': { rotate: keys([0, 0.55, 1.4], [0, 15, 0]) },
+  chest: { rotate: keys([0, 0.3, 0.55, 0.85, 1.4], [0, -5, 6, 2, 0]) },
+  head: { rotate: keys([0, 0.3, 0.55, 1.4], [0, -6, 4, 0]) },
+  hip: { translate: hop([0, 0.35, 0.5, 0.62, 0.8, 1.4], [0, 1.5, -3, 0, 0, 0], [0, 0, 2, 2, 0, 0]) },
+};
+
+/** Taker: holds a hand up early and waits, the slap knocks it back, then shakes the sting off. */
+const HIGH_FIVE_TAKE_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
+  'upperArm.L': { rotate: keys([0, 0.25, 0.5, 0.6, 0.75, 1.4], [0, -150, -150, -170, -150, 0]) },
+  'foreArm.L': { rotate: keys([0, 0.25, 0.5, 0.6, 0.75, 0.85, 0.95, 1.05, 1.4], [0, -15, -15, 25, -10, 20, -10, 15, 0]) },
+  chest: { rotate: keys([0, 0.25, 0.6, 0.8, 1.4], [0, -3, -7, -2, 0]) },
+  head: { rotate: keys([0, 0.6, 0.8, 1.4], [0, -8, 0, 0]) },
+};
+
+/** Both sway together while hugging. */
+const HUG_SWAY = { rotate: keys([0, 0.4, 0.8, 1.2, 1.6, 2.2], [0, 4, -2, 4, 0, 0]) };
+
+/** Giver: steps in with arms wide around the partner, rocks side to side, steps back. */
+const HUG_GIVE_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
+  hip: { translate: hop([0, 0.4, 1.7, 2.2], [0, 0, 0, 0], [0, 7, 7, 0]) },
+  spine: HUG_SWAY,
+  chest: { rotate: keys([0, 0.4, 1.7, 2.2], [0, 8, 8, 0]) },
+  head: { rotate: keys([0, 0.4, 1.7, 2.2], [0, 10, 10, 0]) },
+  'upperArm.L': { rotate: keys([0, 0.4, 1.7, 2.2], [0, -80, -80, 0]) },
+  'upperArm.R': { rotate: keys([0, 0.4, 1.7, 2.2], [0, -80, -80, 0]) },
+  'foreArm.L': { rotate: keys([0, 0.4, 1.7, 2.2], [0, -60, -60, 0]) },
+  'foreArm.R': { rotate: keys([0, 0.4, 1.7, 2.2], [0, -60, -60, 0]) },
+};
+
+/** Taker: leans in a little, head on the giver's shoulder, arms around lower down. */
+const HUG_TAKE_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
+  hip: { translate: hop([0, 0.45, 1.7, 2.2], [0, 0, 0, 0], [0, 3, 3, 0]) },
+  spine: HUG_SWAY,
+  chest: { rotate: keys([0, 0.45, 1.7, 2.2], [0, 6, 6, 0]) },
+  head: { rotate: keys([0, 0.45, 1.7, 2.2], [0, 14, 14, 0]) },
+  'upperArm.L': { rotate: keys([0, 0.45, 1.7, 2.2], [0, -70, -70, 0]) },
+  'upperArm.R': { rotate: keys([0, 0.45, 1.7, 2.2], [0, -70, -70, 0]) },
+  'foreArm.L': { rotate: keys([0, 0.45, 1.7, 2.2], [0, -70, -70, 0]) },
+  'foreArm.R': { rotate: keys([0, 0.45, 1.7, 2.2], [0, -70, -70, 0]) },
+};
+
+/** Overarm throw with the near hand: wind back, step in, release at THROW_RELEASE_S, follow through. */
+export const THROW_RELEASE_S = 0.42;
+const THROW_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
+  'upperArm.L': { rotate: keys([0, 0.3, THROW_RELEASE_S, 0.55, 1], [0, 70, -150, -70, 0]) },
+  'foreArm.L': { rotate: keys([0, 0.3, THROW_RELEASE_S, 0.55, 1], [0, -90, -20, -10, 0]) },
+  'upperArm.R': { rotate: keys([0, 0.3, 0.45, 1], [0, -40, 20, 0]) },
+  chest: { rotate: keys([0, 0.3, 0.45, 0.6, 1], [0, -8, 10, 6, 0]) },
+  head: { rotate: keys([0, 0.3, 0.45, 1], [0, -4, 4, 0]) },
+  'thigh.L': { rotate: keys([0, 0.3, 0.45, 1], [0, 0, -20, 0]) },
+  'shin.L': { rotate: keys([0, 0.45, 1], [0, 15, 0]) },
+};
+
+/** Hit in the face: recoils back, hands up to wipe it off, head shaking. */
+const HIT_REACT_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
+  chest: { rotate: keys([0, 0.08, 0.3, 0.8, 1.1], [0, -14, -6, -6, 0]) },
+  head: { rotate: keys([0, 0.08, 0.3, 0.5, 0.7, 1.1], [0, -18, 6, -6, 6, 0]) },
+  hip: { translate: hop([0, 0.1, 0.4, 1.1], [0, 0, 0, 0], [0, -4, -2, 0]) },
+  'upperArm.L': { rotate: keys([0, 0.15, 0.85, 1.1], [0, -50, -50, 0]) },
+  'upperArm.R': { rotate: keys([0, 0.15, 0.85, 1.1], [0, -50, -50, 0]) },
+  'foreArm.L': { rotate: keys([0, 0.15, 0.85, 1.1], [0, -120, -120, 0]) },
+  'foreArm.R': { rotate: keys([0, 0.15, 0.85, 1.1], [0, -120, -120, 0]) },
+};
+
 function bothViews(base: Omit<AnimationClip, 'view'>): Record<RigView, AnimationClip> {
   return { front: { ...base, view: 'front' }, back: { ...base, view: 'back' } };
 }
@@ -390,14 +498,27 @@ export const CLIPS = {
   point: bothViews({ name: 'point', duration: 1.5, loop: false, tracks: POINT_TRACKS }),
   flex: bothViews({ name: 'flex', duration: 1.8, loop: false, tracks: FLEX_TRACKS }),
   blowKiss: bothViews({ name: 'blowKiss', duration: 1.6, loop: false, tracks: BLOW_KISS_TRACKS }),
+  moonwalk: bothViews({ name: 'moonwalk', duration: 2.9, loop: false, tracks: MOONWALK_TRACKS }),
+  highFiveGive: bothViews({ name: 'highFiveGive', duration: 1.4, loop: false, tracks: HIGH_FIVE_GIVE_TRACKS }),
+  highFiveTake: bothViews({ name: 'highFiveTake', duration: 1.4, loop: false, tracks: HIGH_FIVE_TAKE_TRACKS }),
+  hugGive: bothViews({ name: 'hugGive', duration: 2.2, loop: false, tracks: HUG_GIVE_TRACKS }),
+  hugTake: bothViews({ name: 'hugTake', duration: 2.2, loop: false, tracks: HUG_TAKE_TRACKS }),
+  throw: bothViews({ name: 'throw', duration: 1, loop: false, tracks: THROW_TRACKS }),
+  hitReact: bothViews({ name: 'hitReact', duration: 1.1, loop: false, tracks: HIT_REACT_TRACKS }),
 } satisfies Record<string, Record<RigView, AnimationClip>>;
 
 export type ClipId = keyof typeof CLIPS;
 
-/** Clips an `emote` action can name; each matches an EMOTE entry in the backend's animation catalog. */
+/**
+ * Clips an `emote` action can name. Solo ones match an EMOTE entry in the backend's
+ * animation catalog; the rest are the parts of mutual and interactive emotes, which the
+ * session plays (see session/emotes.ts).
+ */
 export const EMOTE_CLIPS = [
   'wave', 'clap', 'laugh', 'dance',
   'thumbsUp', 'shrug', 'facepalm', 'cheer', 'bow', 'cry', 'jump', 'point', 'flex', 'blowKiss',
+  'moonwalk',
+  'highFiveGive', 'highFiveTake', 'hugGive', 'hugTake', 'throw', 'hitReact',
 ] as const satisfies readonly ClipId[];
 
 export function isEmoteClip(name: string): name is (typeof EMOTE_CLIPS)[number] {

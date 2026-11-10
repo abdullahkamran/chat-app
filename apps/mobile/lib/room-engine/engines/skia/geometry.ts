@@ -54,6 +54,34 @@ export function hitTestItems(
   return frontToBack.find(ri => contains(itemRect(ri, origin), point)) ?? null;
 }
 
+/** Half the width of an avatar's tap target, in content pixels. */
+const ACTOR_HIT_HALF_W = 16;
+
+/**
+ * Front-most avatar whose body is under the point, if any, at the positions drawn now.
+ * Reads the motion shared values from the JS thread, which is fine for a tap.
+ */
+export function hitTestActors(
+  motions: ReadonlyMap<string, { gx: { get(): number }; gy: { get(): number }; gz: { get(): number } }>,
+  point: ScreenPoint,
+  origin: GridOrigin,
+  avatarHeight: number,
+): string | null {
+  let best: string | null = null;
+  let bestDepth = -Infinity;
+  for (const [id, m] of motions) {
+    const gx = m.gx.get();
+    const gy = m.gy.get();
+    const feet = gridToScreen(gx, gy, m.gz.get(), origin);
+    const rect = { x: feet.x - ACTOR_HIT_HALF_W, y: feet.y - avatarHeight, width: ACTOR_HIT_HALF_W * 2, height: avatarHeight + 4 };
+    if (contains(rect, point) && gx + gy > bestDepth) {
+      best = id;
+      bestDepth = gx + gy;
+    }
+  }
+  return best;
+}
+
 /** Bounds-checked integer cell for an edit-mode tap, or null when it misses the floor. */
 export function cellAt(gx: number, gy: number, dims: { x: number; y: number }) {
   // Edit cells are centred on grid vertices, so round, don't floor.

@@ -76,6 +76,58 @@ export interface RoomOccupant extends RoomPresenceState {
     bubbles?: { text: string; elapsedMs: number }[];
 }
 
+/** How long the asked person has to answer a mutual emote before it lapses. */
+export const MUTUAL_EMOTE_REQUEST_MS = 15_000;
+/** Grid cells between the two people of a mutual emote, along one grid axis so they face each other squarely. */
+export const MUTUAL_EMOTE_GAP = 0.7;
+
+/**
+ * `RECEIVE_EMOTE_REQUEST`, to both people: `fromUserId` asks `toUserId` to do a mutual emote.
+ * The asked person answers with `SEND_EMOTE_RESPONSE`; the asker may withdraw with `SEND_EMOTE_REQUEST_CANCEL`.
+ */
+export interface MutualEmoteRequest {
+    requestId: string;
+    roomId: string;
+    fromUserId: User['_id'];
+    toUserId: User['_id'];
+    animation: Animation['name'];
+    /** Milliseconds left to answer, as the server sent it. */
+    expiresInMs: number;
+}
+
+/** Why a mutual emote request ended without starting. */
+export type MutualEmoteEndReason = 'declined' | 'expired' | 'cancelled' | 'left' | 'noRoom';
+
+/** `RECEIVE_EMOTE_REQUEST_ENDED`, to both people. */
+export interface MutualEmoteRequestEnded {
+    roomId: string;
+    requestId: string;
+    reason: MutualEmoteEndReason;
+}
+
+/**
+ * `RECEIVE_MUTUAL_EMOTE`, to the whole room: the request was accepted. The server picked where
+ * each stands; every client walks them there (standing up first if seated), turns them to
+ * face each other and plays each one's part once both have arrived.
+ */
+export interface MutualEmoteStart {
+    roomId: string;
+    requestId: string;
+    animation: Animation['name'];
+    initiatorId: User['_id'];
+    targetId: User['_id'];
+    initiatorAt: { x: number; y: number };
+    targetAt: { x: number; y: number };
+}
+
+/** `RECEIVE_INTERACTION`, to everyone else in the room: `userId` did an interactive emote to `targetId`. */
+export interface RoomInteraction {
+    roomId: string;
+    userId: User['_id'];
+    targetId: User['_id'];
+    animation: Animation['name'];
+}
+
 export interface Door {
     position: Position;
     dimensions: Dimensions;

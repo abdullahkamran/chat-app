@@ -8,10 +8,12 @@ import type { RoomItem } from '@chat-app/shared-types';
 import type { RoomRendererProps } from '../../core/contract';
 import { ActorOverlay } from './ActorOverlay';
 import { Backdrop } from './Backdrop';
+import { DEBUG_CELL_MAP, DEBUG_OCCUPANCY, DebugOverlay } from './DebugOverlay';
 import { EditGrid } from './EditGrid';
 import { useActorMotions } from './actorMotion';
-import { cellAt, hitTestItems } from './geometry';
+import { cellAt, hitTestActors, hitTestItems } from './geometry';
 import { preloadSkImages, useSkImages } from './imageCache';
+import { AVATAR_HEIGHT } from './skeleton/humanoidV1';
 import { useCamera } from './useCamera';
 import { useStressActors } from './useStressActors';
 import { useWorldPicture } from './useWorldPicture';
@@ -57,6 +59,8 @@ function Room({
   localActorId,
   mode,
   edit,
+  effects,
+  onActorTap,
   onFloorTap,
   onItemTap,
   onCellTap,
@@ -67,6 +71,7 @@ function Room({
   const origin = useMemo(() => computeOrigin(width, scene.dimensions), [width, scene.dimensions]);
   const isEditMode = mode === 'edit';
   const { actors, onActionComplete } = useStressActors(sessionActors, scene.dimensions, sessionOnActionComplete);
+  const motions = useActorMotions(actors);
 
   // Taps arrive in content coordinates (the camera is already undone).
   const handleTap = (x: number, y: number) => {
@@ -80,13 +85,14 @@ function Room({
       return;
     }
 
+    const actorId = hitTestActors(motions, { x, y }, origin, AVATAR_HEIGHT);
+    if (actorId && onActorTap(actorId)) return;
     const item = hitTestItems(scene.items, { x, y }, origin);
     if (item) onItemTap(item);
     else onFloorTap(point);
   };
 
   const { camera, transform, gesture } = useCamera(width, height, handleTap);
-  const motions = useActorMotions(actors);
   const itemImages = useSkImages(scene.items.flatMap(itemAssetUrls));
   const { arts, artKeys } = useAvatarArts(actors);
   const world = useWorldPicture({
@@ -100,6 +106,7 @@ function Room({
     selectedPlaced: isEditMode ? edit.selectedPlaced : null,
     origin,
     onActionComplete,
+    effects,
   });
 
   return (
@@ -110,6 +117,9 @@ function Room({
             <Backdrop scene={scene} origin={origin} />
             <Picture picture={world} />
             {isEditMode && <EditGrid dimensions={scene.dimensions} origin={origin} />}
+            {(DEBUG_OCCUPANCY || DEBUG_CELL_MAP) && (
+              <DebugOverlay dimensions={scene.dimensions} items={scene.items} motions={motions} origin={origin} />
+            )}
           </Group>
         </Canvas>
       </GestureDetector>

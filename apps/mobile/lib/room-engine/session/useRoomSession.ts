@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { useAuth } from '@/context/auth.context';
@@ -8,6 +8,7 @@ import { useInventory } from '@/hooks/useInventory';
 import { api } from '@/lib/api';
 import { isMirrored, type GridPoint } from '@/constants/grid';
 import {
+  EmoteType,
   Facing,
   ItemAction,
   ItemPlacement,
@@ -18,21 +19,69 @@ import {
   type Avatar,
   type Item,
   type ItemSeat,
+  type MutualEmoteEndReason,
+  type MutualEmoteRequest,
+  type MutualEmoteRequestEnded,
+  type MutualEmoteStart,
   type Position,
+  type RoomInteraction,
   type RoomItem,
   type RoomOccupant,
   type RoomPresenceState,
   type User,
 } from '@chat-app/shared-types';
-import type { ActorState, EditState, EngineCapabilities, RoomMode, RoomScene } from '../core/contract';
+import type { ActorState, EditState, EngineCapabilities, RoomEffect, RoomMode, RoomScene } from '../core/contract';
 import { fitsAt, itemCovering } from '../core/editLayout';
 import { facingFromDelta } from '../core/facing';
 import { findSeat, itemSeats, sameSeat, seatApproach, seatPosition, type SitAction } from '../core/seats';
 import { findPath, isLineClear, smoothPath } from '../core/usePathfinding';
 import { useWalkabilityGrid } from '../core/useWalkabilityGrid';
 import { useRoomDetails } from '../hooks/useRoomDetails';
+import {
+  CLIP_SOUNDS,
+  INTERACTIVE_EMOTES,
+  MUTUAL_CLIPS,
+  MUTUAL_EMOTES,
+  flightMs,
+  type InteractiveEmoteDef,
+} from './emotes';
+import { playSound } from './sounds';
 
 type EmoteAction = Extract<ActorAction, { kind: 'emote' }>;
+
+/** One person's half of an accepted mutual emote, while the two walk to their spots. */
+interface MutualPart {
+  requestId: string;
+  partnerId: User['_id'];
+  clip: string;
+  /** Towards the partner's spot. */
+  facing: Facing;
+  arrived: boolean;
+}
+
+/** A mutual emote or interactive emote waiting for the user to tap whom it is for. */
+export interface EmotePicking {
+  animation: string;
+  type: typeof EmoteType.MUTUAL | typeof EmoteType.INTERACTIVE;
+}
+
+/** A short word about a mutual emote request that ended without starting. */
+export interface EmoteNotice {
+  id: number;
+  reason: MutualEmoteEndReason;
+  /** The other person. */
+  userId: User['_id'];
+  animation: string;
+  /** Whether we asked (else we were asked and had accepted). */
+  asked: boolean;
+}
+
+/** A pair still not both at their spots this long after accepting gives up. */
+const MUTUAL_GIVE_UP_MS = 20_000;
+/** How long a notice about a request shows. */
+const EMOTE_NOTICE_MS = 3500;
+/** Logical positions closer than this are the same spot. */
+const SAME_SPOT = 1e-6;
 
 /** A typing bubble stays this long after the last keystroke report. */
 const TYPING_SHOW_MS = 2500;
@@ -78,6 +127,27 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
   const [presenceKnown, setPresenceKnown] = useState(false);
   const canEmote = capabilities.actions.includes('emote');
 
+  // Two-person emotes. `picking`: chosen in the drawer, waiting for a tap on someone.
+  // `outgoing`: our request, until answered. `incoming`: requests to us, oldest first.
+  const [picking, setPicking] = useState<EmotePicking | null>(null);
+  const [outgoing, setOutgoing] = useState<MutualEmoteRequest | null>(null);
+  const [incoming, setIncoming] = useState<MutualEmoteRequest[]>([]);
+  const [emoteNotice, setEmoteNotice] = useState<EmoteNotice | null>(null);
+  const noticeSeqRef = useRef(0);
+  // A request we accepted, until it starts: if it can't, we are told why.
+  const acceptedRef = useRef<MutualEmoteRequest | null>(null);
+  // Halves of accepted mutual emotes whose people are still walking to their spots.
+  const mutualRef = useRef<Record<User['_id'], MutualPart>>({});
+  // Per throw action: whom it is thrown at and how. Per emote action: whom to turn to first.
+  const [throwOf] = useState(() => new WeakMap<ActorAction, { targetId: string; def: InteractiveEmoteDef }>());
+  const [faceTargetOf] = useState(() => new WeakMap<ActorAction, User['_id']>());
+  // Emote actions whose start (sounds, thrown props) has been handled.
+  const [startedEmotes] = useState(() => new WeakSet<ActorAction>());
+  const [effects, setEffects] = useState<RoomEffect[]>([]);
+  const effectSeqRef = useRef(0);
+  // Timers for sounds, throws and notices; cleared when the room closes.
+  const timersRef = useRef(new Set<ReturnType<typeof setTimeout>>());
+
   const { user } = useUserInfo();
   const { selectedAvatar } = useAuth();
   const userId = user?.userId ?? '';
@@ -113,7 +183,10 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     roomDetails?.items ?? [],
   );
 
-  const { moveMe, sendMessage, sendTyping, sendAction } = useChat({
+  const {
+    moveMe, sendMessage, sendTyping, sendAction, sendEmoteRequest, cancelEmoteRequest: sendEmoteRequestCancel,
+    respondToEmoteRequest, sendInteraction,
+  } = useChat({
     roomId,
     userId,
     handlers: {
@@ -127,6 +200,10 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
       onAvatarChanged: receiveAvatarChanged,
       onAction: receiveAction,
       onItemsChanged: receiveItemsChanged,
+      onEmoteRequest: receiveEmoteRequest,
+      onEmoteRequestEnded: receiveEmoteRequestEnded,
+      onMutualEmote: receiveMutualEmote,
+      onInteraction: receiveInteraction,
     },
     // Doors and seats must be known before occupants can be placed.
     enabled: !!roomDetails,
@@ -147,7 +224,222 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     for (const uid of Object.keys(avatarRequestRef.current)) forgetAvatar(uid);
     pendingSitRef.current = pendingSitRef.current[userId] ? { [userId]: pendingSitRef.current[userId] } : {};
     pendingEmoteRef.current = {};
+    // The server ended our requests when the old socket went; nothing two-person carries over.
+    mutualRef.current = {};
+    acceptedRef.current = null;
+    setOutgoing(null);
+    setIncoming([]);
+    setEffects([]);
   }
+
+  /** Run `fn` after `ms`, unless the room closes first. */
+  function later(fn: () => void, ms: number) {
+    const timer = setTimeout(() => {
+      timersRef.current.delete(timer);
+      fn();
+    }, ms);
+    timersRef.current.add(timer);
+  }
+
+  useEffect(() => {
+    const timers = timersRef.current;
+    return () => {
+      for (const timer of timers) clearTimeout(timer);
+      timers.clear();
+    };
+  }, []);
+
+  // Actors as of the last render, for timers that fire later.
+  const actorsRef = useRef(actors);
+  useEffect(() => {
+    actorsRef.current = actors;
+  });
+
+  /** Show what happened to a request for a few seconds. */
+  function showEmoteNotice(notice: Omit<EmoteNotice, 'id'>) {
+    const id = ++noticeSeqRef.current;
+    setEmoteNotice({ ...notice, id });
+    later(() => setEmoteNotice(current => (current?.id === id ? null : current)), EMOTE_NOTICE_MS);
+  }
+
+  /** A mutual emote request: ours (the server's echo, carrying its id) or one asking us. */
+  function receiveEmoteRequest(request: MutualEmoteRequest) {
+    if (request.fromUserId === userId) {
+      setOutgoing(request);
+    } else if (request.toUserId === userId) {
+      // A newer request from the same person replaces theirs.
+      setIncoming(list => [...list.filter(r => r.fromUserId !== request.fromUserId), request]);
+    }
+  }
+
+  /** A request we made or were asked ended without starting. */
+  function receiveEmoteRequestEnded({ requestId, reason }: MutualEmoteRequestEnded) {
+    setIncoming(list => list.filter(r => r.requestId !== requestId));
+    if (outgoing?.requestId === requestId) {
+      setOutgoing(null);
+      // Withdrawing (or asking someone else instead) needs no word.
+      if (reason !== 'cancelled') {
+        showEmoteNotice({ reason, userId: outgoing.toUserId, animation: outgoing.animation, asked: true });
+      }
+    }
+    const accepted = acceptedRef.current;
+    if (accepted?.requestId === requestId) {
+      acceptedRef.current = null;
+      showEmoteNotice({ reason, userId: accepted.fromUserId, animation: accepted.animation, asked: false });
+    }
+  }
+
+  /**
+   * A mutual emote was accepted (anyone's, not only ours). Both walk to the spots the server
+   * chose, standing up first if seated; each turns to the other on arrival, and once both
+   * are there both play their part. Either walking off on the way calls it off.
+   */
+  function receiveMutualEmote({ requestId, animation, initiatorId, targetId, initiatorAt, targetAt }: MutualEmoteStart) {
+    setOutgoing(current => (current?.requestId === requestId ? null : current));
+    setIncoming(list => list.filter(r => r.requestId !== requestId));
+    if (acceptedRef.current?.requestId === requestId) acceptedRef.current = null;
+    const def = MUTUAL_EMOTES[animation];
+    const halves = [
+      { uid: initiatorId, at: initiatorAt, partnerId: targetId, partnerAt: targetAt, clip: def?.initiatorClip },
+      { uid: targetId, at: targetAt, partnerId: initiatorId, partnerAt: initiatorAt, clip: def?.targetClip },
+    ];
+    // Both walks first: a new destination ends any mutual emote its walker was part of.
+    const arrived: Record<string, boolean> = {};
+    for (const h of halves) arrived[h.uid] = goTo(h.uid, h.at);
+    if (!def || !canEmote) return;
+    for (const h of halves) {
+      mutualRef.current[h.uid] = {
+        requestId,
+        partnerId: h.partnerId,
+        clip: h.clip!,
+        facing: facingFromDelta(h.partnerAt.x - h.at.x, h.partnerAt.y - h.at.y),
+        arrived: arrived[h.uid],
+      };
+    }
+    later(() => endMutual(requestId), MUTUAL_GIVE_UP_MS);
+    tryStartMutual(requestId);
+  }
+
+  /**
+   * Send an actor to a spot for a mutual emote. True when it is already standing there.
+   * Someone not on screen yet is placed there directly.
+   */
+  function goTo(uid: string, at: { x: number; y: number }): boolean {
+    const actor = actors[uid];
+    if (!actor) {
+      placeActor(uid, { position: at });
+      return true;
+    }
+    const there = Math.abs(actor.position.x - at.x) < SAME_SPOT && Math.abs(actor.position.y - at.y) < SAME_SPOT;
+    if (there && actor.action.kind !== 'sit') {
+      // Already there, or already walking there (an accepting target who just stood up).
+      clearMutual(uid);
+      delete pendingEmoteRef.current[uid];
+      return actor.action.kind !== 'walk';
+    }
+    setActorDestination(uid, at.x, at.y);
+    return false;
+  }
+
+  /** Start the pair's emote once both have arrived; meanwhile whoever is there turns to face the other. */
+  function tryStartMutual(requestId: string) {
+    const halves = Object.entries(mutualRef.current).filter(([, part]) => part.requestId === requestId);
+    if (halves.length !== 2 || !halves.every(([, part]) => part.arrived)) {
+      for (const [uid, part] of halves) {
+        if (part.arrived) {
+          setActors(current => {
+            const a = current[uid];
+            return a && a.action.kind !== 'walk' ? { ...current, [uid]: { ...a, facing: part.facing } } : current;
+          });
+        }
+      }
+      return;
+    }
+    for (const [uid] of halves) delete mutualRef.current[uid];
+    setActors(current => {
+      const next = { ...current };
+      for (const [uid, part] of halves) {
+        const a = current[uid];
+        if (a) next[uid] = { ...a, facing: part.facing, action: { kind: 'emote', animation: part.clip } };
+      }
+      return next;
+    });
+  }
+
+  /** Call off whatever is left of a mutual emote. */
+  function endMutual(requestId: string) {
+    for (const [uid, part] of Object.entries(mutualRef.current)) {
+      if (part.requestId === requestId) delete mutualRef.current[uid];
+    }
+  }
+
+  /** The actor's mutual emote (if any) is off, for both of the pair. */
+  function clearMutual(uid: string) {
+    const part = mutualRef.current[uid];
+    if (part) endMutual(part.requestId);
+  }
+
+  /** Someone threw something at someone. */
+  function receiveInteraction({ userId: uid, targetId, animation }: RoomInteraction) {
+    enterCharacter(uid);
+    throwAt(uid, targetId, animation);
+  }
+
+  /**
+   * Play an interactive emote: the thrower turns to the target and throws (after its walk,
+   * when walking). The prop flies when the clip reaches its release; see the effect above.
+   */
+  function throwAt(uid: string, targetId: string, animation: string) {
+    const def = INTERACTIVE_EMOTES[animation];
+    if (!def || !canEmote) return;
+    const action: EmoteAction = { kind: 'emote', animation: def.throwClip };
+    throwOf.set(action, { targetId, def });
+    faceTargetOf.set(action, targetId);
+    playEmote(uid, action);
+  }
+
+  /** The prop leaves the thrower's hand: it flies, lands, and its splat stays a while. */
+  function release(throwerId: string, targetId: string, def: InteractiveEmoteDef) {
+    const from = actorsRef.current[throwerId];
+    const to = actorsRef.current[targetId];
+    if (!from || !to) return;
+    if (def.throwSound) playSound(def.throwSound);
+    const flight = flightMs(Math.hypot(to.position.x - from.position.x, to.position.y - from.position.y));
+    const id = `throw-${effectSeqRef.current++}`;
+    setEffects(list => [...list, { id, kind: 'throw', prop: def.prop, fromId: throwerId, toId: targetId, flightMs: flight, splatMs: def.splatMs }]);
+    later(() => land(targetId, def), flight);
+    later(() => setEffects(list => list.filter(e => e.id !== id)), flight + def.splatMs);
+  }
+
+  /** The prop hits: its sound, and the target flinches if standing free. */
+  function land(targetId: string, def: InteractiveEmoteDef) {
+    if (!actorsRef.current[targetId]) return;
+    if (def.hitSound) playSound(def.hitSound);
+    if (mutualRef.current[targetId]) return;
+    setActors(current => {
+      const t = current[targetId];
+      if (!t || t.action.kind === 'walk' || t.action.kind === 'sit') return current;
+      if (t.action.kind === 'emote' && MUTUAL_CLIPS.has(t.action.animation)) return current;
+      return { ...current, [targetId]: { ...t, action: { kind: 'emote', animation: def.reactClip } } };
+    });
+  }
+
+  // An emote action has just started on someone: schedule its sound and, for a throw, the
+  // prop leaving the hand. Each only if that action is still playing by then. Emotes seen
+  // partway through (joined mid-emote) stay silent.
+  useEffect(() => {
+    for (const actor of Object.values(actors)) {
+      const action = actor.action;
+      if (action.kind !== 'emote' || startedEmotes.has(action)) continue;
+      startedEmotes.add(action);
+      if (action.elapsedMs) continue;
+      const stillPlaying = () => actorsRef.current[actor.id]?.action === action;
+      const sound = CLIP_SOUNDS[action.animation];
+      if (sound) later(() => stillPlaying() && playSound(sound.sound), sound.atMs);
+      const thrown = throwOf.get(action);
+      if (thrown) later(() => stillPlaying() && release(actor.id, thrown.targetId, thrown.def), thrown.def.releaseMs);
+    }
+  });
 
   function receiveEnter({ userId, ...state }: { userId: string } & RoomPresenceState) {
     // A re-entry after their reconnect: they are already somewhere in the room.
@@ -201,6 +493,7 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     for (const uid of at.keys()) {
       delete pendingSitRef.current[uid];
       delete pendingEmoteRef.current[uid];
+      clearMutual(uid);
     }
     setActors(current => {
       const next = { ...current };
@@ -334,6 +627,7 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     fetchAvatar(uid);
     delete pendingSitRef.current[uid];
     delete pendingEmoteRef.current[uid];
+    clearMutual(uid);
     const seat = action?.kind === 'sit' ? findSeat(roomDetails?.items ?? [], action) : null;
     const at = seat
       ? seatPosition(seat.item, seat.seat)
@@ -354,6 +648,7 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     forgetAvatar(uid);
     delete pendingSitRef.current[uid];
     delete pendingEmoteRef.current[uid];
+    clearMutual(uid);
     setActors(current => {
       const { [uid]: _, ...rest } = current;
       return rest;
@@ -407,6 +702,7 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
   function setActorDestination(uid: string, x: number, y: number) {
     delete pendingSitRef.current[uid];
     delete pendingEmoteRef.current[uid];
+    clearMutual(uid);
     const walkId = (walkSeqRef.current[uid] ?? 0) + 1;
     walkSeqRef.current[uid] = walkId;
     setActors(current => {
@@ -497,22 +793,46 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
   }
 
   /**
-   * Play an emote on an actor: now when it stands still, after its walk when walking.
-   * Seated actors don't emote. Skipped when the engine has no emotes.
+   * Play an emote on an actor: now when it stands still, after its walk when walking (a
+   * seated user stands up first, which arrives as a walk). Seated actors don't emote.
+   * Skipped when the engine has no emotes. Ends any mutual emote the actor was heading to.
+   * Decided on the latest state, since standing up may have been queued just before.
    */
   function playEmote(uid: string, action: EmoteAction) {
-    if (!canEmote) return;
-    const actor = actors[uid];
-    if (actor?.action.kind === 'sit' || pendingSitRef.current[uid]) return;
-    if (actor?.action.kind === 'walk') {
-      pendingEmoteRef.current[uid] = action;
-      return;
-    }
+    if (!canEmote || pendingSitRef.current[uid]) return;
+    clearMutual(uid);
     setActors(current => {
       const a = current[uid];
-      if (!a || a.action.kind === 'walk' || a.action.kind === 'sit') return current;
-      return { ...current, [uid]: { ...a, action } };
+      if (!a || a.action.kind === 'sit') return current;
+      if (a.action.kind === 'walk') {
+        pendingEmoteRef.current[uid] = action;
+        return current;
+      }
+      return { ...current, [uid]: startEmote(current, a, action) };
     });
+  }
+
+  /** The actor with the emote playing, turned to whoever it is aimed at (a throw's target). */
+  function startEmote(current: Record<string, ActorState>, actor: ActorState, action: EmoteAction): ActorState {
+    const target = current[faceTargetOf.get(action) ?? ''];
+    const facing = target && target.id !== actor.id
+      ? facingFromDelta(target.position.x - actor.position.x, target.position.y - actor.position.y)
+      : actor.facing;
+    return { ...actor, facing, action };
+  }
+
+  /**
+   * If the local user is seated (or heading to a seat), stand up: walk to the floor in front
+   * of the seat and tell the room. Returns that spot, or null when not seated.
+   */
+  function standUpMe(): { x: number; y: number } | null {
+    const me = actors[userId];
+    const seat = me && seatOf(me);
+    const found = seat && findSeat(roomDetails?.items ?? [], seat);
+    if (!found) return null;
+    const spot = standingSpot(found.item, found.seat);
+    walkMeTo(spot.gx, spot.gy);
+    return { x: spot.gx, y: spot.gy };
   }
 
   function onActionComplete(actorId: string, action: ActorActionKind, finished?: ActorAction) {
@@ -529,6 +849,18 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     // arrives after the new walk began; acting on it would end the new walk at once and
     // snap the actor to its destination.
     if (finished && walkIds.get(finished) !== walkSeqRef.current[actorId]) return;
+    // Arrived at a mutual emote spot: face the partner, and start if they are there too.
+    const part = mutualRef.current[actorId];
+    if (part) {
+      part.arrived = true;
+      setActors(current => {
+        const actor = current[actorId];
+        if (!actor || actor.action.kind !== 'walk') return current;
+        return { ...current, [actorId]: { ...actor, facing: part.facing, action: { kind: 'idle' } } };
+      });
+      tryStartMutual(part.requestId);
+      return;
+    }
     const sit = pendingSitRef.current[actorId];
     const emote = pendingEmoteRef.current[actorId];
     delete pendingSitRef.current[actorId];
@@ -537,9 +869,10 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     setActors(current => {
       const actor = current[actorId];
       if (!actor || actor.action.kind !== 'walk') return current;
-      const next: ActorState = sit && found
-        ? { ...actor, position: seatPosition(found.item, found.seat), facing: found.seat.facing, action: sit }
-        : { ...actor, action: emote ?? { kind: 'idle' } };
+      let next: ActorState;
+      if (sit && found) next = { ...actor, position: seatPosition(found.item, found.seat), facing: found.seat.facing, action: sit };
+      else if (emote) next = startEmote(current, actor, emote);
+      else next = { ...actor, action: { kind: 'idle' } };
       return { ...current, [actorId]: next };
     });
   }
@@ -593,14 +926,70 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     walkMeTo(best.gx, best.gy);
   }
 
-  /** Play one of the user's emotes for everyone in the room. Not while seated or heading to a seat. */
-  function emote(animation: string) {
-    if (isEditMode) return;
-    const me = actors[userId];
-    if (!me || seatOf(me)) return;
+  /**
+   * One of the user's emotes was chosen. A solo one plays for everyone at once (standing up
+   * first if seated). A mutual or interactive one waits for a tap on whom it is for.
+   */
+  function emote(animation: string, type: EmoteType = EmoteType.SOLO) {
+    if (isEditMode || !actors[userId]) return;
+    if (type === EmoteType.MUTUAL || type === EmoteType.INTERACTIVE) {
+      setPicking({ animation, type });
+      return;
+    }
+    setPicking(null);
+    // Standing up goes out as a point first, so others see the stand, then the emote.
+    standUpMe();
     const action: EmoteAction = { kind: 'emote', animation };
     sendAction(action);
     playEmote(userId, action);
+  }
+
+  /**
+   * An avatar was tapped. While picking someone for an emote, it is them: a mutual emote
+   * asks them (they answer on their device), an interactive one is thrown at them at once,
+   * and picking stays on so more can follow. Otherwise the tap isn't ours to use.
+   */
+  function tapActor(actorId: string): boolean {
+    if (!picking || isEditMode || actorId === userId || !actors[actorId]) return false;
+    const { animation, type } = picking;
+    if (type === EmoteType.MUTUAL) {
+      setPicking(null);
+      sendEmoteRequest(animation, actorId);
+      return true;
+    }
+    standUpMe();
+    sendInteraction(animation, actorId);
+    throwAt(userId, actorId, animation);
+    return true;
+  }
+
+  function cancelPicking() {
+    setPicking(null);
+  }
+
+  /** Withdraw our pending mutual emote request. */
+  function cancelEmoteRequest() {
+    if (!outgoing) return;
+    sendEmoteRequestCancel(outgoing.requestId);
+    setOutgoing(null);
+  }
+
+  /**
+   * Answer a mutual emote request. Accepting while seated stands up first; the server puts
+   * us at the spot we stand (or are walking) to and brings the asker over.
+   */
+  function answerEmoteRequest(requestId: string, accept: boolean) {
+    const request = incoming.find(r => r.requestId === requestId);
+    const me = actors[userId];
+    setIncoming(list => list.filter(r => r.requestId !== requestId));
+    if (!request || !me) return;
+    if (!accept) {
+      respondToEmoteRequest(requestId, false);
+      return;
+    }
+    const at = standUpMe() ?? { x: me.position.x, y: me.position.y };
+    acceptedRef.current = request;
+    respondToEmoteRequest(requestId, true, at);
   }
 
   function submitMessage(message: string) {
@@ -624,6 +1013,7 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
   // ── Edit-mode intents ─────────────────────────────────────────────────────
 
   function enterEdit() {
+    setPicking(null);
     setPendingItems(roomDetails?.items ? [...roomDetails.items] : []);
     setSelectedItem(null);
     setSelectedPlacedItem(null);
@@ -778,8 +1168,16 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     onActionComplete,
     /** Whether this device's engine plays emotes; the shell hides the emote button otherwise. */
     canEmote,
-    /** The local user is seated, so emotes are unavailable. */
-    isSeated: actors[userId]?.action.kind === 'sit',
+    /** Thrown props for the engine to draw. */
+    effects,
+    /** An emote waiting for the user to tap whom it is for. */
+    picking,
+    /** Our mutual emote request, until it is answered. */
+    outgoingRequest: outgoing,
+    /** The oldest mutual emote request to us still waiting for an answer. */
+    incomingRequest: incoming[0] ?? null,
+    /** What became of a request that ended without starting, for a few seconds. */
+    emoteNotice,
     /** No one else is in the room. False until the server's presence snapshot has arrived. */
     isAlone: presenceKnown && Object.keys(actors).every(id => id === userId),
     /** The signed-in user. */
@@ -788,6 +1186,10 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
       walkTo,
       interactWith,
       emote,
+      tapActor,
+      cancelPicking,
+      cancelEmoteRequest,
+      answerEmoteRequest,
       submitMessage,
       typing,
       enterEdit,

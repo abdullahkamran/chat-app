@@ -1,5 +1,5 @@
 import mongoose, { Document, Schema } from 'mongoose';
-import { Animation, AnimationCategory } from '@chat-app/shared-types';
+import { Animation, AnimationCategory, EmoteType } from '@chat-app/shared-types';
 
 export interface IAnimation extends Omit<Animation, '_id'>, Document {}
 
@@ -10,6 +10,10 @@ const AnimationSchema = new Schema<IAnimation>(
             type: String,
             enum: Object.values(AnimationCategory),
             required: true,
+        },
+        emoteType: {
+            type: String,
+            enum: Object.values(EmoteType),
         },
         price: {
             coins: { type: Number, default: 0 },

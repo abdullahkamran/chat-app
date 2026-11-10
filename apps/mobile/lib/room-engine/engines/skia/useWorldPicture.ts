@@ -17,13 +17,14 @@ import {
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { gridToScreen, isMirrored, type GridOrigin } from '@/constants/grid';
-import { useTheme } from '@/constants/theme';
+import { artPalette, useTheme } from '@/constants/theme';
 import type { ActorAction, ActorActionKind, Facing, RoomItem } from '@chat-app/shared-types';
-import type { ActorState } from '../../core/contract';
+import type { ActorState, RoomEffect } from '../../core/contract';
 import { steadyFacingFromDelta } from '../../core/facing';
 import { findSeat } from '../../core/seats';
 import type { ActorMotion } from './actorMotion';
 import { drawAvatar, placeholderTints, type AvatarPlayhead } from './drawAvatar';
+import { drawEffects, type EffectDraw, type PropColors } from './drawEffects';
 import { itemDepth, itemRect } from './geometry';
 import { WALK_AUTHORED_MS_PER_CELL, isEmoteClip, type ClipId } from './skeleton/clips';
 import type { AvatarArt, TintGroup } from './skeleton/avatarArt';
@@ -210,6 +211,8 @@ interface Params {
   itemImages: Readonly<Record<string, SkImage | null>>;
   selectedPlaced: RoomItem | null;
   origin: GridOrigin;
+  /** Thrown props, drawn over everything else. */
+  effects: readonly RoomEffect[];
 }
 
 /**
@@ -223,10 +226,12 @@ interface Params {
  * avatars that happened several times a second.
  */
 export function useWorldPicture({
-  actors, motions, localActorId, items, arts, artKeys, itemImages, selectedPlaced, origin, onActionComplete,
+  actors, motions, localActorId, items, arts, artKeys, itemImages, selectedPlaced, origin, onActionComplete, effects,
 }: Params): SharedValue<SkPicture> {
   const [picture] = useState(() => makeMutable(createPicture(() => {})));
   const anim = useSharedValue<Record<string, AnimRuntime>>({});
+  // Seconds each effect has been drawn, by id; an effect starts at 0 the frame it first appears.
+  const effectAges = useSharedValue<Record<string, number>>({});
 
   // The frame worklet captures one stable function; it forwards to the latest callback.
   const completeRef = useRef(onActionComplete);
@@ -282,7 +287,22 @@ export function useWorldPicture({
     tint: Skia.Color(theme.colors.roomLocalActor),
   }), [theme]);
 
+  // Art colours, the same in every theme.
+  const propColors = useMemo<PropColors>(() => ({
+    tomato: Skia.Color(artPalette.props.tomato),
+    tomatoSplat: Skia.Color(artPalette.props.tomatoSplat),
+    leaf: Skia.Color(artPalette.props.leaf),
+    snow: Skia.Color(artPalette.props.snow),
+    snowShade: Skia.Color(artPalette.props.snowShade),
+    highlight: Skia.Color(artPalette.props.highlight),
+  }), []);
+
+  const effectDraws = useMemo<EffectDraw[]>(() => effects.map(e => ({
+    id: e.id, prop: e.prop, fromId: e.fromId, toId: e.toId, flightS: e.flightMs / 1000, splatS: e.splatMs / 1000,
+  })), [effects]);
+
   const actorsInput = useSharedValue<ActorDraw[]>([]);
+  const effectsInput = useSharedValue<EffectDraw[]>([]);
   const itemsInput = useSharedValue<ItemDraw[]>([]);
   const originInput = useSharedValue(origin);
   const artsInput = useSharedValue(arts);
@@ -290,6 +310,7 @@ export function useWorldPicture({
   useEffect(() => itemsInput.set(itemDraws), [itemsInput, itemDraws]);
   useEffect(() => originInput.set(origin), [originInput, origin]);
   useEffect(() => artsInput.set(arts), [artsInput, arts]);
+  useEffect(() => effectsInput.set(effectDraws), [effectsInput, effectDraws]);
 
   const onFrame = useCallback((frame: FrameInfo) => {
     'worklet';
@@ -301,8 +322,15 @@ export function useWorldPicture({
     const prev = anim.get();
     const next: Record<string, AnimRuntime> = {};
 
+    const effectDraws = effectsInput.get();
+    const prevAges = effectAges.get();
+    const ages: Record<string, number> = {};
+    for (const e of effectDraws) ages[e.id] = (prevAges[e.id] ?? 0) + dt;
+    if (effectDraws.length > 0 || Object.keys(prevAges).length > 0) effectAges.set(ages);
+
     const entries: { depth: number; actor: number; item: number; front: boolean }[] = [];
     const feet: { x: number; y: number }[] = [];
+    const feetById: Record<string, { x: number; y: number }> = {};
     for (let i = 0; i < actorDraws.length; i++) {
       const a = actorDraws[i];
       const gx = a.motion.gx.get();
@@ -310,7 +338,9 @@ export function useWorldPicture({
       const st = advance(prev[a.id], a, gx, gy, dt);
       next[a.id] = st;
       if (emoteFinished(st, a)) scheduleOnRN(reportEmoteDone, a.id);
-      feet.push(gridToScreen(gx, gy, a.motion.gz.get(), origin));
+      const foot = gridToScreen(gx, gy, a.motion.gz.get(), origin);
+      feet.push(foot);
+      feetById[a.id] = foot;
       const depth = gx + gy + 0.5;
       entries.push({ depth: st.seatDepth >= 0 ? Math.max(depth, st.seatDepth) : depth, actor: i, item: -1, front: false });
     }
@@ -374,8 +404,9 @@ export function useWorldPicture({
           if (art) drawAvatar(canvas, art, next[a.id], a.tints, x, y);
         }
       }
+      if (effectDraws.length > 0) drawEffects(canvas, effectDraws, ages, feetById, propColors);
     }));
-  }, [actorsInput, itemsInput, originInput, artsInput, anim, picture, colors, reportEmoteDone]);
+  }, [actorsInput, itemsInput, originInput, artsInput, effectsInput, effectAges, anim, picture, colors, propColors, reportEmoteDone]);
 
   useFrameCallback(onFrame);
 

@@ -4,14 +4,15 @@ import { View } from 'react-native';
 import Animated, { useAnimatedKeyboard, useAnimatedStyle, useDerivedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { RoomCategory } from '@chat-app/shared-types';
+import { EmoteType, RoomCategory, type Animation } from '@chat-app/shared-types';
 import { AppText, Button, EmptyState, IconButton, Spinner } from '@/components/ui';
 import { makeStyles } from '@/constants/theme';
 import { useMailbox } from '@/hooks/useMailbox';
 import { AvatarDrawer } from '../components/AvatarDrawer';
 import { ChatInput } from '../components/ChatInput';
 import { TranscriptButton, TranscriptPanel, TranscriptPeek } from '../components/ChatTranscript';
-import { EmoteDrawer } from '../components/EmoteDrawer';
+import { EmoteDrawer, emoteTypeOf } from '../components/EmoteDrawer';
+import { EmotePrompt } from '../components/EmotePrompt';
 import { MailboxButton } from '../components/MailboxButton';
 import { MailboxModal } from '../components/MailboxModal';
 import { TypingIndicator } from '../components/TypingIndicator';
@@ -88,13 +89,22 @@ export function RoomShell({ session, children }: Readonly<Props>) {
   const liftStyle = useAnimatedStyle(() => ({ transform: [{ translateY: -lift.value }] }));
   const roomStyle = useAnimatedStyle(() => ({ transform: [{ translateY: lift.value }] }));
   const {
-    roomDetails, isLoading, error, isOwner, isSaving, mode, edit, scene, typingNames, intents, canEmote, isSeated,
-    isAlone, userId, transcript,
+    roomDetails, isLoading, error, isOwner, isSaving, mode, edit, scene, typingNames, intents, canEmote,
+    isAlone, userId, transcript, picking, outgoingRequest, incomingRequest, emoteNotice,
   } = session;
   const isEditMode = mode === 'edit';
   // The full transcript, in place of the peek. Tapping the room closes it.
   const [transcriptOpen, setTranscriptOpen] = useState(false);
-  const names = useUsernames(transcript.filter(e => e.userId !== userId).map(e => e.userId));
+  const names = useUsernames([
+    ...transcript.filter(e => e.userId !== userId).map(e => e.userId),
+    ...[outgoingRequest?.toUserId, incomingRequest?.fromUserId, emoteNotice?.userId].filter((id): id is string => !!id),
+  ]);
+  // A two-person emote closes the drawer, so the room is free to tap whom it is for.
+  const playEmote = (emote: Animation) => {
+    const type = emoteTypeOf(emote);
+    if (type !== EmoteType.SOLO) closeDrawer();
+    intents.emote(emote.name, type);
+  };
   const showChat = !isEditMode && drawer === null;
   const [mailboxOpen, setMailboxOpen] = useState(false);
   // The empty-room hint goes once the user has opened the postbox.
@@ -107,9 +117,10 @@ export function RoomShell({ session, children }: Readonly<Props>) {
   const mailHint = isAlone && mailbox?.canPost && !hintSeen ? 'No one is here. Leave a mail' : null;
   // Back (hardware, swipe or the header arrow) closes edit mode, a drawer or the transcript
   // before it leaves the room. The mailbox is a Modal and handles back itself.
-  usePreventRemove(isEditMode || drawer !== null || (showChat && transcriptOpen), () => {
+  usePreventRemove(isEditMode || drawer !== null || picking !== null || (showChat && transcriptOpen), () => {
     if (isEditMode) intents.cancelEdit();
     else if (drawer !== null) closeDrawer();
+    else if (picking !== null) intents.cancelPicking();
     else setTranscriptOpen(false);
   });
 
@@ -205,10 +216,22 @@ export function RoomShell({ session, children }: Readonly<Props>) {
           {isEditMode && (
             <InventoryDrawer selectedItem={edit.selectedItem} onSelectItem={intents.selectInventoryItem} pendingItems={scene?.items ?? []} />
           )}
-          {!isEditMode && drawer === 'avatars' && <AvatarDrawer onClose={closeDrawer} />}
-          {!isEditMode && drawer === 'emotes' && (
-            <EmoteDrawer disabled={isSeated} onEmote={intents.emote} onClose={closeDrawer} />
+          {/* Above whichever drawer or chat input is open, so a request is seen either way. */}
+          {!isEditMode && (
+            <EmotePrompt
+              picking={picking}
+              outgoing={outgoingRequest}
+              incoming={incomingRequest}
+              notice={emoteNotice}
+              names={names}
+              isAlone={isAlone}
+              onCancelPicking={intents.cancelPicking}
+              onCancelRequest={intents.cancelEmoteRequest}
+              onAnswer={intents.answerEmoteRequest}
+            />
           )}
+          {!isEditMode && drawer === 'avatars' && <AvatarDrawer onClose={closeDrawer} />}
+          {!isEditMode && drawer === 'emotes' && <EmoteDrawer onEmote={playEmote} onClose={closeDrawer} />}
           {showChat && (
             <>
               <TypingIndicator names={typingNames} />

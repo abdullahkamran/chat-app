@@ -64,6 +64,25 @@ export interface ActorState {
   isTyping: boolean;
 }
 
+/** Something thrown by an interactive emote. */
+export type PropId = 'tomato' | 'snowball';
+
+/**
+ * A short-lived visual the session asks the engine to draw. The engine starts its clock
+ * when the effect first appears; the session removes it once it is over.
+ */
+export interface RoomEffect {
+  id: string;
+  kind: 'throw';
+  prop: PropId;
+  /** Thrown from this actor's hand at the target's face, which it follows if they move. */
+  fromId: string;
+  toId: string;
+  /** Time in the air, then time the splat stays on the target. */
+  flightMs: number;
+  splatMs: number;
+}
+
 export interface EditState {
   /** Inventory item chosen for placement. */
   selectedItem: Item | null;
@@ -79,6 +98,13 @@ export interface RoomRendererProps {
   localActorId: string;
   mode: RoomMode;
   edit: EditState;
+  /** Thrown props and similar, drawn over the room. */
+  effects: readonly RoomEffect[];
+  /**
+   * An avatar tapped in play mode (the front-most under the tap). Returns whether the
+   * session used the tap; if not, the engine handles it as an item or floor tap.
+   */
+  onActorTap(actorId: string): boolean;
   /** Floor tapped in play mode. Fractional grid coordinates. */
   onFloorTap(point: GridPoint): void;
   /** An interactive item tapped in play mode. */

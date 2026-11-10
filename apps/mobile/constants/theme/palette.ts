@@ -39,6 +39,10 @@ export const palette = {
   // Lime: success
   lime400: '#A5E86B',
 
+  // Debug overlays: loud on purpose, never in shipped UI
+  debugOrange: '#FF8C1A',
+  debugBlue: '#2F6BFF',
+
   // Pastels for letter avatars and sender names
   pastelCoral: '#FF8A6B',
   pastelPeach: '#FFB38A',
@@ -71,4 +75,13 @@ export const artPalette = {
   pieceOutline: '#888888',
   /** Placeholder clothing, picked per user. */
   clothing: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8'],
+  /** Things thrown by interactive emotes, and what they leave on whoever they hit. */
+  props: {
+    tomato: '#E5372B',
+    tomatoSplat: '#C92A1F',
+    leaf: '#3E9B3A',
+    snow: '#F4F8FF',
+    snowShade: '#BFD3E6',
+    highlight: '#FFFFFF',
+  },
 } as const;

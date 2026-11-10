@@ -1,4 +1,7 @@
-import { Orientiation } from '@chat-app/shared-types';
+import mongoose from 'mongoose';
+import { MUTUAL_EMOTE_GAP, Orientiation } from '@chat-app/shared-types';
+import Item from '../models/item.model';
+import Room, { type IRoom } from '../models/room.model';
 
 /** What placement needs from a saved room: its floor size, entry door and solid furniture. */
 export interface RoomLayout {
@@ -60,4 +63,52 @@ export function nearestFreeCell(from: Cell, layout: RoomLayout, blocked: Set<str
         }
     }
     return null;
+}
+
+/** A saved room's layout, built from its items' footprints. */
+export async function roomLayoutOf(room: Pick<IRoom, 'dimensions' | 'doors' | 'items'>): Promise<RoomLayout> {
+    const defs = await Item.find({ _id: { $in: room.items.map(i => i.itemId) } }).select('dimensions isOverlappable');
+    const byId = new Map(defs.map(d => [d._id.toString(), d]));
+    const door = room.doors.find(d => d.isEntry)?.position ?? { x: 0, y: 0 };
+    return {
+        dimensions: room.dimensions,
+        door: { x: door.x, y: door.y },
+        items: room.items.flatMap(i => {
+            const def = byId.get(i.itemId.toString());
+            return def
+                ? [{ position: i.position, orientation: i.orientation, dimensions: def.dimensions, isOverlappable: def.isOverlappable }]
+                : [];
+        }),
+    };
+}
+
+/** The layout of the room with this id, or null when there is no such room. */
+export async function loadRoomLayout(roomId: string): Promise<RoomLayout | null> {
+    if (!mongoose.isValidObjectId(roomId)) return null;
+    const room = await Room.findById(roomId).select('dimensions doors items');
+    return room ? roomLayoutOf(room) : null;
+}
+
+/**
+ * Where the initiator of a mutual emote stands: MUTUAL_EMOTE_GAP cells from the target along
+ * one grid axis, so the two face each other squarely (SE and NW, or SW and NE). Of the four
+ * sides, the one nearest the initiator whose cell is free floor. Null when all four are
+ * blocked or off the floor.
+ */
+export function mutualEmoteSpot(target: Cell, initiator: Cell, layout: RoomLayout): Cell | null {
+    const blocked = blockedCells(layout);
+    const sides = [
+        { x: target.x + MUTUAL_EMOTE_GAP, y: target.y },
+        { x: target.x - MUTUAL_EMOTE_GAP, y: target.y },
+        { x: target.x, y: target.y + MUTUAL_EMOTE_GAP },
+        { x: target.x, y: target.y - MUTUAL_EMOTE_GAP },
+    ].filter(p => {
+        const c = { x: Math.round(p.x), y: Math.round(p.y) };
+        const onFloor = p.x >= 0 && p.y >= 0 && p.x <= layout.dimensions.x && p.y <= layout.dimensions.y
+            && c.x < layout.dimensions.x && c.y < layout.dimensions.y;
+        return onFloor && !blocked.has(key(c));
+    });
+    if (sides.length === 0) return null;
+    const distance = (p: Cell) => Math.hypot(p.x - initiator.x, p.y - initiator.y);
+    return sides.reduce((best, p) => (distance(p) < distance(best) ? p : best));
 }

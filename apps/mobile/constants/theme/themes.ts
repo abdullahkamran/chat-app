@@ -66,6 +66,9 @@ export interface ThemeColors {
   roomDoor: string;
   roomDoorStroke: string;
   roomEditGrid: string;
+  roomDebugGrid: string;      // dev overlay: every floor and wall cell
+  roomDebugItemCell: string;  // dev overlay: cells a placed item occupies
+  roomDebugActorCell: string; // dev overlay: the cell an avatar stands on
 }
 
 /** Elevation styles. Sticker shadows are hard-edged drops, not soft blurs. */
@@ -153,6 +156,9 @@ export const darkTheme: Theme = {
     roomDoor: palette.frost50,
     roomDoorStroke: palette.navy700,
     roomEditGrid: palette.sky400,
+    roomDebugGrid: palette.frost50,
+    roomDebugItemCell: palette.debugOrange,
+    roomDebugActorCell: palette.debugBlue,
   },
   shadows: {
     sticker: { boxShadow: `0px 3px 0px 0px ${palette.ink}` },

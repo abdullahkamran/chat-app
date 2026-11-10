@@ -1,4 +1,4 @@
-import { Animation, AnimationCategory } from '@chat-app/shared-types';
+import { Animation, AnimationCategory, EmoteType } from '@chat-app/shared-types';
 
 type CatalogAnimation = Omit<Animation, '_id'>;
 
@@ -47,9 +47,31 @@ export const ANIMATIONS_CATALOG: CatalogAnimation[] = [
         ['cheer', 40],
         ['jump', 40],
         ['flex', 50],
+        ['moonwalk', 200],
     ] as const).map(([name, coins]): CatalogAnimation => ({
         name,
         category: AnimationCategory.EMOTE,
+        price: { coins, cash: 0, realMoney: 0 },
+    })),
+    // Mutual emotes: the other person accepts, the initiator walks over and both play their part.
+    // Only the initiator needs to own one. Each has a clip per role in the mobile engine (emotes.ts).
+    ...([
+        ['highFive', 60],
+        ['hug', 60],
+    ] as const).map(([name, coins]): CatalogAnimation => ({
+        name,
+        category: AnimationCategory.EMOTE,
+        emoteType: EmoteType.MUTUAL,
+        price: { coins, cash: 0, realMoney: 0 },
+    })),
+    // Interactive emotes: done to someone from wherever the user stands, without asking.
+    ...([
+        ['throwTomato', 80],
+        ['throwSnowball', 80],
+    ] as const).map(([name, coins]): CatalogAnimation => ({
+        name,
+        category: AnimationCategory.EMOTE,
+        emoteType: EmoteType.INTERACTIVE,
         price: { coins, cash: 0, realMoney: 0 },
     })),
 ];

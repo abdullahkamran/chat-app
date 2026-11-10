@@ -1,4 +1,4 @@
-import type { Shape } from './shapes';
+import { shapeSvg, type Shape } from './shapes';
 
 /**
  * Cel-shaded art helpers. A part is a filled outline with its shading and details clipped
@@ -75,6 +75,22 @@ export function limbD(w0: number, w1: number, y0: number, y1: number): string {
   const s = y1 >= y0 ? 1 : -1;
   return `M ${-a} ${y0 + s * a} A ${a} ${a} 0 0 ${s > 0 ? 1 : 0} ${a} ${y0 + s * a} ` +
     `L ${b} ${y1 - s * b} A ${b} ${b} 0 0 ${s > 0 ? 1 : 0} ${-b} ${y1 - s * b} Z`;
+}
+
+/**
+ * `limbD`'s outline without its joint end, for `edge`: the piece over a joint leaves that
+ * end unlined so it blends into the part it overlaps instead of drawing a seam.
+ */
+export function limbEdgeD(w0: number, w1: number, y0: number, y1: number): string {
+  const a = w0 / 2;
+  const b = w1 / 2;
+  const s = y1 >= y0 ? 1 : -1;
+  return `M ${a} ${y0 + s * a} L ${b} ${y1 - s * b} A ${b} ${b} 0 0 ${s > 0 ? 1 : 0} ${-b} ${y1 - s * b} L ${-a} ${y0 + s * a}`;
+}
+
+/** Wraps a shape in an SVG transform, e.g. to turn a foot for a view. */
+export function transformed(shape: Shape, transform: string): Shape {
+  return { kind: 'raw', svg: `<g transform="${transform}">${shapeSvg(shape, '')}</g>` };
 }
 
 /** The left part of a limb in shadow: `f` of each half-width, measured from the centre line. */

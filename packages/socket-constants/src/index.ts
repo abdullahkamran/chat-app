@@ -19,6 +19,22 @@ export const SocketEvent = {
   RECEIVE_ROOM_PRESENCE: "receive_room_presence",
   /** Sent only to a user whose sit was for a seat someone else holds. */
   RECEIVE_SIT_REFUSED: "receive_sit_refused",
+  /** Ask someone in the room to do a mutual emote (high five): `{ roomId, animation, targetId }`. */
+  SEND_EMOTE_REQUEST: "send_emote_request",
+  /** Withdraw our pending mutual emote request: `{ roomId, requestId }`. */
+  SEND_EMOTE_REQUEST_CANCEL: "send_emote_request_cancel",
+  /** Answer a mutual emote request: `{ roomId, requestId, accept, at? }`, `at` being where we stand. */
+  SEND_EMOTE_RESPONSE: "send_emote_response",
+  /** Sent to both people: a mutual emote request was made (MutualEmoteRequest). */
+  RECEIVE_EMOTE_REQUEST: "receive_emote_request",
+  /** Sent to both people: a mutual emote request ended without starting (MutualEmoteRequestEnded). */
+  RECEIVE_EMOTE_REQUEST_ENDED: "receive_emote_request_ended",
+  /** Sent to the room: a mutual emote was accepted and starts (MutualEmoteStart). */
+  RECEIVE_MUTUAL_EMOTE: "receive_mutual_emote",
+  /** Do an interactive emote to someone (throw a tomato): `{ roomId, animation, targetId }`. */
+  SEND_INTERACTION: "send_interaction",
+  /** Sent to everyone else in the room (RoomInteraction). */
+  RECEIVE_INTERACTION: "receive_interaction",
   /** The owner saved a new layout. Carries everyone the server stood up or moved off furniture, and where to. */
   RECEIVE_ROOM_ITEMS_CHANGED: "receive_room_items_changed",
   /** Sent to a user's own channel: they were added to a room, at creation or later. */

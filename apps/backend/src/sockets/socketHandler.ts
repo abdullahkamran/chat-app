@@ -3,6 +3,12 @@ import mongoose from 'mongoose';
 import { SocketEvent } from '@chat-app/socket-constants';
 import {
     AnimationCategory,
+    EmoteType,
+    type MutualEmoteEndReason,
+    type MutualEmoteRequest,
+    type MutualEmoteRequestEnded,
+    type MutualEmoteStart,
+    type RoomInteraction,
     type RoomMailNotice,
     type RoomPresenceState,
     type RoomRemovalReason,
@@ -13,7 +19,8 @@ import Room, { IRoom } from '../models/room.model';
 import User from '../models/user.model';
 import { sendPushToRoom, sendPushToUsers } from '../services/notification.service';
 import { findAccessibleRoom, isPersonalRoom } from '../services/room-access.service';
-import { blockedCells, cellOf, nearestFreeCell, type RoomLayout } from './roomLayout';
+import { emoteRequests, type EmoteRequest } from './emoteRequests';
+import { blockedCells, cellOf, loadRoomLayout, mutualEmoteSpot, nearestFreeCell, type RoomLayout } from './roomLayout';
 import { roomPresence, type EmoteAction, type Presence, type SitAction } from './roomPresence';
 
 /** A grid point with finite coordinates, or null. */
@@ -83,12 +90,41 @@ async function allowedAction(userId: string, roomId: string, action: unknown): P
         const sit = parseSit(a);
         return sit && (await seatExists(roomId, sit)) ? sit : null;
     }
-    if (a?.kind === 'emote' && typeof a.animation === 'string') {
-        const emote = await Animation.findOne({ name: a.animation, category: AnimationCategory.EMOTE }).select('_id');
-        const owned = !!emote && !!(await User.exists({ _id: userId, animations: emote._id }));
-        return owned ? { kind: 'emote', animation: a.animation } : null;
+    if (a?.kind === 'emote') {
+        const animation = await ownedEmote(userId, a.animation, EmoteType.SOLO);
+        return animation ? { kind: 'emote', animation } : null;
     }
     return null;
+}
+
+/**
+ * The emote's name when the user owns an emote of that name and type, else null. Emotes
+ * saved before emote types existed have none and are solo.
+ */
+async function ownedEmote(userId: string, name: unknown, type: EmoteType): Promise<string | null> {
+    if (typeof name !== 'string') return null;
+    const emote = await Animation.findOne({ name, category: AnimationCategory.EMOTE }).select('_id emoteType');
+    if (!emote || (emote.emoteType ?? EmoteType.SOLO) !== type) return null;
+    return (await User.exists({ _id: userId, animations: emote._id })) ? name : null;
+}
+
+/** Send an event to the socket a user stands in the room with, if they are there. */
+function emitToOccupant(io: Server, roomId: string, userId: string, event: string, payload: unknown): void {
+    const presence = roomPresence.get(roomId, userId);
+    if (presence) io.to(presence.socketId).emit(event, payload);
+}
+
+/** Tell both people a mutual emote request ended without starting. */
+function endEmoteRequest(io: Server, request: EmoteRequest, reason: MutualEmoteEndReason): void {
+    const ended: MutualEmoteRequestEnded = { roomId: request.roomId, requestId: request.id, reason };
+    console.log(SocketEvent.RECEIVE_EMOTE_REQUEST_ENDED, ended);
+    emitToOccupant(io, request.roomId, request.fromUserId, SocketEvent.RECEIVE_EMOTE_REQUEST_ENDED, ended);
+    emitToOccupant(io, request.roomId, request.toUserId, SocketEvent.RECEIVE_EMOTE_REQUEST_ENDED, ended);
+}
+
+/** The user left the room (or re-entered on a new socket): their pending mutual emote requests end. */
+function endEmoteRequestsOf(io: Server, roomId: string, userId: string): void {
+    for (const request of emoteRequests.takeAllOf(roomId, userId)) endEmoteRequest(io, request, 'left');
 }
 
 /**
@@ -181,6 +217,7 @@ export function announceMemberRemoved(io: Server, roomId: string, userId: string
         if (!socket || !(socket.data as ClientSocketData).presentRoomIds.delete(roomId)) continue;
         socket.leave(roomId);
         if (roomPresence.leave(roomId, userId, socket.id)) {
+            endEmoteRequestsOf(io, roomId, userId);
             io.to(roomId).emit(SocketEvent.RECEIVE_EXIT, { roomId, userId });
         }
     }
@@ -291,6 +328,8 @@ const handler = {
             // No await from the snapshot to the broadcast: the newcomer must not miss an event
             // that isn't in the snapshot, nor get one twice. The in-memory adapter joins at once.
             const occupants = roomPresence.snapshot(roomId, userId);
+            // A re-entry from a new socket: the client dropped its requests when it reconnected.
+            if (roomPresence.has(roomId, userId)) endEmoteRequestsOf(socket.nsp.server, roomId, userId);
             roomPresence.enter(roomId, userId, presence);
             presentRoomIds.add(roomId);
             socket.emit(SocketEvent.RECEIVE_ROOM_PRESENCE, { roomId, occupants });
@@ -314,7 +353,10 @@ const handler = {
             presentRoomIds.delete(roomId);
             // False when the user has since entered from another socket; they are still here.
             const left = roomPresence.leave(roomId, userId, socket.id);
-            if (left) socket.to(roomId).emit(SocketEvent.RECEIVE_EXIT, { roomId, userId });
+            if (left) {
+                endEmoteRequestsOf(socket.nsp.server, roomId, userId);
+                socket.to(roomId).emit(SocketEvent.RECEIVE_EXIT, { roomId, userId });
+            }
             await socket.leave(roomId);
             if (!left) return;
             sendPushToRoom(roomId, userId, {
@@ -356,6 +398,106 @@ const handler = {
             socket.to(roomId).emit(SocketEvent.RECEIVE_ACTION, { roomId, userId, action: allowed });
         }));
 
+        // Ask someone in the room to do a mutual emote. Both hear of the request; asking again
+        // replaces the asker's earlier request, and it lapses if not answered in time.
+        socket.on(SocketEvent.SEND_EMOTE_REQUEST, inRoom(SocketEvent.SEND_EMOTE_REQUEST, async (
+            { roomId, animation, targetId }: { roomId: string; animation: unknown; targetId: unknown },
+        ) => {
+            if (typeof targetId !== 'string' || targetId === userId) return;
+            const owned = await ownedEmote(userId, animation, EmoteType.MUTUAL);
+            const io = socket.nsp.server;
+            // Checked after the await: either may have left meanwhile.
+            if (!owned || !roomPresence.own(roomId, userId, socket.id) || !roomPresence.has(roomId, targetId)) return;
+            const { request, replaced } = emoteRequests.create(
+                { roomId, fromUserId: userId, toUserId: targetId, animation: owned },
+                expired => endEmoteRequest(io, expired, 'expired'),
+            );
+            if (replaced) endEmoteRequest(io, replaced, 'cancelled');
+            const payload: MutualEmoteRequest = {
+                requestId: request.id,
+                roomId,
+                fromUserId: userId,
+                toUserId: targetId,
+                animation: owned,
+                expiresInMs: request.expiresAt - Date.now(),
+            };
+            console.log(SocketEvent.SEND_EMOTE_REQUEST, payload);
+            socket.emit(SocketEvent.RECEIVE_EMOTE_REQUEST, payload);
+            emitToOccupant(io, roomId, targetId, SocketEvent.RECEIVE_EMOTE_REQUEST, payload);
+        }));
+
+        socket.on(SocketEvent.SEND_EMOTE_REQUEST_CANCEL, inRoom(SocketEvent.SEND_EMOTE_REQUEST_CANCEL, (
+            { roomId, requestId }: { roomId: string; requestId: unknown },
+        ) => {
+            const request = typeof requestId === 'string' ? emoteRequests.get(requestId) : undefined;
+            if (!request || request.roomId !== roomId || request.fromUserId !== userId) return;
+            emoteRequests.take(request.id);
+            endEmoteRequest(socket.nsp.server, request, 'cancelled');
+        }));
+
+        // The asked person answers. On accept the server decides where each stands, so every
+        // client walks them to the same spots: the target where they say they stand (a seated
+        // target has already sent the point they stand up to), the initiator beside them.
+        socket.on(SocketEvent.SEND_EMOTE_RESPONSE, inRoom(SocketEvent.SEND_EMOTE_RESPONSE, async (
+            { roomId, requestId, accept, at }: { roomId: string; requestId: unknown; accept: unknown; at?: unknown },
+        ) => {
+            const pending = typeof requestId === 'string' ? emoteRequests.get(requestId) : undefined;
+            if (!pending || pending.roomId !== roomId || pending.toUserId !== userId) return;
+            // Taken before any await, so a second answer finds nothing.
+            const request = emoteRequests.take(pending.id) ?? pending;
+            const io = socket.nsp.server;
+            if (accept !== true) {
+                endEmoteRequest(io, request, 'declined');
+                return;
+            }
+            const layout = await loadRoomLayout(roomId);
+            const me = roomPresence.own(roomId, userId, socket.id);
+            const them = roomPresence.get(roomId, request.fromUserId);
+            if (!layout || !me || !them) {
+                endEmoteRequest(io, request, 'left');
+                return;
+            }
+            const targetAt = parsePoint(at) ?? me.position ?? layout.door;
+            const from = them.sit?.at ?? them.position ?? layout.door;
+            const initiatorAt = mutualEmoteSpot(targetAt, from, layout);
+            if (!initiatorAt) {
+                endEmoteRequest(io, request, 'noRoom');
+                return;
+            }
+            // Both end up standing at their spot. The emote itself isn't kept for newcomers:
+            // they would see one half of a pair start late, possibly before the walk ends.
+            me.position = targetAt;
+            me.sit = undefined;
+            me.emote = undefined;
+            them.position = initiatorAt;
+            them.sit = undefined;
+            them.emote = undefined;
+            const start: MutualEmoteStart = {
+                roomId,
+                requestId: request.id,
+                animation: request.animation,
+                initiatorId: request.fromUserId,
+                targetId: userId,
+                initiatorAt,
+                targetAt,
+            };
+            console.log(SocketEvent.RECEIVE_MUTUAL_EMOTE, start);
+            io.to(roomId).emit(SocketEvent.RECEIVE_MUTUAL_EMOTE, start);
+        }));
+
+        // An interactive emote (a thrown tomato): no consent needed, relayed when the user owns
+        // it and the target is here. Nothing is stored; it is over in a couple of seconds.
+        socket.on(SocketEvent.SEND_INTERACTION, inRoom(SocketEvent.SEND_INTERACTION, async (
+            { roomId, animation, targetId }: { roomId: string; animation: unknown; targetId: unknown },
+        ) => {
+            if (typeof targetId !== 'string' || targetId === userId) return;
+            const owned = await ownedEmote(userId, animation, EmoteType.INTERACTIVE);
+            if (!owned || !roomPresence.has(roomId, targetId)) return;
+            const interaction: RoomInteraction = { roomId, userId, targetId, animation: owned };
+            console.log(SocketEvent.SEND_INTERACTION, interaction);
+            socket.to(roomId).emit(SocketEvent.RECEIVE_INTERACTION, interaction);
+        }));
+
         // The user saved or switched avatars. Everyone sharing a room with them refetches it.
         socket.on(SocketEvent.SEND_AVATAR_CHANGED, inOrder(SocketEvent.SEND_AVATAR_CHANGED, () => {
             for (const roomId of presentRoomIds) {
@@ -374,6 +516,7 @@ const handler = {
             for (const roomId of presentRoomIds) {
                 console.log(SocketEvent.DISCONNECT, { userId, roomId, reason });
                 if (roomPresence.leave(roomId, userId, socket.id)) {
+                    endEmoteRequestsOf(socket.nsp.server, roomId, userId);
                     socket.nsp.to(roomId).emit(SocketEvent.RECEIVE_EXIT, { roomId, userId });
                 }
             }

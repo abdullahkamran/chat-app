@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import type { Server } from 'socket.io';
-import Item from '../models/item.model';
 import Room, { canManageMembers, IRoom } from '../models/room.model';
+import { roomLayoutOf } from '../sockets/roomLayout';
 import { announceMemberRemoved, announceMembersAdded, announceRoomItemsChanged } from '../sockets/socketHandler';
 import User, { PUBLIC_USER_FIELDS } from '../models/user.model';
 import { friendIdsOf, notFriendsAmong } from '../services/friend.service';
@@ -178,19 +178,7 @@ const controller = {
 
         try {
             // Footprints, so the room can stand people off furniture (see announceRoomItemsChanged).
-            const defs = await Item.find({ _id: { $in: room.items.map(i => i.itemId) } }).select('dimensions isOverlappable');
-            const byId = new Map(defs.map(d => [d._id.toString(), d]));
-            const door = room.doors.find(d => d.isEntry)?.position ?? { x: 0, y: 0 };
-            announceRoomItemsChanged(req.app.get('io') as Server, roomId, {
-                dimensions: room.dimensions,
-                door: { x: door.x, y: door.y },
-                items: room.items.flatMap(i => {
-                    const def = byId.get(i.itemId.toString());
-                    return def
-                        ? [{ position: i.position, orientation: i.orientation, dimensions: def.dimensions, isOverlappable: def.isOverlappable }]
-                        : [];
-                }),
-            });
+            announceRoomItemsChanged(req.app.get('io') as Server, roomId, await roomLayoutOf(room));
         } catch (e) {
             console.error('Failed to announce the new layout', e);
         }
