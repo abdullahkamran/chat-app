@@ -9,7 +9,7 @@ import {
 } from '@shopify/react-native-skia';
 import { useMemo } from 'react';
 
-import { TILE_H, TILE_W, WALL_HEIGHT, gridToScreen, type GridOrigin } from '@/constants/grid';
+import { TILE_H, TILE_W, WALL_HEIGHT, gridToScreen, roomCorner, type GridOrigin } from '@/constants/grid';
 import { useTheme, type ThemeColors } from '@/constants/theme';
 import type { RoomScene } from '../../core/contract';
 import { useSkImage } from './imageCache';
@@ -37,10 +37,10 @@ function drawDoors(canvas: SkCanvas, doors: RoomScene['doors'], origin: GridOrig
   for (const door of doors) {
     const { x: gx, y: gy } = door.position;
     const corners = [
-      gridToScreen(gx, gy, 0, origin),
-      gridToScreen(gx + 1, gy, 0, origin),
-      gridToScreen(gx + 1, gy + 1, 0, origin),
-      gridToScreen(gx, gy + 1, 0, origin),
+      gridToScreen(gx - 0.5, gy - 0.5, 0, origin),
+      gridToScreen(gx + 0.5, gy - 0.5, 0, origin),
+      gridToScreen(gx + 0.5, gy + 0.5, 0, origin),
+      gridToScreen(gx - 0.5, gy + 0.5, 0, origin),
     ];
     const path = Skia.PathBuilder.Make().addPoly(corners, true).build();
 
@@ -78,19 +78,22 @@ export function Backdrop({ scene, origin }: Props) {
   const picture = useMemo(() => createPicture(canvas => {
     const leftWallWidth = roomY * (TILE_W / 2);
     const rightWallWidth = roomX * (TILE_W / 2);
+    // The floor's back corner; the walls stand on the floor's back edges and meet above it.
+    const corner = roomCorner(origin);
+    const wallTop = corner.y - WALL_HEIGHT;
 
-    // Walls meet at origin.x. Each is a flat image sheared along its grid axis;
-    // the left one is drawn lower by its drop so its back-top corner lands at y = 0.
+    // Each wall is a flat image sheared along its grid axis; the left one is drawn
+    // lower by its drop so its back-top corner lands at wallTop.
     if (leftWall) {
       canvas.save();
-      canvas.translate(origin.x - leftWallWidth, 0);
+      canvas.translate(corner.x - leftWallWidth, wallTop);
       canvas.skew(0, -WALL_SLOPE);
       drawCover(canvas, leftWall, Skia.XYWHRect(0, leftWallWidth * WALL_SLOPE, leftWallWidth, WALL_HEIGHT));
       canvas.restore();
     }
     if (rightWall) {
       canvas.save();
-      canvas.translate(origin.x, 0);
+      canvas.translate(corner.x, wallTop);
       canvas.skew(0, WALL_SLOPE);
       drawCover(canvas, rightWall, Skia.XYWHRect(0, 0, rightWallWidth, WALL_HEIGHT));
       canvas.restore();
@@ -99,8 +102,8 @@ export function Backdrop({ scene, origin }: Props) {
     // One floor image over the floor's bounding box; drawn after the walls so it masks their bottoms.
     if (floor) {
       drawCover(canvas, floor, Skia.XYWHRect(
-        origin.x - roomY * (TILE_W / 2),
-        origin.y,
+        corner.x - roomY * (TILE_W / 2),
+        corner.y,
         (roomX + roomY) * (TILE_W / 2),
         (roomX + roomY) * (TILE_H / 2),
       ));

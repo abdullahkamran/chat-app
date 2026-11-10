@@ -248,7 +248,7 @@ Two cell overlays (`engines/skia/DebugOverlay.tsx`), also dev-only and set to `1
 - `EXPO_PUBLIC_ROOM_DEBUG_OCCUPANCY`: orange on every cell a placed item's footprint covers (overlappable ones too), blue on the cell under each avatar's animated position (rounded, like taps).
 - `EXPO_PUBLIC_ROOM_DEBUG_CELL_MAP`: every floor cell, plus one-tile wall cells on both wall planes, outlined at low opacity.
 
-Floor cells are drawn centred on grid vertices, the convention `EditGrid`, `cellAt` and the session's rounding use.
+The overlays use the engine's one cell convention (see Skia engine notes), so the markers line up with the floor, walls, doors and item art.
 
 ### Adding an engine
 
@@ -277,7 +277,8 @@ Floor cells are drawn centred on grid vertices, the convention `EditGrid`, `cell
 ### Skia engine notes
 
 - `gridToScreen` and `screenToGrid` are worklets, so actor positions are projected on the UI thread.
-- Items sit bottom-centre on their grid position; edit-mode cells are centred on grid vertices (taps round, not floor).
+- One cell convention everywhere: cell (gx, gy) is centred on grid point (gx, gy) and spans ±0.5, so taps round, not floor. The floor spans -0.5 to size - 0.5; the walls stand on its back edges and meet at `roomCorner` (grid -0.5, -0.5), which `computeOrigin` puts at y = `WALL_HEIGHT`. Doors draw their own cell. An item's art fills the box over its footprint (`itemRect`), so seat offsets are measured against that box.
+- Walking (`planPath` in the session, `core/usePathfinding.ts`): a walk ends at the tapped point when its cell is free and reachable, else at the centre of the nearest reachable free cell (`nearestReachableCell`); the local user sends that resolved spot. Diagonal steps and straight legs never cut the corner of a blocked cell (`isLineClear` visits every cell a leg touches). Only the start cell is exempt, so someone inside furniture can walk out.
 - The backdrop (walls, floor, doors) is recorded into one `SkPicture` and re-recorded only when the theme, doors or canvas origin change.
 - Chat bubbles are RN views over the canvas, positioned from the actor's shared values through the camera; they don't scale with zoom.
 - Items and avatars are drawn into one world `SkPicture` every frame on the UI thread, depth-sorted by live position (`gx + gy`, +0.5 for avatars), so walking past furniture sorts correctly mid-walk.

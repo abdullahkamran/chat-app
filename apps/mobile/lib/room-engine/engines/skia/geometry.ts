@@ -16,16 +16,19 @@ export interface ScreenRect {
 }
 
 /**
- * Screen rectangle an item's image is fitted into, in content (pre-camera) pixels.
- * Anchored bottom-centre on the item's grid position.
+ * Screen rectangle an item's image is fitted into, in content (pre-camera) pixels: the
+ * bounding box of its footprint raised by its height. The footprint covers cells
+ * position .. position + dims - 1, which are centred on grid points, so its left corner
+ * is (x - 0.5, y + dy - 0.5) and its front corner (x + dx - 0.5, y + dy - 0.5).
  */
 export function itemRect(roomItem: RoomItem, origin: GridOrigin): ScreenRect {
   const dims = getEffectiveDimensions(roomItem.itemId.dimensions, roomItem.orientation);
   const { x: gx, y: gy, z: gz } = roomItem.position;
-  const anchor = gridToScreen(gx, gy, gz, origin);
+  const left = gridToScreen(gx - 0.5, gy + dims.y - 0.5, gz, origin);
+  const front = gridToScreen(gx + dims.x - 0.5, gy + dims.y - 0.5, gz, origin);
   const width = (dims.x + dims.y) * (TILE_W / 2);
   const height = (dims.x + dims.y) * (TILE_H / 2) + dims.z * TILE_H;
-  return { x: anchor.x - width / 2, y: anchor.y - height, width, height };
+  return { x: left.x, y: front.y - height, width, height };
 }
 
 /** Painter's-algorithm key for an item: its footprint centre, so big items sort in front of what they cover. */

@@ -34,7 +34,7 @@ import type { ActorState, EditState, EngineCapabilities, RoomEffect, RoomMode, R
 import { fitsAt, itemCovering } from '../core/editLayout';
 import { facingFromDelta } from '../core/facing';
 import { findSeat, itemSeats, sameSeat, seatApproach, seatPosition, type SitAction } from '../core/seats';
-import { findPath, isLineClear, smoothPath } from '../core/usePathfinding';
+import { findPath, isLineClear, nearestReachableCell, smoothPath } from '../core/usePathfinding';
 import { useWalkabilityGrid } from '../core/useWalkabilityGrid';
 import { useRoomDetails } from '../hooks/useRoomDetails';
 import {
@@ -682,19 +682,36 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
   }
 
   /**
-   * Waypoints from `from` to (x, y), ending exactly at (x, y). Routes around furniture
-   * with A* and string-pulls the result. Falls back to a straight line when the target
-   * cell is blocked or unreachable, as movement worked before pathfinding.
+   * Where a walk from `from` toward (x, y) ends: (x, y) itself, kept inside its cell, when
+   * that cell is free and reachable; otherwise the centre of the nearest cell that is.
+   * Nobody walks into furniture.
+   */
+  function resolveDestination(from: Position, x: number, y: number): Position {
+    const goal = cellOf(x, y);
+    const end = nearestReachableCell(cellOf(from.x, from.y), goal, isWalkable);
+    if (end.gx !== goal.gx || end.gy !== goal.gy) return { x: end.gx, y: end.gy, z: 0 };
+    return {
+      x: Math.max(goal.gx - 0.5, Math.min(goal.gx + 0.5, x)),
+      y: Math.max(goal.gy - 0.5, Math.min(goal.gy + 0.5, y)),
+      z: 0,
+    };
+  }
+
+  /**
+   * Waypoints from `from` toward (x, y), ending at resolveDestination's spot. Routes
+   * around furniture with A* and string-pulls the result.
    */
   function planPath(from: Position, x: number, y: number): Position[] {
-    const destination = { x, y, z: 0 };
-    const start = cellOf(from.x, from.y);
-    const goal = cellOf(x, y);
-    if (isLineClear(start, goal, isWalkable)) return [destination];
+    const destination = resolveDestination(from, x, y);
+    const startPoint = { gx: from.x, gy: from.y };
+    const endPoint = { gx: destination.x, gy: destination.y };
+    if (isLineClear(startPoint, endPoint, isWalkable)) return [destination];
 
-    const cells = findPath(start, goal, isWalkable);
+    const cells = findPath(cellOf(from.x, from.y), cellOf(destination.x, destination.y), isWalkable);
     if (cells.length === 0) return [destination];
-    const turns = smoothPath(start, cells, isWalkable).slice(0, -1);
+    // Smooth toward the exact destination, not its cell centre, so the last leg is checked too.
+    cells[cells.length - 1] = endPoint;
+    const turns = smoothPath(startPoint, cells, isWalkable).slice(0, -1);
     return [...turns.map(c => ({ x: c.gx, y: c.gy, z: 0 })), destination];
   }
 
@@ -730,9 +747,12 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
   }
 
   function walkMeTo(destGx: number, destGy: number) {
-    if (!actors[userId]) return;
-    moveMe(destGx, destGy);
-    setActorDestination(userId, destGx, destGy);
+    const me = actors[userId];
+    if (!me) return;
+    // Send where the walk really ends, so the room and the server's presence agree on it.
+    const { x, y } = resolveDestination(me.position, destGx, destGy);
+    moveMe(x, y);
+    setActorDestination(userId, x, y);
   }
 
   /**
@@ -881,9 +901,9 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
 
   function walkTo({ gx, gy }: GridPoint) {
     if (isEditMode) return;
-    // Clamp to floor bounds — characters use float positions, not cell centres
-    const destGx = Math.max(0, Math.min(roomDimensions.x, gx));
-    const destGy = Math.max(0, Math.min(roomDimensions.y, gy));
+    // Clamp to the floor, whose cells are centred on grid vertices: it spans -0.5 to size - 0.5.
+    const destGx = Math.max(-0.5, Math.min(roomDimensions.x - 0.5, gx));
+    const destGy = Math.max(-0.5, Math.min(roomDimensions.y - 0.5, gy));
     walkMeTo(destGx, destGy);
   }
 

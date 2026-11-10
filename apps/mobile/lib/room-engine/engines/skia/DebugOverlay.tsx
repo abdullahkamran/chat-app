@@ -29,8 +29,8 @@ function addCell(builder: SkPathBuilder, gx: number, gy: number, origin: GridOri
 }
 
 /**
- * Floor cells, plus one-tile wall cells on the planes the wall images are drawn on
- * (gy = 0 for the right wall, gx = 0 for the left), one row per grid unit of height.
+ * Floor cells, plus one-tile wall cells on the floor's back edges (gy = -0.5 for the
+ * right wall, gx = -0.5 for the left), in the floor's columns, one row per grid unit of height.
  */
 function CellMap({ dimensions, origin }: { dimensions: Dimensions; origin: GridOrigin }) {
   const { colors } = useTheme();
@@ -42,18 +42,18 @@ function CellMap({ dimensions, origin }: { dimensions: Dimensions; origin: GridO
     for (let z = 0; z < WALL_ROWS; z++) {
       for (let gx = 0; gx < dimensions.x; gx++) {
         builder.addPoly([
-          gridToScreen(gx, 0, z, origin),
-          gridToScreen(gx + 1, 0, z, origin),
-          gridToScreen(gx + 1, 0, z + 1, origin),
-          gridToScreen(gx, 0, z + 1, origin),
+          gridToScreen(gx - 0.5, -0.5, z, origin),
+          gridToScreen(gx + 0.5, -0.5, z, origin),
+          gridToScreen(gx + 0.5, -0.5, z + 1, origin),
+          gridToScreen(gx - 0.5, -0.5, z + 1, origin),
         ], true);
       }
       for (let gy = 0; gy < dimensions.y; gy++) {
         builder.addPoly([
-          gridToScreen(0, gy, z, origin),
-          gridToScreen(0, gy + 1, z, origin),
-          gridToScreen(0, gy + 1, z + 1, origin),
-          gridToScreen(0, gy, z + 1, origin),
+          gridToScreen(-0.5, gy - 0.5, z, origin),
+          gridToScreen(-0.5, gy + 0.5, z, origin),
+          gridToScreen(-0.5, gy + 0.5, z + 1, origin),
+          gridToScreen(-0.5, gy - 0.5, z + 1, origin),
         ], true);
       }
     }

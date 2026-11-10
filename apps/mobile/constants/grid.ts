@@ -25,7 +25,7 @@ export interface GridOrigin {
 /**
  * Convert grid coordinates to absolute screen pixels.
  *
- * Grid origin (0,0) is the back-left corner where both walls meet.
+ * Grid point (0,0) is the centre of the back cell; the walls meet half a cell behind it.
  * x-axis goes right-forward, y-axis goes left-forward (standard 2:1 isometric).
  * gz shifts the point upward (for wall-mounted items).
  * A worklet, so engines can project on the UI thread.
@@ -62,8 +62,12 @@ export function screenToGrid(
 }
 
 /**
- * Compute the origin (pixel position of grid cell 0,0) so the room is
+ * Compute the origin (pixel position of grid point 0,0) so the room is
  * centered horizontally within the canvas, with the floor starting at WALL_HEIGHT.
+ *
+ * Cells are centred on grid points: cell (gx, gy) spans gx ± 0.5, gy ± 0.5, so the
+ * floor spans -0.5 to size - 0.5 on each axis and its back corner, where the walls
+ * meet, is (-0.5, -0.5) (see roomCorner). The origin sits half a tile below it.
  *
  * @param canvasWidth  Total canvas width in px
  * @param roomDims     Room grid dimensions (x = cols, y = rows)
@@ -78,7 +82,12 @@ export function computeOrigin(
   // Centre = origin.x + (roomDims.x - roomDims.y) * TILE_W/4
   // We want that centre to equal canvasWidth/2:
   const originX = canvasWidth / 2 - ((roomDims.x - roomDims.y) * TILE_W) / 4;
-  return { x: originX, y: WALL_HEIGHT };
+  return { x: originX, y: WALL_HEIGHT + TILE_H / 2 };
+}
+
+/** Screen position of the floor's back corner, where the two walls meet (grid -0.5, -0.5). */
+export function roomCorner(origin: GridOrigin): ScreenPoint {
+  return gridToScreen(-0.5, -0.5, 0, origin);
 }
 
 /**

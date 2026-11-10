@@ -1,7 +1,10 @@
 import { type GridPoint } from '@/constants/grid';
 
+type IsWalkable = (gx: number, gy: number) => boolean;
+
 /**
  * A* pathfinding on a 2D grid with 8-directional (diagonal) movement.
+ * A diagonal step needs both cells beside it free, so paths never cut a blocked corner.
  *
  * Returns the list of grid cells to walk through (excluding the start cell,
  * including the destination), or an empty array if unreachable.
@@ -9,7 +12,7 @@ import { type GridPoint } from '@/constants/grid';
 export function findPath(
   from: GridPoint,
   to: GridPoint,
-  isWalkable: (gx: number, gy: number) => boolean,
+  isWalkable: IsWalkable,
 ): GridPoint[] {
   if (!isWalkable(to.gx, to.gy)) return [];
   if (from.gx === to.gx && from.gy === to.gy) return [];
@@ -51,10 +54,9 @@ export function findPath(
       return reconstructPath(current);
     }
 
-    for (const [nx, ny, cost] of neighbors(current.gx, current.gy)) {
+    for (const [nx, ny, cost] of steps(current.gx, current.gy, isWalkable)) {
       const nk = key(nx, ny);
       if (closed.has(nk)) continue;
-      if (!isWalkable(nx, ny) && !(nx === to.gx && ny === to.gy)) continue;
 
       const g = current.g + cost;
       const existing = openMap.get(nk);
@@ -81,25 +83,81 @@ export function findPath(
 }
 
 /**
- * Check if a straight line from `from` to `to` passes through no blocked cells.
- * Destination cell is always considered passable (handled by caller).
+ * The walkable cell reachable from `from` that is nearest `to`: `to` itself when it can be
+ * reached, else the closest one (fewest steps on a tie). `from` when nothing else is reachable.
+ * The start cell may be blocked (someone inside furniture), so they can still walk out.
+ */
+export function nearestReachableCell(from: GridPoint, to: GridPoint, isWalkable: IsWalkable): GridPoint {
+  const seen = new Set([`${from.gx},${from.gy}`]);
+  const queue = [from];
+  let best = from;
+  let bestDist = distSq(from, to);
+  // Breadth-first, so among equally near cells the first found is the fewest steps away.
+  for (let i = 0; i < queue.length && bestDist > 0; i++) {
+    const cell = queue[i];
+    for (const [gx, gy] of steps(cell.gx, cell.gy, isWalkable)) {
+      const k = `${gx},${gy}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      const next = { gx, gy };
+      const d = distSq(next, to);
+      if (d < bestDist) {
+        best = next;
+        bestDist = d;
+      }
+      queue.push(next);
+    }
+  }
+  return best;
+}
+
+/**
+ * Whether the straight segment from `from` to `to` (fractional grid points) crosses only
+ * walkable cells. Visits every cell the segment touches; one that passes exactly through
+ * a corner needs both cells beside the corner free, like a diagonal step. The start cell
+ * is not checked, so an actor standing inside furniture can walk out.
+ *
+ * Cells are centred on grid vertices: cell (gx, gy) spans gx ± 0.5, gy ± 0.5.
  */
 export function isLineClear(
   from: GridPoint,
   to: GridPoint,
-  isWalkable: (gx: number, gy: number) => boolean,
+  isWalkable: IsWalkable,
 ): boolean {
+  // Shift by half a cell so cell edges fall on integers.
+  const x0 = from.gx + 0.5;
+  const y0 = from.gy + 0.5;
   const dx = to.gx - from.gx;
   const dy = to.gy - from.gy;
-  const steps = Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) * 2);
-  if (steps === 0) return true;
-  for (let i = 1; i <= steps; i++) {
-    const t = i / steps;
-    const gx = Math.round(from.gx + dx * t);
-    const gy = Math.round(from.gy + dy * t);
-    // Always allow the destination through even if it's the only walkable cell
-    if (gx === to.gx && gy === to.gy) continue;
-    if (!isWalkable(gx, gy)) return false;
+  let cx = Math.floor(x0);
+  let cy = Math.floor(y0);
+  const ex = Math.floor(to.gx + 0.5);
+  const ey = Math.floor(to.gy + 0.5);
+  const sx = Math.sign(dx);
+  const sy = Math.sign(dy);
+  // Amanatides–Woo: t is the fraction of the segment travelled when it next crosses an x or y edge.
+  const tDeltaX = sx !== 0 ? Math.abs(1 / dx) : Infinity;
+  const tDeltaY = sy !== 0 ? Math.abs(1 / dy) : Infinity;
+  let tMaxX = sx > 0 ? (cx + 1 - x0) / dx : sx < 0 ? (cx - x0) / dx : Infinity;
+  let tMaxY = sy > 0 ? (cy + 1 - y0) / dy : sy < 0 ? (cy - y0) / dy : Infinity;
+
+  // Bounded, so float error can never loop forever.
+  for (let n = Math.abs(ex - cx) + Math.abs(ey - cy); n > 0 && (cx !== ex || cy !== ey); n--) {
+    if (Math.abs(tMaxX - tMaxY) < 1e-9) {
+      if (!isWalkable(cx + sx, cy) || !isWalkable(cx, cy + sy)) return false;
+      cx += sx;
+      cy += sy;
+      tMaxX += tDeltaX;
+      tMaxY += tDeltaY;
+      n--;
+    } else if (tMaxX < tMaxY) {
+      cx += sx;
+      tMaxX += tDeltaX;
+    } else {
+      cy += sy;
+      tMaxY += tDeltaY;
+    }
+    if (!isWalkable(cx, cy)) return false;
   }
   return true;
 }
@@ -114,7 +172,7 @@ export function isLineClear(
 export function smoothPath(
   from: GridPoint,
   path: GridPoint[],
-  isWalkable: (gx: number, gy: number) => boolean,
+  isWalkable: IsWalkable,
 ): GridPoint[] {
   if (path.length <= 1) return path;
 
@@ -146,18 +204,33 @@ function heuristic(ax: number, ay: number, bx: number, by: number): number {
   return Math.max(dx, dy) + (Math.SQRT2 - 1) * Math.min(dx, dy);
 }
 
-// 8 neighbors: 4 cardinal + 4 diagonal (diagonal cost = √2)
-function neighbors(gx: number, gy: number): [number, number, number][] {
-  return [
-    [gx + 1, gy,     1],
-    [gx - 1, gy,     1],
-    [gx,     gy + 1, 1],
-    [gx,     gy - 1, 1],
-    [gx + 1, gy + 1, Math.SQRT2],
-    [gx + 1, gy - 1, Math.SQRT2],
-    [gx - 1, gy + 1, Math.SQRT2],
-    [gx - 1, gy - 1, Math.SQRT2],
-  ];
+function distSq(a: GridPoint, b: GridPoint): number {
+  return (a.gx - b.gx) ** 2 + (a.gy - b.gy) ** 2;
+}
+
+const DIRECTIONS: [number, number][] = [
+  [1, 0], [-1, 0], [0, 1], [0, -1],
+  [1, 1], [1, -1], [-1, 1], [-1, -1],
+];
+
+/**
+ * Walkable neighbours of a cell with their cost (diagonal √2). A diagonal step needs
+ * both cells beside it free, so nobody squeezes between two pieces of furniture.
+ */
+function steps(gx: number, gy: number, isWalkable: IsWalkable): [number, number, number][] {
+  const out: [number, number, number][] = [];
+  for (const [dx, dy] of DIRECTIONS) {
+    const nx = gx + dx;
+    const ny = gy + dy;
+    if (!isWalkable(nx, ny)) continue;
+    if (dx !== 0 && dy !== 0) {
+      if (!isWalkable(gx + dx, gy) || !isWalkable(gx, gy + dy)) continue;
+      out.push([nx, ny, Math.SQRT2]);
+    } else {
+      out.push([nx, ny, 1]);
+    }
+  }
+  return out;
 }
 
 function reconstructPath(node: { gx: number; gy: number; parent: { gx: number; gy: number; parent: any } | null }): GridPoint[] {

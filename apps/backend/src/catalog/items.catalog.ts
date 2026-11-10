@@ -22,15 +22,19 @@ function item({ coins, ...rest }: CatalogItemInput): CatalogItem {
 
 /** A one-seat item. Seat heights are eyeballed from placeholder art; tune them on a device. */
 function oneSeat(z: number): CatalogItem['seats'] {
-    return [{ cell: { x: 0, y: 0 }, facing: Facing.SW, offset: { x: 0, y: 0, z } }];
+    return [{ cell: { x: 0, y: 0 }, facing: Facing.SW, offset: { x: 0.5, y: 0.5, z } }];
 }
 
-/** Seats along the x axis of an n×1 item, spaced like Test Couch's. */
+/**
+ * Seats along the x axis of an n×1 item, spaced like Test Couch's. The client draws an
+ * item's art over its footprint's box, which for n×1 starts (3n - 1) / 4 and (n + 1) / 4
+ * cells further along x and y than the item's position; Test Couch's offsets hold for n = 2.
+ */
 function rowSeats(n: number): CatalogItem['seats'] {
     return Array.from({ length: n }, (_, x) => ({
         cell: { x, y: 0 },
         facing: Facing.SW,
-        offset: { x: -0.95 + 0.7 * x, y: -0.45, z: 0.1 },
+        offset: { x: -0.95 + (3 * n - 1) / 4 + 0.7 * x, y: -0.45 + (n + 1) / 4, z: 0.1 },
     }));
 }
 
@@ -58,7 +62,7 @@ export const ITEMS_CATALOG: CatalogItem[] = [
         isOverlappable: false,
         assetUrl: 'items/furniture/test-chair.png',
         // Seat offsets are eyeballed from the art; tune them on a device.
-        seats: [{ cell: { x: 0, y: 0 }, facing: Facing.SW, offset: { x: 0, y: 0, z: 0.4 } }],
+        seats: [{ cell: { x: 0, y: 0 }, facing: Facing.SW, offset: { x: 0.5, y: 0.5, z: 0.4 } }],
         canOwnMultiple: true,
     },
     {
@@ -74,8 +78,8 @@ export const ITEMS_CATALOG: CatalogItem[] = [
         isOverlappable: false,
         assetUrl: 'items/furniture/test-couch.png',
         seats: [
-            { cell: { x: 0, y: 0 }, facing: Facing.SW, offset: { x: -0.95, y: -0.45, z: 0.1 } },
-            { cell: { x: 1, y: 0 }, facing: Facing.SW, offset: { x: -0.25, y: -0.45, z: 0.1 } },
+            { cell: { x: 0, y: 0 }, facing: Facing.SW, offset: { x: 0.3, y: 0.3, z: 0.1 } },
+            { cell: { x: 1, y: 0 }, facing: Facing.SW, offset: { x: 1.0, y: 0.3, z: 0.1 } },
         ],
         canOwnMultiple: true,
     },
