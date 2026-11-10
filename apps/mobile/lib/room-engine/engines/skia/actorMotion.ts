@@ -13,7 +13,7 @@ import type { ActorAction, ActorActionKind } from '@chat-app/shared-types';
 import type { ActorState } from '../../core/contract';
 
 /** Default walking pace in ms per grid cell, when the user has no speed attribute. */
-const DEFAULT_MS_PER_CELL = 500;
+export const DEFAULT_MS_PER_CELL = 500;
 const MIN_SEGMENT_MS = 50;
 /** Sliding onto a seat from the cell in front of it, and lifting off it when walking away. */
 const SETTLE_MS = 350;
@@ -61,12 +61,13 @@ export function useActorMotions(actors: Actors): ReadonlyMap<string, ActorMotion
  * Plays the actor's current action on its motion values.
  * A walk runs through every path point at constant speed, then reports completion.
  * Sitting slides onto the seat; any other action snaps to the logical position if the
- * two have drifted.
+ * two have drifted. While `steered` (the joystick moves it, see joystick/) it does nothing.
  */
 export function useActorWalk(
   actor: ActorState,
   motion: ActorMotion,
   onActionComplete: (actorId: string, action: ActorActionKind, finished?: ActorAction) => void,
+  steered = false,
 ) {
   const onWalkDone = useEffectEvent((actorId: string, walk: ActorAction) => onActionComplete(actorId, 'walk', walk));
 
@@ -75,6 +76,7 @@ export function useActorWalk(
   const msPerCell = actor.user?.attributes?.speed ?? DEFAULT_MS_PER_CELL;
 
   useEffect(() => {
+    if (steered) return;
     const { gx, gy, gz } = motion;
     // Reports which walk ended, so a late report for a replaced walk can be ignored.
     const complete = (actorId: string) => onWalkDone(actorId, action);
@@ -125,7 +127,7 @@ export function useActorWalk(
       }),
     )));
     gy.set(withSequence(...segments.map(({ point, config }) => withTiming(point.y, config))));
-  }, [id, action, position.x, position.y, gzTarget, msPerCell, motion]);
+  }, [id, action, position.x, position.y, gzTarget, msPerCell, motion, steered]);
 
   // Stop any running walk when the actor leaves.
   useEffect(() => () => {

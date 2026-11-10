@@ -32,7 +32,7 @@ import {
   type RoomTheme,
   type User,
 } from '@chat-app/shared-types';
-import type { ActorState, EditState, EngineCapabilities, RoomEffect, RoomMode, RoomScene } from '../core/contract';
+import type { ActorState, EditState, EngineCapabilities, FloorPoint, RoomEffect, RoomMode, RoomScene } from '../core/contract';
 import { fitsAt, itemCovering } from '../core/editLayout';
 import { facingFromDelta } from '../core/facing';
 import { findSeat, itemSeats, sameSeat, seatApproach, seatPosition, type SitAction } from '../core/seats';
@@ -901,10 +901,54 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     });
   }
 
+  // ── Joystick steering (experimental, see joystick/) ──────────────────────
+  // The engine moves the local actor while the stick is pushed. Here it walks (for the walk
+  // clip), its position is sent ahead of where it is drawn, and it stops where the engine says.
+
+  const steeringRef = useRef(false);
+
+  function steerStart() {
+    if (isEditMode || !actors[userId]) return;
+    steeringRef.current = true;
+    delete pendingSitRef.current[userId];
+    delete pendingEmoteRef.current[userId];
+    clearMutual(userId);
+    // A walk the stick cut short may still report finishing; that report is now ignored.
+    walkSeqRef.current[userId] = (walkSeqRef.current[userId] ?? 0) + 1;
+    setActors(current => {
+      const me = current[userId];
+      // An empty walk: the engine draws walking, and moves the actor itself.
+      return me ? { ...current, [userId]: { ...me, action: { kind: 'walk', path: [] } } } : current;
+    });
+  }
+
+  function steerMove(_at: FloorPoint, ahead: FloorPoint) {
+    if (!steeringRef.current) return;
+    // Others walk toward a point a little ahead, so they see one smooth walk, not hops.
+    // The server stands us up from any seat and ends any emote on the first one.
+    moveMe(ahead.x, ahead.y);
+  }
+
+  function steerStop(at: FloorPoint) {
+    if (!steeringRef.current) return;
+    steeringRef.current = false;
+    moveMe(at.x, at.y);
+    const emote = pendingEmoteRef.current[userId];
+    delete pendingEmoteRef.current[userId];
+    setActors(current => {
+      const me = current[userId];
+      if (!me) return current;
+      const stopped: ActorState = { ...me, position: { x: at.x, y: at.y, z: 0 }, action: { kind: 'idle' } };
+      // An emote chosen while steering plays now, as one chosen mid-walk does on arrival.
+      return { ...current, [userId]: emote ? startEmote(current, stopped, emote) : stopped };
+    });
+  }
+
   // ── Play-mode intents ─────────────────────────────────────────────────────
 
   function walkTo({ gx, gy }: GridPoint) {
-    if (isEditMode) return;
+    // The stick is in charge while it is pushed.
+    if (isEditMode || steeringRef.current) return;
     // Clamp to the floor, whose cells are centred on grid vertices: it spans -0.5 to size - 0.5.
     const destGx = Math.max(-0.5, Math.min(roomDimensions.x - 0.5, gx));
     const destGy = Math.max(-0.5, Math.min(roomDimensions.y - 0.5, gy));
@@ -916,7 +960,7 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
    * otherwise walk to the nearest adjacent walkable cell.
    */
   function interactWith(roomItem: RoomItem) {
-    if (isEditMode) return;
+    if (isEditMode || steeringRef.current) return;
     const me = actors[userId];
     if (!me) return;
 
@@ -1245,6 +1289,9 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
       rotateSelectedPlaced,
       removeSelectedPlaced,
       editCell,
+      steerStart,
+      steerMove,
+      steerStop,
     },
   };
 }

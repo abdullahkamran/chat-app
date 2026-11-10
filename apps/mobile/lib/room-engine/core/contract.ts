@@ -1,4 +1,5 @@
 import type { ComponentType } from 'react';
+import type { SharedValue } from 'react-native-reanimated';
 
 import type { GridPoint } from '@/constants/grid';
 import type {
@@ -118,6 +119,32 @@ export interface RoomRendererProps {
   /** The engine finished playing a non-looping action (e.g. a walk reached its destination). */
   /** `finished` is the action object that ended, so the session can ignore a report for one it has since replaced. */
   onActionComplete(actorId: string, action: ActorActionKind, finished?: ActorAction): void;
+  /**
+   * Experimental joystick steering of the local actor (see joystick/). Absent when off.
+   * An engine that doesn't support it ignores it, and tap-to-walk still works.
+   */
+  steering?: SteeringInput;
+}
+
+/** A point on the floor, in fractional grid coordinates. */
+export interface FloorPoint {
+  x: number;
+  y: number;
+}
+
+/**
+ * Joystick input for the local actor. The engine moves the actor itself every frame while
+ * the stick is pushed, and reports to the session, which owns what is true.
+ */
+export interface SteeringInput {
+  /** Stick direction in screen space (x right, y down), unit length; (0, 0) at rest. Written on the UI thread. */
+  stick: SharedValue<{ x: number; y: number }>;
+  /** The local actor started moving under the stick. */
+  onStart(): void;
+  /** While moving, every STEER_REPORT_MS: where it is drawn now, and where it will be shortly. */
+  onMove(at: FloorPoint, ahead: FloorPoint): void;
+  /** The stick came back to rest and the actor stopped here. */
+  onStop(at: FloorPoint): void;
 }
 
 export interface EngineCapabilities {

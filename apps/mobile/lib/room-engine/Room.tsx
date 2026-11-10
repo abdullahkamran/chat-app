@@ -1,5 +1,6 @@
 import type { RoomEngine } from './core/contract';
 import { skiaEngine } from './engines/skia';
+import { Joystick, useJoystick } from './joystick';
 import { RoomShell } from './session/RoomShell';
 import { useRoomSession } from './session/useRoomSession';
 
@@ -9,10 +10,12 @@ const engine: RoomEngine = skiaEngine;
 
 export function Room({ roomId }: Readonly<{ roomId: string }>) {
   const session = useRoomSession(roomId, engine.capabilities);
+  // Experimental, off unless EXPO_PUBLIC_ROOM_JOYSTICK=1.
+  const steering = useJoystick(session);
   const { Renderer } = engine;
 
   return (
-    <RoomShell session={session}>
+    <RoomShell session={session} controls={steering && <Joystick stick={steering.stick} />}>
       {session.scene && (
         <Renderer
           scene={session.scene}
@@ -26,6 +29,7 @@ export function Room({ roomId }: Readonly<{ roomId: string }>) {
           onItemTap={session.intents.interactWith}
           onCellTap={session.intents.editCell}
           onActionComplete={session.onActionComplete}
+          steering={steering ?? undefined}
         />
       )}
     </RoomShell>

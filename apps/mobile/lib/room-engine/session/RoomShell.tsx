@@ -68,13 +68,15 @@ interface Props {
   session: RoomSession;
   /** The engine's renderer. */
   children: ReactNode;
+  /** Play-mode controls over the room's bottom-right corner (the experimental joystick). Hidden with the postbox button. */
+  controls?: ReactNode;
 }
 
 /**
  * Engine-independent room chrome: header or edit toolbar, chat input, avatar or emote
  * drawer or inventory drawer, and the loading / error states. The engine renders in between.
  */
-export function RoomShell({ session, children }: Readonly<Props>) {
+export function RoomShell({ session, children, controls }: Readonly<Props>) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const styles = useStyles();
@@ -201,6 +203,7 @@ export function RoomShell({ session, children }: Readonly<Props>) {
               {children}
             </Animated.View>
 
+            {!isEditMode && !(showChat && transcriptOpen) && controls}
             {!isEditMode && !(showChat && transcriptOpen) && (
               <View style={styles.fabColumn} pointerEvents="box-none">
                 <MailboxButton unread={mailbox?.unread ?? 0} hint={mailHint} onPress={openMailbox} />

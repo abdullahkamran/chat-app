@@ -345,3 +345,19 @@ presence entry's socket id, which only reaches sockets on the same instance. Fou
 `GETDEL` so only one answer wins. Send to a user's sockets in the room through their user channel and let
 the client ignore other rooms, which the Redis adapter carries across instances. For lapses, listen to Redis
 keyspace expiry events on one instance (or have clients send a timed-out decline and let the TTL clean up).
+
+### 12. Joystick steering sends five walk points a second
+
+**Seen (with load, once the joystick is on):** each user steering with the experimental room joystick sends
+`SEND_POINT` every 200 ms. The server logs every one, updates presence and relays each to the whole room, so a
+busy room with several people steering costs several times the socket traffic and log volume of tap-to-walk.
+With the Redis adapter (scaling issue 2) every relay also crosses Redis to every instance.
+
+**Why:** others only see us through points, so steering streams short points ahead of where we are
+(`STEER_REPORT_MS`, `STEER_LEAD_MS` in `apps/mobile/lib/room-engine/joystick/config.ts`), and
+`SEND_POINT` in `apps/backend/src/sockets/socketHandler.ts` handles each one like a tap. Added 2026-11-11.
+
+**Fix:** drop the per-point `console.log` (or sample it); rate-limit `SEND_POINT` per socket (a few a second,
+dropping extras but always keeping the latest); and, if it matters, coalesce relays per room per tick
+(e.g. 100 ms) into one batched event. Raising `STEER_REPORT_MS` with a matching `STEER_LEAD_MS` is the quick
+client-side lever, at the cost of others seeing slightly looser motion.

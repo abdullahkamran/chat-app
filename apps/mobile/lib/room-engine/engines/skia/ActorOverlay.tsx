@@ -22,6 +22,8 @@ interface Props {
   origin: GridOrigin;
   canvasHeight: number;
   onActionComplete: (actorId: string, action: ActorActionKind, finished?: ActorAction) => void;
+  /** The joystick is moving this actor; its walk animation stays out of the way. */
+  steered?: boolean;
 }
 
 /**
@@ -29,8 +31,8 @@ interface Props {
  * its chat bubbles and typing indicator. Bubbles follow the actor through the camera
  * transform but stay at a fixed size so text remains readable when zoomed out.
  */
-export function ActorOverlay({ actor, motion, camera, origin, canvasHeight, onActionComplete }: Props) {
-  useActorWalk(actor, motion, onActionComplete);
+export function ActorOverlay({ actor, motion, camera, origin, canvasHeight, onActionComplete, steered }: Props) {
+  useActorWalk(actor, motion, onActionComplete, steered);
   const duration = actor.user?.attributes?.bubbleDuration ?? DEFAULT_BUBBLE_MS;
   const bubbles = useBubbleQueue(actor.bubbles, duration);
 

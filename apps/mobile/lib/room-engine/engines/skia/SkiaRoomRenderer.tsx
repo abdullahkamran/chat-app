@@ -10,7 +10,8 @@ import { ActorOverlay } from './ActorOverlay';
 import { Backdrop } from './Backdrop';
 import { DEBUG_CELL_MAP, DEBUG_OCCUPANCY, DebugOverlay } from './DebugOverlay';
 import { EditGrid } from './EditGrid';
-import { useActorMotions } from './actorMotion';
+import { useSteerDriver } from '../../joystick/useSteerDriver';
+import { DEFAULT_MS_PER_CELL, useActorMotions } from './actorMotion';
 import { cellAt, hitTestActors, hitTestItems } from './geometry';
 import { preloadSkImages, useSkImages } from './imageCache';
 import { AVATAR_HEIGHT } from './skeleton/humanoidV1';
@@ -65,6 +66,7 @@ function Room({
   onItemTap,
   onCellTap,
   onActionComplete: sessionOnActionComplete,
+  steering,
   width,
   height,
 }: RoomRendererProps & { width: number; height: number }) {
@@ -72,6 +74,14 @@ function Room({
   const isEditMode = mode === 'edit';
   const { actors, onActionComplete } = useStressActors(sessionActors, scene.dimensions, sessionOnActionComplete);
   const motions = useActorMotions(actors);
+  // Experimental joystick (joystick/): moves the local actor while the stick is pushed.
+  const steered = useSteerDriver({
+    steering,
+    motion: motions.get(localActorId),
+    dimensions: scene.dimensions,
+    items: scene.items,
+    msPerCell: actors[localActorId]?.user?.attributes?.speed ?? DEFAULT_MS_PER_CELL,
+  });
 
   // Taps arrive in content coordinates (the camera is already undone).
   const handleTap = (x: number, y: number) => {
@@ -140,6 +150,7 @@ function Room({
               origin={origin}
               canvasHeight={height}
               onActionComplete={onActionComplete}
+              steered={steered && a.id === localActorId}
             />
           );
         })}

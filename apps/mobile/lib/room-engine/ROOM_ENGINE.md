@@ -215,6 +215,7 @@ core/useWalkabilityGrid.ts    blocked cells from placed items
 core/usePathfinding.ts        A* + string-pulling; the session routes every walk through it
 session/useRoomSession.ts     socket events, actors, chat, edit mode, intents
 session/RoomShell.tsx         header / edit toolbar, chat input / avatar, emote or inventory drawer, postbox + edit buttons, loading + error
+joystick/                     experimental thumbstick movement, off by default (see "Joystick" below)
 engines/skia/                 Skia + Reanimated renderer, skeletal avatars
 engines/skia/skeleton/        humanoid-v1 rig, hand-written clips, sampler/solver worklets, programmer-art atlas
 ```
@@ -249,6 +250,22 @@ Two cell overlays (`engines/skia/DebugOverlay.tsx`), also dev-only and set to `1
 - `EXPO_PUBLIC_ROOM_DEBUG_CELL_MAP`: every floor cell, plus one-tile wall cells on both wall planes, outlined at low opacity.
 
 The overlays use the engine's one cell convention (see Skia engine notes), so the markers line up with the floor, walls, doors and item art.
+
+### Joystick (experimental)
+
+A thumbstick in the room's bottom-right corner, alongside tap-to-walk. Off unless `EXPO_PUBLIC_ROOM_JOYSTICK=1` (in `apps/mobile/.env.local`, or the build's env for testers; not dev-only). Restart Metro with `-c` after changing it.
+
+How it works:
+
+- **Stick** (`joystick/Joystick.tsx`): a fixed ring with a mint knob, laid out between the chat peek and the postbox button. Direction is the thumb's position relative to the ring's centre, written on the UI thread to a `stick` shared value as a unit screen-space vector; `(0, 0)` inside an 8 px dead zone and on release. Speed is constant (the user's walk speed), so only direction matters. A 20 px padded touch zone catches near misses; grabbing ticks a haptic.
+- **Engine** (`joystick/useSteerDriver.ts`, called from `SkiaRoomRenderer`): a frame callback moves the local actor's `gx/gy` motion values directly while the stick is pushed. The screen direction is turned into grid space by inverting the isometric projection (`stickToGrid`), so up on the stick is up on screen. Collision is a 0.2-cell body against the walkability grid with axis sliding (`steerStep` in `joystick/steerMath.ts`), so pushing diagonally into furniture glides along it; cells the body already overlaps are exempt, so it can step out of a seat. While steering, `useActorWalk` leaves that actor alone (`steered`).
+- **Contract:** `RoomRendererProps.steering` (`SteeringInput`: `stick`, `onStart`, `onMove(at, ahead)`, `onStop(at)`). Optional: an engine that ignores it still works with taps.
+- **Session** (`steerStart` / `steerMove` / `steerStop` in `useRoomSession.ts`): start drops any pending sit, emote or mutual emote and sets the local action to an empty walk (so the walk clip plays and facing follows motion). Every `STEER_REPORT_MS` (200 ms) it sends a point `STEER_LEAD_MS` (250 ms) of walking ahead of where the actor is drawn, so others walk one continuous line toward it instead of hopping. The first point stands the user up server-side. Stop sends the exact spot, sets the position there and goes idle, and plays an emote chosen while steering. Floor and item taps are ignored while steering.
+- **Load:** about five points a second per steering user; see `docs/known-issues.md` (scaling issue 12).
+
+Not done yet: the camera doesn't follow the actor, mutual-emote walks started mid-steer are overridden by the stick, and there's no user setting (only the env flag).
+
+**Removing it:** delete `joystick/`, then the touch points: `useJoystick` + `controls` + `steering` in `Room.tsx`; the `controls` prop in `RoomShell.tsx`; `steering`, `SteeringInput` and `FloorPoint` in `core/contract.ts`; `useSteerDriver` and `steered` in `SkiaRoomRenderer.tsx`; the `steered` parameter in `ActorOverlay.tsx` and `useActorWalk` (`actorMotion.ts`); the "Joystick steering" block, the `steeringRef` guards in `walkTo` / `interactWith` and the three `steer*` intents in `useRoomSession.ts`; scaling issue 12 in `docs/known-issues.md`. `tsc` points at anything missed.
 
 ### Adding an engine
 
