@@ -1,19 +1,19 @@
 import React, { useState } from 'react';
-import { Alert, FlatList, ScrollView, View } from 'react-native';
+import { Alert, FlatList, View } from 'react-native';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Animation, AvatarInventoryEntry, AvatarItem, Item, PaginatedAnimations, PaginatedAvatarItems, PaginatedItems } from '@chat-app/shared-types';
 import { useAuth } from '@/context/auth.context';
 import { api } from '@/lib/api';
-import { AppText, Button, Chip, CoinPill, EmptyState, ScreenHeader, SegmentedControl, Spinner } from '@/components/ui';
+import { AppText, Button, CoinPill, EmptyState, ScreenHeader, SegmentedControl, Spinner } from '@/components/ui';
 import { makeStyles } from '@/constants/theme';
 import { useMe } from '@/hooks/useMe';
 import ShopItemCard from './ShopItemCard';
 import AvatarShopItemCard from './AvatarShopItemCard';
 import ItemDetailModal from './ItemDetailModal';
+import { ALL_CATEGORY, CategoryChips } from './CategoryChips';
 
 const LIMIT = 20;
-const ALL_CATEGORY = '__all__';
 
 type ShopTab = 'items' | 'outfits' | 'animations';
 
@@ -22,28 +22,6 @@ const TABS = [
     { value: 'outfits', label: 'Outfits' },
     { value: 'animations', label: 'Animations' },
 ] as const;
-
-/** A horizontal row of category filters, "All" first. */
-function CategoryChips({ categories, selected, onSelect }: { categories: string[]; selected: string; onSelect: (c: string) => void }) {
-    const styles = useStyles();
-    return (
-        <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.categoryBar}
-            contentContainerStyle={styles.categoryContent}
-        >
-            {[ALL_CATEGORY, ...categories].map((cat) => (
-                <Chip
-                    key={cat}
-                    label={cat === ALL_CATEGORY ? 'All' : cat}
-                    selected={selected === cat}
-                    onPress={() => onSelect(cat)}
-                />
-            ))}
-        </ScrollView>
-    );
-}
 
 export default function ShopScreen(): React.JSX.Element {
     const { userId } = useAuth();
@@ -311,13 +289,6 @@ export default function ShopScreen(): React.JSX.Element {
 const useStyles = makeStyles(t => ({
     container: { flex: 1, backgroundColor: t.colors.background },
     tabSwitcher: { marginHorizontal: t.space.lg, marginBottom: t.space.xs },
-    categoryBar: { flexGrow: 0, flexShrink: 0 },
-    categoryContent: {
-        paddingHorizontal: t.space.lg,
-        paddingVertical: t.space.md,
-        gap: t.space.sm,
-        flexDirection: 'row',
-    },
     loader: { flex: 1 },
     footer: { paddingVertical: t.space.lg },
     list: { paddingTop: t.space.xs, paddingBottom: t.space.xl, gap: t.space.md },

@@ -30,7 +30,6 @@ import {
   type RoomOccupant,
   type RoomPresenceState,
   type RoomTheme,
-  type RoomThemeSlot,
   type User,
 } from '@chat-app/shared-types';
 import type { ActorState, EditState, EngineCapabilities, RoomEffect, RoomMode, RoomScene } from '../core/contract';
@@ -1082,21 +1081,24 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     }
   }
 
-  function selectInventoryItem(item: Item | null) {
-    setSelectedItem(item);
-    setSelectedPlacedItem(null);
-  }
-
   /**
-   * Put the selected wallpaper or flooring on the given theme slots (one wall, both, or
-   * the floor). It stays selected, so the user can try the other wall too.
+   * Choose an inventory item to place. A wallpaper or flooring isn't placed: choosing it
+   * puts it straight on both walls or the floor (the server also takes one wall at a time).
    */
-  function applyTheme(slots: RoomThemeSlot[]) {
-    if (!selectedItem || !pendingTheme) return;
-    const allowed = themeSlotsOf(selectedItem);
-    const next = { ...pendingTheme };
-    for (const slot of slots) if (allowed.includes(slot)) next[slot] = selectedItem;
-    setPendingTheme(next);
+  function selectInventoryItem(item: Item | null) {
+    setSelectedPlacedItem(null);
+    const slots = item ? themeSlotsOf(item) : [];
+    if (item && slots.length) {
+      setSelectedItem(null);
+      setPendingTheme(current => {
+        if (!current) return current;
+        const next = { ...current };
+        for (const slot of slots) next[slot] = item;
+        return next;
+      });
+      return;
+    }
+    setSelectedItem(item);
   }
 
   /**
@@ -1143,9 +1145,6 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
       }
       return;
     }
-
-    // A wallpaper or flooring is selected: it goes on the walls or floor from the toolbar
-    if (selectedItem && themeSlotsOf(selectedItem).length) return;
 
     // An inventory item is selected: place a copy, as many as are owned
     if (selectedItem) {
@@ -1243,7 +1242,6 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
       cancelEdit,
       saveEdit,
       selectInventoryItem,
-      applyTheme,
       rotateSelectedPlaced,
       removeSelectedPlaced,
       editCell,
