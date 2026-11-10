@@ -1,7 +1,7 @@
 import { View } from 'react-native';
 import { AppText, Button } from '@/components/ui';
 import { makeStyles } from '@/constants/theme';
-import { ItemPlacement, type RoomItem } from '@chat-app/shared-types';
+import { ItemPlacement, type RoomItem, type RoomThemeSlot } from '@chat-app/shared-types';
 
 interface Props {
   isSaving: boolean;
@@ -12,6 +12,9 @@ interface Props {
   onRotatePlacedItem?: () => void;
   /** Whether an inventory item is chosen for placement, for the hint. */
   isPlacing?: boolean;
+  /** Theme slots the selected wallpaper or flooring can go on; empty for other items. */
+  themeSlots?: RoomThemeSlot[];
+  onApplyTheme?: (slots: RoomThemeSlot[]) => void;
   topInset?: number;
 }
 
@@ -44,12 +47,18 @@ const useStyles = makeStyles(t => ({
 /** Save / Cancel bar shown at the top while in edit mode, edged in the edit-mode accent. */
 export function EditModeToolbar({
   isSaving, onSave, onCancel, selectedPlacedItem, onRemovePlacedItem, onRotatePlacedItem, isPlacing = false,
-  topInset = 0,
+  themeSlots = [], onApplyTheme, topInset = 0,
 }: Props) {
   const styles = useStyles();
+  const isWallpaper = themeSlots.includes('leftWall');
+  const isFlooring = themeSlots.includes('floor');
   const hint = selectedPlacedItem
     ? 'Tap the floor to move it'
-    : isPlacing
+    : isWallpaper
+      ? 'Choose a wall for it'
+      : isFlooring
+        ? 'Lay it on the floor'
+        : isPlacing
       ? 'Tap the floor to place'
       : 'Tap furniture to move it';
   return (
@@ -62,6 +71,20 @@ export function EditModeToolbar({
         </View>
         <Button title="Save" size="sm" onPress={onSave} loading={isSaving} />
       </View>
+
+      {!selectedPlacedItem && isWallpaper && (
+        <View style={styles.actions}>
+          <Button title="Left wall" variant="secondary" size="sm" onPress={() => onApplyTheme?.(['leftWall'])} disabled={isSaving} />
+          <Button title="Right wall" variant="secondary" size="sm" onPress={() => onApplyTheme?.(['rightWall'])} disabled={isSaving} />
+          <Button title="Both" variant="secondary" size="sm" onPress={() => onApplyTheme?.(['leftWall', 'rightWall'])} disabled={isSaving} />
+        </View>
+      )}
+
+      {!selectedPlacedItem && isFlooring && (
+        <View style={styles.actions}>
+          <Button title="Apply to floor" variant="secondary" size="sm" onPress={() => onApplyTheme?.(['floor'])} disabled={isSaving} />
+        </View>
+      )}
 
       {selectedPlacedItem && (
         <View style={styles.actions}>

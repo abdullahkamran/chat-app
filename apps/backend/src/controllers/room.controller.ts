@@ -4,12 +4,13 @@ import type { Server } from 'socket.io';
 import Room, { canManageMembers, IRoom } from '../models/room.model';
 import { roomLayoutOf } from '../sockets/roomLayout';
 import { announceMemberRemoved, announceMembersAdded, announceRoomItemsChanged } from '../sockets/socketHandler';
+import Item from '../models/item.model';
 import User, { PUBLIC_USER_FIELDS } from '../models/user.model';
 import { friendIdsOf, notFriendsAmong } from '../services/friend.service';
 import { sendPushToUsers } from '../services/notification.service';
 import { findAccessibleRoom, isPersonalRoom } from '../services/room-access.service';
 import { resolveRoomDefaults } from '../services/room-defaults.service';
-import { RoomCategory, type PublicUser, type RoomMembers, type RoomRemovalReason } from '@chat-app/shared-types';
+import { RoomCategory, themeSlotsOf, type PublicUser, type RoomMembers, type RoomRemovalReason, type RoomThemeSlot } from '@chat-app/shared-types';
 
 /**
  * The people `actorId` asked to add, deduplicated, leaving out `exclude` (the owner, people
@@ -32,6 +33,41 @@ export function sendIfNoAccess(res: Response, room: IRoom | null | false): room 
     if (room === null) res.status(404).send({ error: 'Room not found' });
     else if (room === false) res.status(403).send({ error: 'Forbidden' });
     return !room;
+}
+
+const THEME_SLOTS: RoomThemeSlot[] = ['floor', 'leftWall', 'rightWall'];
+
+/**
+ * Sets the room's floor and wall theme from `{ floor, leftWall, rightWall }` item IDs.
+ * A slot left unchanged is kept as is (the default theme items aren't owned); a new one
+ * must be a wallpaper or flooring that fits the slot and is in the owner's inventory.
+ * Returns an error message for a 400, or null once applied (not yet saved).
+ */
+async function applyTheme(room: IRoom, userId: string, theme: unknown): Promise<string | null> {
+    if (typeof theme !== 'object' || theme === null) return 'theme must be an object';
+    const wanted = theme as Partial<Record<RoomThemeSlot, unknown>>;
+    const changes: Array<[RoomThemeSlot, string]> = [];
+    for (const slot of THEME_SLOTS) {
+        const id = wanted[slot];
+        if (id === undefined || id === null || id === room.theme[slot]?.toString()) continue;
+        if (typeof id !== 'string' || !mongoose.isValidObjectId(id)) return `Invalid ${slot}`;
+        changes.push([slot, id]);
+    }
+    if (!changes.length) return null;
+
+    const ids = [...new Set(changes.map(([, id]) => id))];
+    const [user, found] = await Promise.all([
+        User.findById(new mongoose.Types.ObjectId(userId)).select('inventory'),
+        Item.find({ _id: { $in: ids } }).select('category'),
+    ]);
+    const owned = new Set((user?.inventory ?? []).map(id => id.toString()));
+    for (const [slot, id] of changes) {
+        const item = found.find(i => i._id.toString() === id);
+        if (!item || !themeSlotsOf(item).includes(slot)) return `That item can't go on the ${slot}`;
+        if (!owned.has(id)) return "You don't own that item";
+    }
+    for (const [slot, id] of changes) room.theme[slot] = new mongoose.Types.ObjectId(id);
+    return null;
 }
 
 const NO_MEMBERS_IN_PERSONAL_ROOMS = "Personal rooms don't have members";
@@ -143,7 +179,7 @@ const controller = {
     updateItems: async (req: Request, res: Response): Promise<void> => {
         const { roomId } = req.params;
         const userId = req.user!.userId;
-        const { items } = req.body;
+        const { items, theme } = req.body;
 
         if (!Array.isArray(items)) {
             res.status(400).send({ error: 'items must be an array' });
@@ -160,6 +196,14 @@ const controller = {
             if (room.ownerId.toString() !== userId) {
                 res.status(403).send({ error: 'Only the room owner can edit items' });
                 return;
+            }
+
+            if (theme !== undefined && theme !== null) {
+                const error = await applyTheme(room, userId, theme);
+                if (error) {
+                    res.status(400).send({ error });
+                    return;
+                }
             }
 
             room.items = items.map((i: { itemId: string; position: { x: number; y: number; z: number }; orientation: string; state: string }) => ({

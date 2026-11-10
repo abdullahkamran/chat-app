@@ -4,7 +4,7 @@ import { View } from 'react-native';
 import Animated, { useAnimatedKeyboard, useAnimatedStyle, useDerivedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { EmoteType, RoomCategory, type Animation } from '@chat-app/shared-types';
+import { EmoteType, RoomCategory, themeSlotsOf, type Animation } from '@chat-app/shared-types';
 import { AppText, Button, EmptyState, IconButton, Spinner } from '@/components/ui';
 import { makeStyles } from '@/constants/theme';
 import { useMailbox } from '@/hooks/useMailbox';
@@ -157,6 +157,8 @@ export function RoomShell({ session, children }: Readonly<Props>) {
           onRemovePlacedItem={intents.removeSelectedPlaced}
           onRotatePlacedItem={intents.rotateSelectedPlaced}
           isPlacing={edit.selectedItem !== null}
+          themeSlots={edit.selectedItem ? themeSlotsOf(edit.selectedItem) : []}
+          onApplyTheme={intents.applyTheme}
         />
       ) : (
         <View style={[styles.roomHeader, { paddingTop: insets.top + 4 }]}>

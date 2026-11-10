@@ -14,6 +14,7 @@ import {
   ItemPlacement,
   ItemState,
   Orientiation,
+  themeSlotsOf,
   type ActorAction,
   type ActorActionKind,
   type Avatar,
@@ -28,6 +29,8 @@ import {
   type RoomItem,
   type RoomOccupant,
   type RoomPresenceState,
+  type RoomTheme,
+  type RoomThemeSlot,
   type User,
 } from '@chat-app/shared-types';
 import type { ActorState, EditState, EngineCapabilities, RoomEffect, RoomMode, RoomScene } from '../core/contract';
@@ -168,6 +171,8 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
   const [pendingItems, setPendingItems] = useState<RoomItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [selectedPlacedItem, setSelectedPlacedItem] = useState<RoomItem | null>(null);
+  // Wallpapers and floorings applied while editing; saved with the items.
+  const [pendingTheme, setPendingTheme] = useState<RoomTheme | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   const isOwner = roomDetails?.ownerId === userId;
@@ -1035,6 +1040,7 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
   function enterEdit() {
     setPicking(null);
     setPendingItems(roomDetails?.items ? [...roomDetails.items] : []);
+    setPendingTheme(roomDetails?.theme ?? null);
     setSelectedItem(null);
     setSelectedPlacedItem(null);
     setMode('edit');
@@ -1045,6 +1051,7 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     setSelectedItem(null);
     setSelectedPlacedItem(null);
     setPendingItems([]);
+    setPendingTheme(null);
   }
 
   async function saveEdit() {
@@ -1056,7 +1063,12 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
         orientation: ri.orientation,
         state: ri.state,
       }));
-      await api.patch(`/api/v1/rooms/${roomId}/items`, { items: body });
+      const theme = pendingTheme && {
+        floor: pendingTheme.floor?._id ?? null,
+        leftWall: pendingTheme.leftWall?._id ?? null,
+        rightWall: pendingTheme.rightWall?._id ?? null,
+      };
+      await api.patch(`/api/v1/rooms/${roomId}/items`, { items: body, theme });
       // Play mode draws the room's saved items, so load the new layout before leaving edit
       // mode; otherwise the old items show until the room is entered again.
       await queryClient.invalidateQueries({ queryKey: ['roomDetails', roomId] });
@@ -1073,6 +1085,18 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
   function selectInventoryItem(item: Item | null) {
     setSelectedItem(item);
     setSelectedPlacedItem(null);
+  }
+
+  /**
+   * Put the selected wallpaper or flooring on the given theme slots (one wall, both, or
+   * the floor). It stays selected, so the user can try the other wall too.
+   */
+  function applyTheme(slots: RoomThemeSlot[]) {
+    if (!selectedItem || !pendingTheme) return;
+    const allowed = themeSlotsOf(selectedItem);
+    const next = { ...pendingTheme };
+    for (const slot of slots) if (allowed.includes(slot)) next[slot] = selectedItem;
+    setPendingTheme(next);
   }
 
   /**
@@ -1120,6 +1144,9 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
       return;
     }
 
+    // A wallpaper or flooring is selected: it goes on the walls or floor from the toolbar
+    if (selectedItem && themeSlotsOf(selectedItem).length) return;
+
     // An inventory item is selected: place a copy, as many as are owned
     if (selectedItem) {
       const ownedCount = inventoryItems.filter(i => i._id === selectedItem._id).length;
@@ -1149,7 +1176,7 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
   const scene: RoomScene | null = roomDetails
     ? {
       dimensions: roomDimensions,
-      theme: roomDetails.theme,
+      theme: (isEditMode && pendingTheme) || roomDetails.theme,
       items: isEditMode ? pendingItems : (roomDetails.items ?? []),
       doors: roomDetails.doors ?? [],
     }
@@ -1216,6 +1243,7 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
       cancelEdit,
       saveEdit,
       selectInventoryItem,
+      applyTheme,
       rotateSelectedPlaced,
       removeSelectedPlaced,
       editCell,

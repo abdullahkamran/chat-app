@@ -55,6 +55,25 @@ export const ItemPlacement = {
 
 export type ItemPlacement = (typeof ItemPlacement)[keyof typeof ItemPlacement];
 
+/** Item categories that dress the room itself (its theme) instead of standing in it. */
+export const ThemeCategory = {
+    WALLPAPER: 'Wallpapers',
+    FLOORING: 'Floorings',
+} as const;
+
+/** A slot of the room's theme (see RoomTheme). */
+export type RoomThemeSlot = 'floor' | 'leftWall' | 'rightWall';
+
+/**
+ * The theme slots an item can be applied to: both walls for a wallpaper, the floor for a
+ * flooring. Empty for items that are placed in the room.
+ */
+export function themeSlotsOf(item: Pick<Item, 'category'>): RoomThemeSlot[] {
+    if (item.category === ThemeCategory.WALLPAPER) return ['leftWall', 'rightWall'];
+    if (item.category === ThemeCategory.FLOORING) return ['floor'];
+    return [];
+}
+
 export const ItemAction = {
     SIT: 'SIT',
     STAND: 'STAND',
