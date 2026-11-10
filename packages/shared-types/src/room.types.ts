@@ -54,8 +54,18 @@ export type Facing = (typeof Facing)[keyof typeof Facing];
 export type ActorAction =
     | { kind: 'idle' }
     | { kind: 'walk'; path: Position[] }
-    /** `at` is the placed item's grid position, which tells apart copies of the same item. */
-    | { kind: 'sit'; itemId: Item['_id']; at: { x: number; y: number }; seatIndex: number }
+    /**
+     * `at` is the placed item's grid position, which tells apart copies of the same item.
+     * `emote` is an upper-body emote playing over the sit pose. Clients set it locally when
+     * a seated user emotes; the server never stores or relays it as part of a seat.
+     */
+    | {
+        kind: 'sit';
+        itemId: Item['_id'];
+        at: { x: number; y: number };
+        seatIndex: number;
+        emote?: { animation: Animation['name']; elapsedMs?: number };
+    }
     /** `elapsedMs` is how far in the emote already is, for someone who sees it start late. */
     | { kind: 'emote'; animation: Animation['name']; elapsedMs?: number };
 

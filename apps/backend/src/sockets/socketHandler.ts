@@ -391,7 +391,8 @@ const handler = {
                     me.emote = undefined;
                 }
             } else if (me && !me.sit) {
-                // Clients don't play emotes while seated, so neither is one recorded.
+                // Recorded only while standing. A seated user's emote plays in the seat and is
+                // relayed, but a newcomer just sees them seated.
                 me.emote = { animation: allowed.animation, startedAt: Date.now() };
             }
             console.log(SocketEvent.SEND_ACTION, { userId, roomId, action: allowed });

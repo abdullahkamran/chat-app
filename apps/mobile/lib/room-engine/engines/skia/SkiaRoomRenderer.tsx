@@ -107,6 +107,9 @@ function Room({
     origin,
     onActionComplete,
     effects,
+    // Nobody shows while the room is being rearranged: someone seated on a chair being
+    // moved would otherwise hang in the air until the layout is saved and stands them up.
+    hideActors: isEditMode,
   });
 
   return (
@@ -124,7 +127,8 @@ function Room({
         </Canvas>
       </GestureDetector>
 
-      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      {/* Bubbles hide with their avatars in edit mode, but stay mounted: they drive the walks. */}
+      <View pointerEvents="none" style={[StyleSheet.absoluteFill, isEditMode && styles.hidden]}>
         {Object.values(actors).map(a => {
           const motion = motions.get(a.id);
           return motion && (
@@ -152,4 +156,5 @@ function itemAssetUrls(ri: RoomItem): string[] {
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
+  hidden: { opacity: 0 },
 });

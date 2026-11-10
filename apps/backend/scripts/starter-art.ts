@@ -47,6 +47,9 @@ const C = {
   iris: '#6b4a2f',
   mouth: '#6e2a2a',
   blush: '#ff8a8a',
+  brow: '#5a3d2b',
+  lip: '#c4615a',
+  lipLine: '#7a3832',
   stitch: '#d9a441',
   /** Shading on features over any skin tone. */
   skinShadow: 'rgba(110,45,30,0.22)',
@@ -134,52 +137,102 @@ function limb(size: LimbSize, paint: CelPaint, inner: CelInner = {}): Shape {
   return cel(limbD(...size), paint, { ...inner, shade: [limbShade(...size), ...(inner.shade ?? [])], edge: limbEdgeD(...size) });
 }
 
-const HAND = 'M -1.9 -0.6 L 1.9 -0.6 Q 2.4 2.5 1.4 4.3 Q 0 5.3 -1.4 4.3 Q -2.4 2.5 -1.9 -0.6 Z';
-const HAND_EDGE = 'M 1.9 -0.6 Q 2.4 2.5 1.4 4.3 Q 0 5.3 -1.4 4.3 Q -2.4 2.5 -1.9 -0.6';
-const THUMB = 'M 1.5 0.3 Q 3.5 0.6 3.1 2.6 Q 2.3 3.1 1.6 2.3 Z';
-const FOOT = 'M -3 -2.2 Q -3.6 2.6 -2.4 3.2 L 6.2 3.2 Q 8 2.8 7.2 0.8 Q 5.2 -1.4 1.8 -2.2 Z';
+/**
+ * The back of a relaxed hand: the palm, then four fingertips along the bottom, split by
+ * short lines, with the thumb on the forward side (screen right).
+ */
+const HAND_EDGE =
+  'M 1.9 -0.6 Q 2.3 1.4 2 2.8 L 1.9 4.6 Q 1.75 5.4 1.15 5.3 Q 0.85 5.75 0.35 5.55 Q -0.05 5.9 -0.5 5.6 ' +
+  'Q -0.95 5.8 -1.3 5.35 Q -1.85 5 -1.85 4.3 L -2 2.6 Q -2.3 1.2 -1.9 -0.6';
+const HAND = `M -1.9 -0.6 L 1.9 -0.6 ${HAND_EDGE.slice(HAND_EDGE.indexOf('Q'))} Z`;
+const FINGERS = ['M 1.05 3.5 L 1.12 5.2', 'M 0.15 3.6 L 0.3 5.45', 'M -0.75 3.5 L -0.55 5.45'];
+const THUMB = 'M 1.6 0.4 Q 3.2 0.9 3.2 2.6 Q 3.1 3.6 2.4 3.5 Q 1.8 3.3 1.8 2.4 Z';
 
 /**
- * Feet are drawn in profile, toes to screen right, then turned about the ankle for the
- * three-quarter views: from the front the toes come down towards the viewer, from the
- * back they go up and away.
+ * A bare foot in profile, toes to screen right: the ankle is the bone's origin and the
+ * sole lies flat on the floor, 2 px below it (the rig's root is the floor point).
+ */
+const FOOT = 'M -1.9 -2.4 Q -2.6 0.4 -2.5 1.2 Q -2.4 2 -1.6 2 L 5.2 2 Q 6.6 2 6.5 1 Q 6.3 0.1 4.6 -0.4 Q 2.6 -0.9 1.6 -2.4 Z';
+const TOES = ['M 5.1 0 Q 5.4 1 5.2 2', 'M 4.1 -0.3 Q 4.4 0.9 4.2 2'];
+
+/**
+ * Feet are drawn in profile, toes to screen right, then turned a little about the ankle
+ * for the three-quarter views (toes slightly down towards the viewer from the front, up
+ * and away from the back) and foreshortened. The sole stays on the floor line.
  */
 const FOOT_TURN: Record<RigView, string> = {
-  front: 'rotate(14) scale(0.84 1)',
-  back: 'rotate(-14) scale(0.8 1)',
+  front: 'rotate(6) scale(0.86 1)',
+  back: 'rotate(-6) scale(0.8 1)',
 };
+
+/** The nape from behind, in neck space: wide where it meets the shoulders, the sides curving in. */
+const NAPE_EDGE = 'M 3.4 1.6 Q 2.6 -0.8 2.7 -4.6 M -2.7 -4.6 Q -2.6 -0.8 -3.4 1.6';
+const NAPE = 'M 3.4 1.6 Q 2.6 -0.8 2.7 -4.6 L -2.7 -4.6 Q -2.6 -0.8 -3.4 1.6 Z';
 
 function body(): Wearable {
   const parts: Partial<Record<BoneName, Shape[]>> = {
     hip: [torso(TORSO.hip(0), SKIN, { shade: [leftOf(-4.5)] })],
     spine: [torso(TORSO.spine(0), SKIN, { shade: [leftOf(-4.2)] })],
     chest: [torso(TORSO.chest(0), SKIN, { shade: [leftOf(-4.8)] })],
-    // The chin shades the top of the neck.
-    neck: [cel(limbD(5.4, 4.8, 1.5, -5), SKIN, {
-      shade: [leftOf(-0.8), 'M -40 -60 H 40 V -2.2 H -40 Z'], edge: limbEdgeD(5.4, 4.8, 1.5, -5),
-    })],
-    head: [cel(circleD(0, HEAD_CY, HEAD_R), SKIN, { shade: [crescent(0, HEAD_CY, HEAD_R)] })],
+    // The same skull and jaw as the default face, so faces drawn over it never show a bulge.
+    head: [cel(HEAD_OUTLINE, SKIN, { shade: [crescent(0, HEAD_CY, HEAD_R)] })],
   };
   for (const side of ['L', 'R'] as const) {
     parts[`upperArm.${side}`] = [limb(LIMB.upperArm, SKIN)];
     parts[`foreArm.${side}`] = [limb(LIMB.foreArm, SKIN)];
-    parts[`hand.${side}`] = [cel(HAND, SKIN, { shade: [leftOf(-0.6)], edge: HAND_EDGE }), cel(THUMB, SKIN)];
+    parts[`hand.${side}`] = [
+      cel(HAND, SKIN, { shade: [leftOf(-0.6)], lines: FINGERS, edge: HAND_EDGE }),
+      cel(THUMB, SKIN, { shade: [leftOf(2.2)] }),
+    ];
     parts[`thigh.${side}`] = [limb(LIMB.thigh, SKIN)];
     parts[`shin.${side}`] = [limb(LIMB.shin, SKIN)];
   }
   const pieces = (Object.entries(parts) as [BoneName, Shape[]][]).map(([bone, shapes]): Piece => ({
     bone, layer: 'skin', views: BOTH, shapes: shapes.map(s => [s, '']),
   }));
+  // From the front the chin shades the top of the throat. From behind the neck is the
+  // nape: broader, sloping into the shoulders, and mostly covered by the skull above.
+  pieces.push(
+    { bone: 'neck', layer: 'skin', views: FRONT, shapes: [[cel(limbD(5.4, 4.8, 1.5, -5), SKIN, {
+      shade: [leftOf(-0.8), 'M -40 -60 H 40 V -2.2 H -40 Z'], edge: limbEdgeD(5.4, 4.8, 1.5, -5),
+    }), '']] },
+    { bone: 'neck', layer: 'skin', views: ['back'], shapes: [[cel(NAPE, SKIN, { shade: [leftOf(-1.6)], edge: NAPE_EDGE }), '']] },
+  );
   for (const bone of sided('foot')) {
     for (const view of BOTH) {
-      pieces.push({ bone, layer: 'skin', views: [view], shapes: [[transformed(cel(FOOT, SKIN, { shade: [leftOf(-1)] }), FOOT_TURN[view]), '']] });
+      pieces.push({ bone, layer: 'skin', views: [view], shapes: [[transformed(cel(FOOT, SKIN, { shade: [leftOf(-1)], lines: TOES }), FOOT_TURN[view]), '']] });
     }
   }
   return { tintable: true, pieces };
 }
 
-/** Features sit right of centre: the front view is turned towards screen right. */
+/**
+ * The default head: a round skull with the jaw tapering to a chin below and right of
+ * centre, as the front view is turned towards screen right. The chin sits a little
+ * lower than the skull's circle.
+ */
+const HEAD_OUTLINE =
+  `M -7.6 ${HEAD_CY + 4.8} A ${HEAD_R} ${HEAD_R} 0 1 1 8.6 ${HEAD_CY + 2.6} ` +
+  `Q 8.9 ${HEAD_CY + 6.4} 6.6 ${HEAD_CY + 8.4} Q 4.6 ${HEAD_CY + 9.9} 2.4 ${HEAD_CY + 9.6} ` +
+  `Q -1.5 ${HEAD_CY + 9.2} -4.6 ${HEAD_CY + 7.4} Q -6.8 ${HEAD_CY + 6.2} -7.6 ${HEAD_CY + 4.8} Z`;
+
+/**
+ * The default head from behind: the same skull, its base rounding down over the top of
+ * the nape (the jaw is turned away), so little neck shows between head and shoulders.
+ */
+const HEAD_BACK_OUTLINE =
+  `M -7.6 ${HEAD_CY + 4.8} A ${HEAD_R} ${HEAD_R} 0 1 1 8.6 ${HEAD_CY + 2.6} ` +
+  `Q 8.9 ${HEAD_CY + 6.4} 6.4 ${HEAD_CY + 8.4} Q 3.6 ${HEAD_CY + 10.4} 0 ${HEAD_CY + 10.3} ` +
+  `Q -4.2 ${HEAD_CY + 10.1} -6.4 ${HEAD_CY + 7.6} Q -7.4 ${HEAD_CY + 6.4} -7.6 ${HEAD_CY + 4.8} Z`;
+
+/**
+ * Features sit right of centre: the front view is turned towards screen right. Spaced
+ * like a real face: the nose's base about halfway from the eyes to the chin, the mouth a
+ * third of the way from the nose to the chin.
+ */
 const EYE_Y = HEAD_CY + 1;
+const NOSE_Y = HEAD_CY + 4.8;
+const MOUTH_Y = HEAD_CY + 6.8;
 const EYES_X = [1.5, 5.5];
 /** The far eye (screen left) is foreshortened by the three-quarter turn. */
 const EYE_K = [0.8, 1];
@@ -188,76 +241,106 @@ const EYE_K = [0.8, 1];
  * A face shape, shaded on the left, with an ear towards the back of the head and a
  * blush on the cheeks. From behind, the near ear sits right of centre.
  */
-function face(outline: string): Wearable {
+/**
+ * An ear seen from the side, between eye and nose height behind the jaw: attached along
+ * its front (screen right), the rim curving back and down into the lobe. From the front
+ * view the bowl and rim fold show; from behind only the back of the rim.
+ */
+function ear(cx: number, inside: boolean): Shape {
+  const top = HEAD_CY + 0.4;
+  // x offsets from cx; mirrored from behind.
+  const m = inside ? 1 : -1;
+  const x = (dx: number) => cx + m * dx;
+  const d = `M ${x(1)} ${top + 0.6} Q ${x(-0.4)} ${top - 0.6} ${x(-1.5)} ${top + 0.6} ` +
+    `Q ${x(-2)} ${top + 2} ${x(-1.2)} ${top + 3.4} Q ${x(-0.6)} ${top + 4.6} ${x(0.3)} ${top + 4.8} ` +
+    `Q ${x(0.9)} ${top + 4.6} ${x(0.8)} ${top + 3.8} Z`;
+  return cel(d, SKIN, inside
+    ? {
+      shade: [leftOf(cx - 0.9), ellipseD(cx - 0.1, top + 2.3, 0.55, 0.9)],
+      lines: [`M ${cx + 0.4} ${top + 1} Q ${cx - 1} ${top + 0.6} ${cx - 1.1} ${top + 1.8} Q ${cx - 1} ${top + 3} ${cx - 0.2} ${top + 3.4}`],
+    }
+    // The back of the ear: shaded where it turns towards the head.
+    : { shade: [leftOf(cx - 0.2)], lines: [`M ${cx - 0.3} ${top + 1} Q ${cx + 0.9} ${top + 1.8} ${cx + 0.4} ${top + 3.6}`] });
+}
+
+function face(outline: string, backOutline = outline): Wearable {
   const shade = `M -40 -60 H 40 V 60 H -40 Z ${circleD(2.6, HEAD_CY - 1.4, HEAD_R + 0.3)}`;
   // Out on the cheeks, clear of the nose.
   const blush = (cx: number, rx: number) =>
-    `<path d="${ellipseD(cx, HEAD_CY + 3.8, rx, 0.8)}" fill="${C.blush}" fill-opacity="0.35"/>`;
-  const ear = (cx: number) => cel(ellipseD(cx, HEAD_CY + 1.4, 1.5, 2.1), SKIN, {
-    shade: [leftOf(cx - 0.2)],
-    lines: [`M ${cx + 0.5} ${HEAD_CY + 0.4} Q ${cx - 0.6} ${HEAD_CY + 1.2} ${cx + 0.3} ${HEAD_CY + 2.6}`],
-  });
+    `<path d="${ellipseD(cx, HEAD_CY + 3.8, rx, 0.7)}" fill="${C.blush}" fill-opacity="0.22"/>`;
   return {
     tintable: true,
     pieces: [
       { bone: 'head', layer: 'face', views: FRONT, shapes: [
         [cel(outline, SKIN, { shade: [shade], raw: blush(7.7, 1) + blush(-0.4, 0.9) }), ''],
-        [ear(-4.4), ''],
+        [ear(-4.6, true), ''],
       ] },
-      { bone: 'head', layer: 'face', views: ['back'], shapes: [[cel(outline, SKIN, { shade: [shade] }), ''], [ear(4.4), '']] },
+      { bone: 'head', layer: 'face', views: ['back'], shapes: [[cel(backOutline, SKIN, { shade: [shade] }), ''], [ear(5.8, false), '']] },
     ],
   };
+}
+
+/** A brow over each eye, following the eye's foreshortening. */
+function brow(x: number, k: number): string {
+  return strokeSvg(`M ${x - 1.3 * k} ${EYE_Y - 1.7} Q ${x - 0.1 * k} ${EYE_Y - 2.6} ${x + 1.4 * k} ${EYE_Y - 2.1}`, C.brow, 0.55);
 }
 
 function eyes(style: 'dots' | 'open'): Wearable {
   const parts = EYES_X.map((x, i) => {
     const k = EYE_K[i];
     if (style === 'dots') {
-      return `<path d="${ellipseD(x, EYE_Y, 1.05 * k, 1.6)}" fill="${C.feature}"/>` +
-        `<circle cx="${x + 0.35 * k}" cy="${EYE_Y - 0.6}" r="0.42" fill="${C.eyeWhite}"/>` +
-        `<circle cx="${x - 0.3 * k}" cy="${EYE_Y + 0.7}" r="0.2" fill="${C.eyeWhite}"/>`;
+      // Small dark eyes with a catch-light.
+      return `<path d="${ellipseD(x, EYE_Y, 0.72 * k, 0.92)}" fill="${C.feature}"/>` +
+        `<circle cx="${x + 0.25 * k}" cy="${EYE_Y - 0.3}" r="0.26" fill="${C.eyeWhite}"/>` +
+        brow(x, k);
     }
-    // A large iris almost filling the eye, outlined only by a heavy upper lid.
+    // An almond eye: white, iris and pupil inside the lids, with a darker upper lid.
     const id = uid('eye');
-    const white = ellipseD(x, EYE_Y, 1.3 * k, 1.7);
+    const white = `M ${x - 1.25 * k} ${EYE_Y + 0.15} Q ${x - 0.1 * k} ${EYE_Y - 1.25} ${x + 1.25 * k} ${EYE_Y - 0.1} ` +
+      `Q ${x + 0.1 * k} ${EYE_Y + 0.95} ${x - 1.25 * k} ${EYE_Y + 0.15} Z`;
     return `<defs><clipPath id="${id}"><path d="${white}"/></clipPath></defs>` +
       `<path d="${white}" fill="${C.eyeWhite}"/>` +
       `<g clip-path="url(#${id})">` +
-      `<circle cx="${x + 0.3 * k}" cy="${EYE_Y + 0.2}" r="1.15" fill="${C.iris}"/>` +
-      `<circle cx="${x + 0.3 * k}" cy="${EYE_Y + 0.2}" r="0.6" fill="${C.feature}"/>` +
-      `<circle cx="${x + 0.65 * k}" cy="${EYE_Y - 0.35}" r="0.36" fill="${C.eyeWhite}"/></g>` +
-      strokeSvg(`M ${x - 1.4 * k} ${EYE_Y - 0.1} Q ${x} ${EYE_Y - 2.5} ${x + 1.4 * k} ${EYE_Y - 0.3}` +
-        (i === 1 ? ` L ${x + 1.9} ${EYE_Y - 0.9}` : ''), C.feature, 0.7);
+      `<circle cx="${x + 0.25 * k}" cy="${EYE_Y - 0.05}" r="0.75" fill="${C.iris}"/>` +
+      `<circle cx="${x + 0.25 * k}" cy="${EYE_Y - 0.05}" r="0.38" fill="${C.feature}"/>` +
+      `<circle cx="${x + 0.5 * k}" cy="${EYE_Y - 0.35}" r="0.2" fill="${C.eyeWhite}"/></g>` +
+      strokeSvg(`M ${x - 1.3 * k} ${EYE_Y + 0.15} Q ${x - 0.1 * k} ${EYE_Y - 1.3} ${x + 1.3 * k} ${EYE_Y - 0.1}`, C.feature, 0.5) +
+      brow(x, k);
   });
   return { pieces: [{ bone: 'head', layer: 'eye', views: FRONT, shapes: [[{ kind: 'raw', svg: parts.join('') }, '']] }] };
 }
 
 function nose(style: 'normal' | 'round'): Wearable {
+  const y = NOSE_Y;
   const svg = style === 'normal'
-    // A hooked line for the tip and a small cast shadow beneath it.
-    ? `<path d="${ellipseD(5.4, HEAD_CY + 5, 0.9, 0.35)}" fill="${C.skinShadow}"/>` +
-      strokeSvg(`M 5.5 ${HEAD_CY + 2.4} Q 6.8 ${HEAD_CY + 4} 6.2 ${HEAD_CY + 4.6} Q 5.7 ${HEAD_CY + 4.9} 5.1 ${HEAD_CY + 4.6}`, C.skinLine, 0.5)
-    : `<path d="${ellipseD(6.3, HEAD_CY + 4.1, 1, 0.9)}" fill="${C.skinShadow}"/>` +
-      strokeSvg(`M 5.3 ${HEAD_CY + 4.5} Q 6.3 ${HEAD_CY + 5.4} 7.3 ${HEAD_CY + 4.5}`, C.skinLine, 0.45) +
-      `<circle cx="6.6" cy="${HEAD_CY + 3.6}" r="0.3" fill="${C.eyeWhite}" fill-opacity="0.6"/>`;
+    // Shading down the side of the bridge, the tip and nostril wing in profile, and a
+    // small cast shadow beneath.
+    ? `<path d="M 4.6 ${y - 4.4} Q 6.4 ${y - 2.4} 6.5 ${y - 0.7} L 5.6 ${y - 0.4} Q 5.5 ${y - 2.6} 4.6 ${y - 4.4} Z" fill="${C.skinShadow}" fill-opacity="0.6"/>` +
+      `<path d="${ellipseD(5.7, y + 0.35, 0.85, 0.25)}" fill="${C.skinShadow}"/>` +
+      strokeSvg(`M 6.1 ${y - 2.6} Q 7.1 ${y - 0.9} 6.8 ${y - 0.3} Q 6.4 ${y + 0.1} 5.7 ${y - 0.1}`, C.skinLine, 0.4) +
+      strokeSvg(`M 5.5 ${y - 0.5} Q 5.1 ${y - 0.2} 5.4 ${y + 0.05}`, C.skinLine, 0.3)
+    : `<path d="${ellipseD(6.2, y - 0.6, 0.85, 0.75)}" fill="${C.skinShadow}"/>` +
+      strokeSvg(`M 5.2 ${y - 0.3} Q 6.2 ${y + 0.5} 7.2 ${y - 0.4}`, C.skinLine, 0.4) +
+      `<circle cx="6.5" cy="${y - 1.1}" r="0.25" fill="${C.eyeWhite}" fill-opacity="0.6"/>`;
   return { pieces: [{ bone: 'head', layer: 'nose', views: FRONT, shapes: [[{ kind: 'raw', svg }, '']] }] };
 }
 
 function mouth(mood: 'happy' | 'angry'): Wearable {
-  const y = HEAD_CY + 6.5;
+  const y = MOUTH_Y;
+  // Lips about as wide as the eyes are apart: a fuller lower lip and a bowed upper one.
+  const lips = `<path d="M 2.9 ${y + 0.2} Q 4.3 ${y + 1.5} 5.8 ${y + 0.1} Q 4.4 ${y + 0.6} 2.9 ${y + 0.2} Z" fill="${C.lip}" fill-opacity="0.45"/>` +
+    `<path d="M 3 ${y - 0.1} Q 3.7 ${y - 0.6} 4.3 ${y - 0.3} Q 4.9 ${y - 0.6} 5.7 ${y - 0.2} Q 4.4 ${y + 0.1} 3 ${y - 0.1} Z" fill="${C.lip}" fill-opacity="0.35"/>`;
   let svg: string;
   if (mood === 'happy') {
-    // An open smile: teeth along the top, tongue at the bottom.
-    const id = uid('mouth');
-    const open = `M 2 ${y - 0.2} Q 4.2 ${y + 0.2} 6.4 ${y - 0.7} Q 6 ${y + 2.2} 4.2 ${y + 2.2} Q 2.3 ${y + 2.1} 2 ${y - 0.2} Z`;
-    svg = `<defs><clipPath id="${id}"><path d="${open}"/></clipPath></defs>` +
-      `<path d="${open}" fill="${C.mouth}"/>` +
-      `<g clip-path="url(#${id})"><path d="M 0 ${y - 2} H 8 V ${y + 0.3} H 0 Z" fill="${C.eyeWhite}"/>` +
-      `<path d="${ellipseD(4.5, y + 2.2, 1.3, 0.8)}" fill="${C.tongue}"/></g>` +
-      strokeSvg(open, C.feature, 0.45);
+    // A closed smile: the line between the lips curving up at the corners.
+    svg = lips +
+      strokeSvg(`M 2.6 ${y - 0.4} Q 4.3 ${y + 0.6} 6.1 ${y - 0.6}`, C.lipLine, 0.42) +
+      strokeSvg(`M 6 ${y - 0.75} Q 6.25 ${y - 0.55} 6.2 ${y - 0.3}`, C.lipLine, 0.3);
   } else {
-    svg = strokeSvg(`M 1.6 ${y + 1} Q 4 ${y - 0.9} 6.5 ${y + 0.8}`, C.feature, 0.7) +
-      strokeSvg(`M -0.2 ${EYE_Y - 3.5} L 2.9 ${EYE_Y - 2.2} M 4.3 ${EYE_Y - 2.2} L 7.8 ${EYE_Y - 3.6}`, C.feature, 0.8);
+    // Pressed lips turned down, and brows drawn in and down over the eyes.
+    svg = lips +
+      strokeSvg(`M 2.8 ${y + 0.3} Q 4.3 ${y - 0.5} 5.9 ${y + 0.2}`, C.lipLine, 0.45) +
+      strokeSvg(`M ${EYES_X[0] - 1} ${EYE_Y - 2.6} L ${EYES_X[0] + 1} ${EYE_Y - 1.7} M ${EYES_X[1] - 0.9} ${EYE_Y - 1.7} L ${EYES_X[1] + 1.3} ${EYE_Y - 2.7}`, C.brow, 0.65);
   }
   return { pieces: [{ bone: 'head', layer: 'mouth', views: FRONT, shapes: [[{ kind: 'raw', svg }, '']] }] };
 }
@@ -330,7 +413,7 @@ function hair(style: 'parted' | 'puffed' | 'spiked', fill: string, line: string)
   // Front: a cap with a fringe that leaves the face (screen right) clear.
   const caps: Record<typeof style, string> = {
     parted:
-      `M ${-r} ${HEAD_CY + 6} A ${r} ${r} 0 0 1 ${r} ${HEAD_CY - 1} ` +
+      `M ${-r} ${HEAD_CY + 6} L ${-r} ${HEAD_CY} A ${r} ${r} 0 0 1 ${r} ${HEAD_CY} L ${r} ${HEAD_CY - 1} ` +
       `Q 3 ${HEAD_CY - 6} 0 ${TOP + 1.5} Q -2 ${HEAD_CY - 4} -4 ${HEAD_CY + 9} Z`,
     puffed:
       `M ${-r - 1} ${HEAD_CY + 1} C ${-r - 2} ${TOP - 5} ${r + 2} ${TOP - 5} ${r + 1} ${HEAD_CY - 1} ` +
@@ -793,10 +876,10 @@ function footwear(style: 'sneakers' | 'high-tops' | 'boots' | 'sandals' | 'slide
     'slides': [[sole, TINT], [{ kind: 'path', d: 'M 1 2.6 Q 4 -1.8 7.2 2.6 Z' }, TINT]],
     'dress': [[lowShoe, TINT], [{ kind: 'path', d: 'M -3.6 3.2 H 8.2' }, ink(C.tintLine, 0.8)]],
   };
-  // Turned about the ankle for each view, like the bare feet.
+  // Lifted so the sole sits on the floor, then turned about the ankle like the bare feet.
   const pieces: Piece[] = sided('foot').flatMap(bone => BOTH.map((view): Piece => ({
     bone, layer: 'footwear', views: [view],
-    shapes: [[transformed({ kind: 'raw', svg: feet[style].map(([shape, attrs]) => shapeSvg(shape, attrs)).join('') }, FOOT_TURN[view]), '']],
+    shapes: [[transformed({ kind: 'raw', svg: feet[style].map(([shape, attrs]) => shapeSvg(shape, attrs)).join('') }, `${FOOT_TURN[view]} translate(0 -1.7)`), '']],
   })));
   const shaft = style === 'boots' ? 7 : style === 'high-tops' ? 11 : null;
   if (shaft !== null) {
@@ -907,7 +990,7 @@ function tintedBottoms(style: BottomStyle): Wearable {
 }
 
 const FACE_SHAPES = {
-  normal: circleD(0, CY, HEAD_R),
+  normal: HEAD_OUTLINE,
   round: ellipseD(0, CY, HEAD_R + 1, HEAD_R + 0.3),
   oval: ellipseD(0, CY, HEAD_R - 0.6, HEAD_R + 0.6),
   long: ellipseD(0, CY, HEAD_R - 1.2, HEAD_R + 1.3),
@@ -989,7 +1072,7 @@ function moreMouths(style: 'smirk' | 'grin' | 'surprised' | 'tongue' | 'neutral'
 /** Wearable id → art. Ids are what the catalog's `wearable` field points at. */
 const STARTER: Record<string, Wearable> = {
   'body': body(),
-  ...Object.fromEntries(Object.entries(FACE_SHAPES).map(([s, d]) => [`face-${s}`, face(d)])),
+  ...Object.fromEntries(Object.entries(FACE_SHAPES).map(([s, d]) => [`face-${s}`, face(d, s === 'normal' ? HEAD_BACK_OUTLINE : d)])),
   'eyes-1': eyes('dots'),
   'eyes-2': eyes('open'),
   'nose-normal': nose('normal'),

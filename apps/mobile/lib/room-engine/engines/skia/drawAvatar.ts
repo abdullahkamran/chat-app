@@ -12,7 +12,7 @@ import type { Facing } from '@chat-app/shared-types';
 import { facingToView } from '../../core/facing';
 import type { ClipId } from './skeleton/clips';
 import type { AvatarArt, TintGroup } from './skeleton/avatarArt';
-import { COMPILED_CLIPS, blendPose, samplePose, solveWorld } from './skeleton/sampler';
+import { COMPILED_CLIPS, blendPose, overlayPose, samplePose, solveWorld } from './skeleton/sampler';
 
 const ATLAS_SAMPLING = { filter: FilterMode.Linear, mipmap: MipmapMode.None };
 
@@ -26,6 +26,9 @@ export interface AvatarPlayhead {
   /** 0..1 weight of `clip` over `prevClip`. */
   fade: number;
   facing: Facing;
+  /** Upper-body clip played over `clip` (an emote while seated), or ''/absent for none. */
+  overlay?: ClipId | '';
+  overlayTime?: number;
 }
 
 function hashId(id: string): number {
@@ -76,6 +79,7 @@ export function drawAvatar(
   if (st.prevClip !== '') {
     pose = blendPose(samplePose(COMPILED_CLIPS[st.prevClip][view], st.prevTime), pose, st.fade);
   }
+  if (st.overlay) pose = overlayPose(pose, COMPILED_CLIPS[st.overlay][view], st.overlayTime ?? 0);
   const bones = solveWorld(pose, view);
 
   // RSXform can't reflect, so the west pair uses pre-flipped sprites with x and angle negated.

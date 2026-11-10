@@ -525,5 +525,17 @@ export function isEmoteClip(name: string): name is (typeof EMOTE_CLIPS)[number] 
   return (EMOTE_CLIPS as readonly string[]).includes(name);
 }
 
+/**
+ * Emotes that only move the upper body (and at most bob the hip), so they can play over
+ * the sit pose: a seated avatar waves without getting up. See drawAvatar's overlay.
+ */
+export const SEATED_EMOTE_CLIPS = [
+  'wave', 'clap', 'laugh', 'thumbsUp', 'shrug', 'facepalm', 'cheer', 'bow', 'cry', 'point', 'flex', 'blowKiss',
+] as const satisfies readonly (typeof EMOTE_CLIPS)[number][];
+
+export function isSeatedEmoteClip(name: string): name is (typeof SEATED_EMOTE_CLIPS)[number] {
+  return (SEATED_EMOTE_CLIPS as readonly string[]).includes(name);
+}
+
 /** Walk clip is authored for this pace; playback rate scales with the actor's real pace. */
 export const WALK_AUTHORED_MS_PER_CELL = 500;
