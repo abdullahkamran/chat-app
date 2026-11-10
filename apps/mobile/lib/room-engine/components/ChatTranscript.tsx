@@ -30,8 +30,7 @@ const useStyles = makeStyles(t => ({
   peek: {
     position: 'absolute',
     left: t.space.sm,
-    // Clear of the postbox and edit buttons on the right.
-    right: 88,
+    right: t.space.sm,
     bottom: t.space.sm,
     alignItems: 'flex-start',
     gap: t.space.xs,
@@ -102,7 +101,7 @@ function clockTime(at: number): string {
 }
 
 /**
- * The latest few messages over the bottom-left of the room, each fading out PEEK_MS after
+ * The latest few messages over the bottom of the room, just above the toolbar, each fading out PEEK_MS after
  * it was sent. Touches pass through to the room.
  */
 export function TranscriptPeek({ entries, userId, names }: Readonly<{ entries: TranscriptEntry[] } & Omit<LineProps, 'entry'>>) {

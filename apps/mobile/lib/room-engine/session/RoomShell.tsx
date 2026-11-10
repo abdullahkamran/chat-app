@@ -1,6 +1,6 @@
 import { usePreventRemove, useRouter } from 'expo-router';
 import { useState, type ReactNode } from 'react';
-import { View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedKeyboard, useAnimatedStyle, useDerivedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -13,10 +13,9 @@ import { ChatInput } from '../components/ChatInput';
 import { TranscriptButton, TranscriptPanel, TranscriptPeek } from '../components/ChatTranscript';
 import { EmoteDrawer, emoteTypeOf } from '../components/EmoteDrawer';
 import { EmotePrompt } from '../components/EmotePrompt';
-import { MailboxButton } from '../components/MailboxButton';
 import { MailboxModal } from '../components/MailboxModal';
+import { RoomToolbar, type RoomDrawer } from '../components/RoomToolbar';
 import { TypingIndicator } from '../components/TypingIndicator';
-import { EditModeButton } from '../EditMode/EditModeButton';
 import { EditModeToolbar } from '../EditMode/EditModeToolbar';
 import { InventoryDrawer } from '../EditMode/InventoryDrawer';
 import { useUsernames } from '../hooks/useUsernames';
@@ -49,17 +48,8 @@ const useStyles = makeStyles(t => ({
     flex: 1,
     overflow: 'hidden',
   },
-  fabColumn: {
-    position: 'absolute',
-    bottom: 100,
-    right: 20,
-    left: 20,
-    alignItems: 'flex-end',
-    gap: t.space.md,
-  },
   dock: {
     paddingHorizontal: t.space.sm,
-    paddingTop: t.space.xs,
     paddingBottom: t.space.sm,
   },
 }));
@@ -68,21 +58,22 @@ interface Props {
   session: RoomSession;
   /** The engine's renderer. */
   children: ReactNode;
-  /** Play-mode controls over the room's bottom-right corner (the experimental joystick). Hidden with the postbox button. */
+  /** The middle of the room toolbar (the experimental joystick). Hidden with the toolbar in edit mode. */
   controls?: ReactNode;
 }
 
 /**
- * Engine-independent room chrome: header or edit toolbar, chat input, avatar or emote
- * drawer or inventory drawer, and the loading / error states. The engine renders in between.
+ * Engine-independent room chrome: header or edit toolbar, the room toolbar over the chat
+ * input, avatar or emote drawer or inventory drawer, and the loading / error states. The
+ * engine renders in between.
  */
 export function RoomShell({ session, children, controls }: Readonly<Props>) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const styles = useStyles();
   // One drawer at a time takes the chat input's place.
-  const [drawer, setDrawer] = useState<'avatars' | 'emotes' | null>(null);
-  const toggleDrawer = (next: 'avatars' | 'emotes') => setDrawer(open => (open === next ? null : next));
+  const [drawer, setDrawer] = useState<RoomDrawer | null>(null);
+  const toggleDrawer = (next: RoomDrawer) => setDrawer(open => (open === next ? null : next));
   const closeDrawer = () => setDrawer(null);
   // The chrome under the header rides up with the keyboard, which covers the nav bar inset.
   // The room is shifted back down by the same amount so it stays put, keyboard over its bottom edge.
@@ -173,44 +164,25 @@ export function RoomShell({ session, children, controls }: Readonly<Props>) {
               accessibilityLabel="Members"
             />
           )}
-          {canEmote && (
-            <IconButton
-              icon={drawer === 'emotes' ? 'happy' : 'happy-outline'}
-              variant="surface"
-              active={drawer === 'emotes'}
-              onPress={() => toggleDrawer('emotes')}
-              accessibilityLabel="Emotes"
-            />
-          )}
-          <IconButton
-            icon={drawer === 'avatars' ? 'shirt' : 'shirt-outline'}
-            variant="surface"
-            active={drawer === 'avatars'}
-            onPress={() => toggleDrawer('avatars')}
-            accessibilityLabel="Change avatar"
-          />
         </View>
       )}
 
       <View style={styles.body}>
         <Animated.View style={[{ flex: 1 }, liftStyle]}>
           <View style={{ flex: 1 }}>
-            {/* onTouchStart sees the touch without taking it from the room. */}
-            <Animated.View
-              style={[{ flex: 1 }, roomStyle]}
-              onTouchStart={transcriptOpen ? () => setTranscriptOpen(false) : undefined}
-            >
+            <Animated.View style={[{ flex: 1 }, roomStyle]}>
               {children}
             </Animated.View>
 
-            {!isEditMode && !(showChat && transcriptOpen) && controls}
-            {!isEditMode && !(showChat && transcriptOpen) && (
-              <View style={styles.fabColumn} pointerEvents="box-none">
-                <MailboxButton unread={mailbox?.unread ?? 0} hint={mailHint} onPress={openMailbox} />
-                {isOwner && <EditModeButton onPress={intents.enterEdit} />}
-              </View>
+            {/* While the transcript is open, a touch on the room only closes it: it never walks. */}
+            {showChat && transcriptOpen && (
+              <Pressable
+                style={StyleSheet.absoluteFill}
+                onPressIn={() => setTranscriptOpen(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Hide chat"
+              />
             )}
-
             {showChat && (transcriptOpen
               ? <TranscriptPanel entries={transcript} userId={userId} names={names} />
               : <TranscriptPeek entries={transcript} userId={userId} names={names} />)}
@@ -233,19 +205,30 @@ export function RoomShell({ session, children, controls }: Readonly<Props>) {
               onAnswer={intents.answerEmoteRequest}
             />
           )}
+          {showChat && <TypingIndicator names={typingNames} />}
+          {!isEditMode && (
+            <RoomToolbar
+              center={controls}
+              drawer={drawer}
+              onToggleDrawer={toggleDrawer}
+              canEmote={canEmote}
+              unread={mailbox?.unread ?? 0}
+              mailHint={mailHint}
+              onOpenMailbox={openMailbox}
+              onEdit={isOwner ? intents.enterEdit : undefined}
+            />
+          )}
+          {/* A drawer opens under the toolbar, in the chat input's place. */}
           {!isEditMode && drawer === 'avatars' && <AvatarDrawer onClose={closeDrawer} />}
           {!isEditMode && drawer === 'emotes' && <EmoteDrawer onEmote={playEmote} onClose={closeDrawer} />}
           {showChat && (
-            <>
-              <TypingIndicator names={typingNames} />
-              <View style={styles.dock}>
-                <ChatInput
-                  onTyping={intents.typing}
-                  onSubmit={intents.submitMessage}
-                  left={<TranscriptButton open={transcriptOpen} onPress={() => setTranscriptOpen(open => !open)} />}
-                />
-              </View>
-            </>
+            <View style={styles.dock}>
+              <ChatInput
+                onTyping={intents.typing}
+                onSubmit={intents.submitMessage}
+                left={<TranscriptButton open={transcriptOpen} onPress={() => setTranscriptOpen(open => !open)} />}
+              />
+            </View>
           )}
         </Animated.View>
       </View>

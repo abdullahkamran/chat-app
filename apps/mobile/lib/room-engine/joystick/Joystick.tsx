@@ -9,26 +9,25 @@ import { makeStyles } from '@/constants/theme';
 import { STICK_REST, type StickVector } from './steerMath';
 
 /**
- * Diameter of the base ring and of the knob, in px. The ring sits EDGE px in from the
- * room's bottom-right corner: 76 + 12 keeps it clear of the chat peek (right: 88) and
- * under the postbox and edit buttons (bottom: 100).
+ * Diameter of the base ring and of the knob, in px. The ring is the room toolbar's
+ * centrepiece, a little bigger than the toolbar's 48 px buttons.
  */
-const BASE = 76;
-const KNOB = 34;
-const EDGE = 12;
+const BASE = 64;
+const KNOB = 28;
 /** How far the knob's centre can leave the base's centre. */
 const TRAVEL = (BASE - KNOB) / 2;
 /** Touches nearer the centre than this don't move the actor, so resting a thumb is safe. */
-const DEAD_ZONE = 8;
-/** Touch area around the ring (padding, which works on Android where hitSlop doesn't), so a thumb landing near it still catches it. */
-const SLOP = 20;
-const IDLE_OPACITY = 0.55;
+const DEAD_ZONE = 6;
+/**
+ * Touch area around the ring (padding, which works on Android where hitSlop doesn't), so a
+ * thumb landing near it still catches it. A matching negative margin keeps it out of the
+ * toolbar's layout; the toolbar leaves at least this much room either side.
+ */
+const SLOP = 12;
 
 const useStyles = makeStyles(t => ({
   zone: {
-    position: 'absolute',
-    right: EDGE - SLOP,
-    bottom: EDGE - SLOP,
+    margin: -SLOP,
     padding: SLOP,
   },
   base: {
@@ -62,7 +61,7 @@ interface Props {
 }
 
 /**
- * Fixed thumbstick for the room's bottom-right corner; render it inside the room area.
+ * Fixed thumbstick, laid out in the middle of the room toolbar.
  * Direction comes from where the thumb is relative to the
  * ring's centre, not where it first landed, so it always points where the thumb is.
  * Speed is constant past the dead zone, like tap-to-walk.
@@ -105,8 +104,7 @@ export function Joystick({ stick }: Readonly<Props>) {
   useEffect(() => () => stick.set(STICK_REST), [stick]);
 
   const baseStyle = useAnimatedStyle(() => ({
-    opacity: IDLE_OPACITY + (1 - IDLE_OPACITY) * held.get(),
-    transform: [{ scale: 1 + 0.06 * held.get() }],
+    transform: [{ scale: 1 + 0.08 * held.get() }],
   }));
   const knobStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: knobX.get() }, { translateY: knobY.get() }],
