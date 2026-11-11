@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -16,7 +15,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { FriendSuggestion, IncomingFriendRequest, PublicUser, RelatedUser } from '@chat-app/shared-types';
 import FriendButton from '@/components/FriendButton';
 import UserRow from '@/components/UserRow';
-import { AppText, Button, EmptyState, IconButton, ScreenHeader, SegmentedControl, Spinner, TextField } from '@/components/ui';
+import {
+  AppText, Button, DialogHost, EmptyState, IconButton, ScreenHeader, SegmentedControl, Spinner, TextField, showDialog,
+} from '@/components/ui';
 import { makeStyles, useTheme } from '@/constants/theme';
 import { useContactSync } from '@/hooks/useContactSync';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
@@ -98,10 +99,16 @@ function SuggestionRow({ suggestion }: Readonly<{ suggestion: FriendSuggestion }
 function FriendRow({ friend }: Readonly<{ friend: PublicUser }>) {
   const { unfriend } = useFriendActions();
   const confirm = () =>
-    Alert.alert(`Remove ${friend.username}?`, "They won't be told. Rooms you share stay as they are.", [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: () => unfriend.mutate(friend._id) },
-    ]);
+    showDialog({
+      title: `Remove ${friend.username}?`,
+      message: "They won't be told. Rooms you share stay as they are.",
+      icon: 'person-remove',
+      tone: 'error',
+      buttons: [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Remove', style: 'destructive', onPress: () => unfriend.mutate(friend._id) },
+      ],
+    });
   return (
     <UserRow
       username={friend.username}
@@ -265,6 +272,8 @@ export default function AddFriendsScreen() {
           />
         )}
       </View>
+      {/* This screen is a native modal: dialogs shown while it's open have to present from it. */}
+      <DialogHost />
     </KeyboardAvoidingView>
   );
 }

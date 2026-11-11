@@ -1,12 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, usePreventRemove, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, FlatList, KeyboardAvoidingView, Platform, View } from 'react-native';
+import { FlatList, KeyboardAvoidingView, Platform, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import UserPicker from '@/components/UserPicker';
 import UserRow from '@/components/UserRow';
-import { AppText, Button, IconButton, ScreenHeader, Spinner } from '@/components/ui';
+import { AppText, Button, DialogHost, IconButton, ScreenHeader, Spinner, showDialog, showErrorDialog } from '@/components/ui';
 import { makeStyles } from '@/constants/theme';
 import { useAuth } from '@/context/auth.context';
 import { api } from '@/lib/api';
@@ -19,6 +19,16 @@ import { PublicUser, RoomLeaveResult, RoomMembers } from '@chat-app/shared-types
  * own the room. Opened from the room's header, as a modal over it.
  */
 export default function RoomMembersScreen() {
+  return (
+    <>
+      <RoomMembers />
+      {/* This screen is a native modal: dialogs shown while it's open have to present from it. */}
+      <DialogHost />
+    </>
+  );
+}
+
+function RoomMembers() {
   const { roomId } = useLocalSearchParams<{ roomId: string }>();
   const { userId } = useAuth();
   const router = useRouter();
@@ -41,7 +51,7 @@ export default function RoomMembersScreen() {
     enabled: !!roomId,
   });
 
-  const showError = (e: Error) => Alert.alert('Something went wrong', e.message);
+  const showError = (e: Error) => showErrorDialog(e);
   const refetchMembers = () => queryClient.invalidateQueries({ queryKey: membersKey });
   // Out of the room: back to the room list, which no longer has it.
   const exitRoom = () => {
@@ -112,36 +122,54 @@ export default function RoomMembersScreen() {
   const isAlone = count === 1;
 
   const confirmRemove = (user: PublicUser) =>
-    Alert.alert(`Remove ${user.username}?`, 'They will lose access to this room.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: () => remove.mutate(user) },
-    ]);
+    showDialog({
+      title: `Remove ${user.username}?`,
+      message: 'They will lose access to this room.',
+      icon: 'person-remove',
+      tone: 'error',
+      buttons: [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Remove', style: 'destructive', onPress: () => remove.mutate(user) },
+      ],
+    });
 
   const confirmMakeOwner = (user: PublicUser) =>
-    Alert.alert(
-      `Make ${user.username} an owner?`,
-      'Owners can add and remove people, edit the room, make others owners and delete the room.',
-      [
+    showDialog({
+      title: `Make ${user.username} an owner?`,
+      message: 'Owners can add and remove people, edit the room, make others owners and delete the room.',
+      icon: 'star',
+      tone: 'reward',
+      buttons: [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Make Owner', onPress: () => makeOwner.mutate(user) },
       ],
-    );
+    });
 
   const confirmDismiss = (user: PublicUser) =>
-    Alert.alert(`Dismiss ${user.username} as owner?`, "They'll stay in the room as a member.", [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Dismiss', style: 'destructive', onPress: () => dismissOwner.mutate(user) },
-    ]);
+    showDialog({
+      title: `Dismiss ${user.username} as owner?`,
+      message: "They'll stay in the room as a member.",
+      icon: 'star-outline',
+      tone: 'error',
+      buttons: [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Dismiss', style: 'destructive', onPress: () => dismissOwner.mutate(user) },
+      ],
+    });
 
   // What an owner can do to someone else: make or dismiss them as owner, or remove them.
   const showMemberActions = (user: PublicUser, isRowOwner: boolean) =>
-    Alert.alert(user.username, undefined, [
-      isRowOwner
-        ? { text: 'Dismiss as Owner', onPress: () => confirmDismiss(user) }
-        : { text: 'Make Owner', onPress: () => confirmMakeOwner(user) },
-      { text: 'Remove from Room', style: 'destructive', onPress: () => confirmRemove(user) },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+    showDialog({
+      title: user.username,
+      icon: 'person',
+      buttons: [
+        isRowOwner
+          ? { text: 'Dismiss as Owner', onPress: () => confirmDismiss(user) }
+          : { text: 'Make Owner', onPress: () => confirmMakeOwner(user) },
+        { text: 'Remove from Room', style: 'destructive', onPress: () => confirmRemove(user) },
+        { text: 'Cancel', style: 'cancel' },
+      ],
+    });
 
   const leaveMessage = isAlone
     ? "You're the only one here, so leaving deletes the room."
@@ -152,16 +180,28 @@ export default function RoomMembersScreen() {
         : "You'll need an owner to add you back.";
 
   const confirmLeave = () =>
-    Alert.alert('Leave this room?', leaveMessage, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Leave', style: 'destructive', onPress: () => leave.mutate() },
-    ]);
+    showDialog({
+      title: 'Leave this room?',
+      message: leaveMessage,
+      icon: 'exit-outline',
+      tone: 'error',
+      buttons: [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Leave', style: 'destructive', onPress: () => leave.mutate() },
+      ],
+    });
 
   const confirmDelete = () =>
-    Alert.alert('Delete this room?', "It's deleted for everyone, along with its postbox. This can't be undone.", [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => deleteRoom.mutate() },
-    ]);
+    showDialog({
+      title: 'Delete this room?',
+      message: "It's deleted for everyone, along with its postbox. This can't be undone.",
+      icon: 'trash',
+      tone: 'error',
+      buttons: [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => deleteRoom.mutate() },
+      ],
+    });
 
   if (isAdding) {
     return (

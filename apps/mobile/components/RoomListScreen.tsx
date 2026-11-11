@@ -1,16 +1,15 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { FlatList, Modal, View } from 'react-native';
+import { FlatList, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { io } from 'socket.io-client';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { PaginatedRooms, Room, RoomCategory } from '@chat-app/shared-types';
-import { AppText, Button, EmptyState, IconButton, ScreenHeader, Spinner } from '@/components/ui';
+import { Button, Dialog, EmptyState, IconButton, ScreenHeader, Spinner } from '@/components/ui';
 import { useAuth } from '@/context/auth.context';
 import { useIncomingRequests } from '@/hooks/useFriends';
 import { api } from '@/lib/api';
-import { makeStyles, useTheme } from '@/constants/theme';
+import { makeStyles } from '@/constants/theme';
 import { SERVER_ORIGIN } from '../utils/config';
 import { listenForAccountEvents, socketUtils } from '../utils/socketUtils';
 import RoomListItem from './RoomListItem';
@@ -45,43 +44,12 @@ const useStyles = makeStyles(t => ({
     bottom: t.space.xl,
     right: t.space.xl,
   },
-  overlay: {
-    flex: 1,
-    backgroundColor: t.colors.overlay,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: t.space.xl,
-  },
-  dialog: {
-    backgroundColor: t.colors.surfaceElevated,
-    borderRadius: t.radius.xl,
-    borderWidth: t.borderWidth.thick,
-    borderColor: t.colors.border,
-    padding: t.space.xl,
-    width: '100%',
-    maxWidth: 340,
-    alignItems: 'center',
-    gap: t.space.md,
-    ...t.shadows.floating,
-  },
-  dialogIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: t.radius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: t.colors.primarySoft,
-    transform: [{ rotate: '-6deg' }],
-  },
   dialogActions: {
-    alignSelf: 'stretch',
     gap: t.space.xs,
-    marginTop: t.space.sm,
   },
 }));
 
 export default function RoomListScreen(): React.JSX.Element {
-  const t = useTheme();
   const styles = useStyles();
   const { userId, selectedAvatar } = useAuth();
   const router = useRouter();
@@ -186,32 +154,23 @@ export default function RoomListScreen(): React.JSX.Element {
         accessibilityLabel="New room"
       />
 
-      <Modal
+      <Dialog
         visible={showAvatarDialog && !selectedAvatar}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowAvatarDialog(false)}
-      >
-        <View style={styles.overlay}>
-          <View style={styles.dialog}>
-            <View style={styles.dialogIcon}>
-              <Ionicons name="happy" size={32} color={t.colors.primary} />
-            </View>
-            <AppText variant="title" align="center">Set up your avatar</AppText>
-            <AppText color="textSecondary" align="center">
-              You need an avatar before joining conversations.
-            </AppText>
-            <View style={styles.dialogActions}>
-              <Button
-                title="Create Avatar"
-                fullWidth
-                onPress={() => { setShowAvatarDialog(false); router.push('/(avatar)/create'); }}
-              />
-              <Button title="Maybe Later" variant="ghost" fullWidth onPress={() => setShowAvatarDialog(false)} />
-            </View>
+        onClose={() => setShowAvatarDialog(false)}
+        icon="happy"
+        title="Set up your avatar"
+        message="You need an avatar before joining conversations."
+        actions={
+          <View style={styles.dialogActions}>
+            <Button
+              title="Create Avatar"
+              fullWidth
+              onPress={() => { setShowAvatarDialog(false); router.push('/(avatar)/create'); }}
+            />
+            <Button title="Maybe Later" variant="ghost" fullWidth onPress={() => setShowAvatarDialog(false)} />
           </View>
-        </View>
-      </Modal>
+        }
+      />
     </View>
   );
 }

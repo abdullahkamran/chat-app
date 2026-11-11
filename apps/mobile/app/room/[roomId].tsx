@@ -1,9 +1,10 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import type { RoomRemovalReason } from '@chat-app/shared-types';
 import { SocketEvent } from '@chat-app/socket-constants';
+import { showToast } from '@/components/Toast';
 import { useActiveRoom } from '@/context/activeRoom.context';
 import { socketUtils } from '@/utils/socketUtils';
 import Room from '../../lib/room-engine/Room';
@@ -26,9 +27,10 @@ export default function RoomScreen() {
     const onRemoved = (p: { roomId: string; reason: RoomRemovalReason }) => {
       if (p.roomId !== roomId) return;
       router.dismissTo('/(tabs)');
-      if (p.reason === 'removed') Alert.alert('Removed from room', 'An owner removed you from this room.');
-      if (p.reason === 'deleted') Alert.alert('Room deleted', 'An owner deleted this room.');
-      if (p.reason === 'unfriended') Alert.alert('Room closed', "You're no longer friends with this room's owner.");
+      // A toast, not a dialog: the room (and maybe its member list) is still closing under it.
+      if (p.reason === 'removed') showToast({ text: 'An owner removed you from this room.', icon: 'exit-outline' });
+      if (p.reason === 'deleted') showToast({ text: 'An owner deleted this room.', icon: 'trash-outline' });
+      if (p.reason === 'unfriended') showToast({ text: "Room closed: you're no longer friends with its owner.", icon: 'heart-dislike-outline' });
     };
     socket.on(SocketEvent.RECEIVE_REMOVED_FROM_ROOM, onRemoved);
     return () => {

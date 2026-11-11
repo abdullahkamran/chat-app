@@ -13,6 +13,7 @@ import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ToastHost } from '@/components/Toast';
+import { DialogHost } from '@/components/ui';
 import { ActiveRoomContext } from '@/context/activeRoom.context';
 import { AuthProvider, useAuth } from '@/context/auth.context';
 import { UserContext } from '@/context/user.context';
@@ -109,6 +110,7 @@ function AppNavigator() {
             </Stack>
             <StatusBar style={t.scheme === 'dark' ? 'light' : 'dark'} />
             <ToastHost />
+            <DialogHost />
           </NavigationThemeProvider>
         </QueryClientProvider>
       </ActiveRoomContext.Provider>

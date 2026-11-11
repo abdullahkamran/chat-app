@@ -1,7 +1,7 @@
-import { Alert } from 'react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
+import { showErrorDialog } from '@/components/ui';
 import { useAuth } from '@/context/auth.context';
 import { useUserInfo } from '@/context/user.context';
 import { useChat } from '@/hooks/useChat';
@@ -1144,7 +1144,7 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
       console.error('Failed to save room layout', e);
       // Still editing, so nothing is lost; the counts may have changed under us.
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
-      Alert.alert("Couldn't save the room", e instanceof Error ? e.message : 'Try again.');
+      showErrorDialog(e, "Couldn't save the room");
     } finally {
       setIsSaving(false);
     }

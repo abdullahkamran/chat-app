@@ -1,8 +1,5 @@
 import React, { useState } from 'react';
 import {
-    Alert,
-    Modal,
-    Pressable,
     ScrollView,
     Switch,
     View,
@@ -19,7 +16,7 @@ import { MY_AVATARS_KEY, useMyAvatars, useWearAvatar } from '@/hooks/useMyAvatar
 import { makeStyles, useTheme, type ThemeColors } from '@/constants/theme';
 import AvatarPreview from '@/components/AvatarPreview';
 import UserAvatar from '@/components/UserAvatar';
-import { AppText, Button, EmptyState, Spinner } from '@/components/ui';
+import { AppText, Button, Dialog, EmptyState, Spinner, showDialog, showErrorDialog } from '@/components/ui';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -125,7 +122,7 @@ export default function ProfileScreen() {
     const discoverableMutation = useMutation({
         mutationFn: (discoverableByPhone: boolean) => api.patch('/api/v1/users/me', { discoverableByPhone }),
         onSettled: () => queryClient.invalidateQueries({ queryKey: ['user', userId] }),
-        onError: (e: Error) => Alert.alert('Could not save', e.message),
+        onError: (e: Error) => showErrorDialog(e, 'Could not save'),
     });
 
     const avatarsQuery = useMyAvatars();
@@ -139,18 +136,16 @@ export default function ProfileScreen() {
     });
 
     const handleDelete = (avatar: Avatar) => {
-        Alert.alert(
-            'Delete Avatar',
-            'Are you sure you want to delete this avatar?',
-            [
+        showDialog({
+            title: 'Delete this avatar?',
+            message: "This can't be undone.",
+            icon: 'trash',
+            tone: 'error',
+            buttons: [
                 { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Delete',
-                    style: 'destructive',
-                    onPress: () => deleteMutation.mutate(avatar._id),
-                },
+                { text: 'Delete', style: 'destructive', onPress: () => deleteMutation.mutate(avatar._id) },
             ],
-        );
+        });
     };
 
     const handleLogout = () => setLogoutModalVisible(true);
@@ -265,35 +260,30 @@ export default function ProfileScreen() {
         </ScrollView>
 
         {/* Logout confirmation modal */}
-        <Modal
+        <Dialog
             visible={logoutModalVisible}
-            transparent
-            animationType="fade"
-            onRequestClose={() => setLogoutModalVisible(false)}
-        >
-            <Pressable style={styles.modalOverlay} onPress={() => setLogoutModalVisible(false)}>
-                <Pressable style={styles.modalBox} onPress={() => {}}>
-                    <AppText variant="title" align="center">Log out?</AppText>
-                    <AppText color="textSecondary" align="center">
-                        You&apos;ll need to sign in again to access your account.
-                    </AppText>
-                    <View style={styles.modalActions}>
-                        <Button
-                            title="Cancel"
-                            variant="secondary"
-                            style={styles.modalBtn}
-                            onPress={() => setLogoutModalVisible(false)}
-                        />
-                        <Button
-                            title="Log out"
-                            variant="danger"
-                            style={styles.modalBtn}
-                            onPress={() => { setLogoutModalVisible(false); logout(); }}
-                        />
-                    </View>
-                </Pressable>
-            </Pressable>
-        </Modal>
+            onClose={() => setLogoutModalVisible(false)}
+            icon="log-out-outline"
+            tone="error"
+            title="Log out?"
+            message="You'll need to sign in again to access your account."
+            actions={
+                <View style={styles.modalActions}>
+                    <Button
+                        title="Cancel"
+                        variant="secondary"
+                        style={styles.modalBtn}
+                        onPress={() => setLogoutModalVisible(false)}
+                    />
+                    <Button
+                        title="Log out"
+                        variant="danger"
+                        style={styles.modalBtn}
+                        onPress={() => { setLogoutModalVisible(false); logout(); }}
+                    />
+                </View>
+            }
+        />
         </>
     );
 }
@@ -424,29 +414,10 @@ const useStyles = makeStyles(t => ({
         height: 30,
     },
 
-    // Logout modal
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: t.colors.overlay,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: t.space.xxl,
-    },
-    modalBox: {
-        width: '100%',
-        maxWidth: 360,
-        backgroundColor: t.colors.surfaceElevated,
-        borderRadius: t.radius.xl,
-        borderWidth: t.borderWidth.thick,
-        borderColor: t.colors.border,
-        padding: t.space.xl,
-        gap: t.space.sm,
-        ...t.shadows.floating,
-    },
+    // Logout dialog
     modalActions: {
         flexDirection: 'row',
-        gap: 10,
-        marginTop: t.space.md,
+        gap: t.space.sm,
     },
     modalBtn: {
         flex: 1,

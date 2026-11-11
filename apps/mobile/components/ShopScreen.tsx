@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Alert, FlatList, View } from 'react-native';
+import { FlatList, View } from 'react-native';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Animation, AvatarInventoryEntry, AvatarItem, Item, PaginatedAnimations, PaginatedAvatarItems, PaginatedItems } from '@chat-app/shared-types';
 import { useAuth } from '@/context/auth.context';
 import { api } from '@/lib/api';
-import { AppText, Button, CoinPill, EmptyState, ScreenHeader, SegmentedControl, Spinner } from '@/components/ui';
+import { AppText, Button, CoinPill, EmptyState, ScreenHeader, SegmentedControl, Spinner, showErrorDialog } from '@/components/ui';
+import { showToast } from '@/components/Toast';
 import { makeStyles } from '@/constants/theme';
 import { useMe } from '@/hooks/useMe';
 import { ownedCounts, useInventory } from '@/hooks/useInventory';
@@ -80,9 +81,9 @@ export default function ShopScreen(): React.JSX.Element {
             queryClient.invalidateQueries({ queryKey: ['inventory'] });
             queryClient.invalidateQueries({ queryKey: ['user'] });
             setModalVisible(false);
-            Alert.alert('Purchased!', 'Item added to your inventory.');
+            showToast({ text: 'Purchased! Item added to your inventory.', icon: 'bag-check' });
         },
-        onError: (err: Error) => Alert.alert('Purchase failed', err.message),
+        onError: (err: Error) => showErrorDialog(err, 'Purchase failed'),
         onSettled: () => setBuyingItemId(null),
     });
 
@@ -152,9 +153,9 @@ export default function ShopScreen(): React.JSX.Element {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['animation-inventory'] });
             queryClient.invalidateQueries({ queryKey: ['user'] });
-            Alert.alert('Purchased!', 'Animation added to your collection.');
+            showToast({ text: 'Purchased! Animation added to your collection.', icon: 'bag-check' });
         },
-        onError: (err: Error) => Alert.alert('Purchase failed', err.message),
+        onError: (err: Error) => showErrorDialog(err, 'Purchase failed'),
         onSettled: () => setBuyingAnimationId(null),
     });
 
@@ -165,9 +166,9 @@ export default function ShopScreen(): React.JSX.Element {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['avatar-inventory'] });
             queryClient.invalidateQueries({ queryKey: ['user'] });
-            Alert.alert('Purchased!', 'Outfit added to your wardrobe.');
+            showToast({ text: 'Purchased! Outfit added to your wardrobe.', icon: 'bag-check' });
         },
-        onError: (err: Error) => Alert.alert('Purchase failed', err.message),
+        onError: (err: Error) => showErrorDialog(err, 'Purchase failed'),
         onSettled: () => setBuyingOutfitKey(null),
     });
 

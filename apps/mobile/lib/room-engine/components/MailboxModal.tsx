@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import {
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -14,7 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { isRoomOwner, ROOM_MAIL_MAX_LENGTH, RoomCategory, type RoomDetails, type RoomMail } from '@chat-app/shared-types';
-import { AppText, EmptyState, IconButton, Spinner } from '@/components/ui';
+import { AppText, DialogHost, EmptyState, IconButton, Spinner, showDialog } from '@/components/ui';
 import { makeStyles, useTheme } from '@/constants/theme';
 import { useMailbox, useMailboxMutations } from '@/hooks/useMailbox';
 
@@ -173,10 +172,15 @@ export function MailboxModal({ room, userId, visible, onClose }: Readonly<Props>
   }
 
   const confirmDelete = (mail: RoomMail) =>
-    Alert.alert('Delete this mail?', undefined, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => remove.mutate(mail._id) },
-    ]);
+    showDialog({
+      title: 'Delete this mail?',
+      icon: 'trash',
+      tone: 'error',
+      buttons: [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => remove.mutate(mail._id) },
+      ],
+    });
 
   const renderMail = ({ item }: { item: RoomMail }) => {
     const mine = item.author._id === userId;
@@ -271,6 +275,8 @@ export function MailboxModal({ room, userId, visible, onClose }: Readonly<Props>
           )}
         </View>
       </KeyboardAvoidingView>
+      {/* Dialogs over the postbox present from its Modal; it's only mounted while open. */}
+      <DialogHost />
     </Modal>
   );
 }

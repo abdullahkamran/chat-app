@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
-import { Alert } from 'react-native';
 
 import type { FriendSuggestion, IncomingFriendRequest, PublicUser } from '@chat-app/shared-types';
+import { showErrorDialog } from '@/components/ui';
 import { api } from '@/lib/api';
 
 export const FRIENDS_KEY = ['friends'];
@@ -48,7 +48,7 @@ export function useFriendActions() {
   const queryClient = useQueryClient();
   const options = {
     onSuccess: () => refetchFriendData(queryClient),
-    onError: (e: Error) => Alert.alert('Something went wrong', e.message),
+    onError: (e: Error) => showErrorDialog(e),
   };
   return {
     send: useMutation({ mutationFn: (userId: string) => api.post('/api/v1/friends/requests', { userId }), ...options }),

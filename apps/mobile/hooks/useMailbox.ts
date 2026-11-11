@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert } from 'react-native';
 
 import type { RoomMail, RoomMailbox } from '@chat-app/shared-types';
+import { showErrorDialog } from '@/components/ui';
 import { api } from '@/lib/api';
 
 export const mailboxKey = (roomId: string) => ['mailbox', roomId];
@@ -19,7 +19,7 @@ export function useMailbox(roomId: string | undefined) {
 export function useMailboxMutations(roomId: string) {
   const queryClient = useQueryClient();
   const refetch = () => queryClient.invalidateQueries({ queryKey: mailboxKey(roomId) });
-  const onError = (e: Error) => Alert.alert('Something went wrong', e.message);
+  const onError = (e: Error) => showErrorDialog(e);
   return {
     post: useMutation({
       mutationFn: (text: string) => api.post<RoomMail>(`/api/v1/rooms/${roomId}/mail`, { text }),

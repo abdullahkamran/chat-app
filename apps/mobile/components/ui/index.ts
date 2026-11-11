@@ -2,6 +2,7 @@ export { AppText } from './AppText';
 export { Badge } from './Badge';
 export { Button } from './Button';
 export { Chip } from './Chip';
+export { Dialog, DialogHost, showDialog, showErrorDialog, type DialogButton, type DialogOptions, type DialogTone } from './Dialog';
 export { CoinPill } from './CoinPill';
 export { EmptyState } from './EmptyState';
 export { IconButton } from './IconButton';

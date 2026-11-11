@@ -13,6 +13,8 @@ Structure:
 
 ## Theming: ALWAYS use the design system
 
+The full reference (look, every token and color, components, dialogs, accessibility) is [docs/design-system.md](docs/design-system.md). Read it before building or restyling UI, and update it when you add a token, color or primitive. The rules below are the short version.
+
 **Never hardcode colors, font sizes, font families, radii or spacing in components.** Everything comes from `apps/mobile/constants/theme/`:
 
 | File | Holds |
@@ -70,7 +72,14 @@ Use `t.type.*` (`display`, `title`, `heading`, `button`, `body`, `bodyStrong`, `
 
 ### UI primitives: use these before hand-rolling
 
-`apps/mobile/components/ui/` (import from `@/components/ui`): `AppText`, `Button` (primary / secondary / reward / ghost / danger), `IconButton` (plain / surface / primary / secondary, with `active` and `badge`), `TextField`, `SegmentedControl`, `Chip`, `ScreenHeader`, `Badge`, `EmptyState`, `Spinner`, `CoinPill`. The room's bottom drawers use `lib/room-engine/components/Drawer.tsx`.
+`apps/mobile/components/ui/` (import from `@/components/ui`): `AppText`, `Button` (primary / secondary / reward / ghost / danger), `IconButton` (plain / surface / primary / secondary, with `active` and `badge`), `TextField`, `SegmentedControl`, `Chip`, `ScreenHeader`, `Badge`, `EmptyState`, `Spinner`, `CoinPill`, `Dialog`. The room's bottom drawers use `lib/room-engine/components/Drawer.tsx`.
+
+### Dialogs: never `Alert.alert` or a hand-rolled `Modal`
+
+- Quick confirms, notices and errors: `showDialog({ title, message, icon, tone, buttons })` (buttons are shaped like `Alert.alert`'s) or `showErrorDialog(e, title?)`. A tap outside or back runs the `cancel` button; a one-button notice closes on a tap outside too.
+- Custom content: `<Dialog visible onClose icon tone title message actions>`, or `bare` to lay out the card yourself.
+- Success notices that need no answer ("Purchased!"): `showToast` from `components/Toast.tsx`, not a dialog.
+- `showDialog` goes to the newest mounted `<DialogHost />`. On iOS a Modal can only present from the screen it's mounted in, so a screen shown with `presentation: 'modal'`, or a `Modal` that shows dialogs, must mount its own `<DialogHost />` (see `app/room-members.tsx`, `app/add-friends.tsx`, `MailboxModal.tsx`). The root one is in `app/_layout.tsx`.
 
 ### Adding a color
 
