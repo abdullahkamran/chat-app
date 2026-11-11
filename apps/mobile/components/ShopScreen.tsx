@@ -8,6 +8,7 @@ import { api } from '@/lib/api';
 import { AppText, Button, CoinPill, EmptyState, ScreenHeader, SegmentedControl, Spinner } from '@/components/ui';
 import { makeStyles } from '@/constants/theme';
 import { useMe } from '@/hooks/useMe';
+import { ownedCounts, useInventory } from '@/hooks/useInventory';
 import ShopItemCard from './ShopItemCard';
 import AvatarShopItemCard from './AvatarShopItemCard';
 import ItemDetailModal from './ItemDetailModal';
@@ -46,17 +47,9 @@ export default function ShopScreen(): React.JSX.Element {
     const [selectedAnimationCategory, setSelectedAnimationCategory] = useState<string>(ALL_CATEGORY);
     const [buyingAnimationId, setBuyingAnimationId] = useState<string | null>(null);
 
-    // ── Items tab: inventory (to show owned-count warning) ──────────────────
-    const { data: ownedItems = [] } = useQuery<Item[]>({
-        queryKey: ['inventory'],
-        queryFn: () => api.get<Item[]>('/api/v1/inventory'),
-        enabled: !!userId && shopTab === 'items',
-    });
-
-    const ownedItemCounts = ownedItems.reduce<Record<string, number>>((acc, item) => {
-        acc[item._id] = (acc[item._id] ?? 0) + 1;
-        return acc;
-    }, {});
+    // ── Items tab: how many of each the user owns, free and placed ───────────
+    const { data: inventory = [] } = useInventory({ enabled: !!userId && shopTab === 'items' });
+    const owned = ownedCounts(inventory);
 
     // ── Items tab queries ────────────────────────────────────────────────────
     const { data: categories = [] } = useQuery<string[]>({
@@ -196,6 +189,7 @@ export default function ShopScreen(): React.JSX.Element {
                             renderItem={({ item }) => (
                                 <ShopItemCard
                                     item={item}
+                                    ownedCount={owned[item._id]?.owned ?? 0}
                                     onPress={() => { setSelectedItem(item); setModalVisible(true); }}
                                 />
                             )}
@@ -280,7 +274,8 @@ export default function ShopScreen(): React.JSX.Element {
                 onClose={() => setModalVisible(false)}
                 onBuy={(itemId) => buyItem(itemId)}
                 isBuying={selectedItem ? buyingItemId === selectedItem._id : false}
-                ownedCount={selectedItem ? (ownedItemCounts[selectedItem._id] ?? 0) : 0}
+                ownedCount={selectedItem ? (owned[selectedItem._id]?.owned ?? 0) : 0}
+                placedCount={selectedItem ? (owned[selectedItem._id]?.placed ?? 0) : 0}
             />
         </View>
     );

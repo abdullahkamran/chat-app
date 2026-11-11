@@ -12,6 +12,13 @@ interface Props {
   onRotatePlacedItem?: () => void;
   /** Whether an inventory item is chosen for placement, for the hint. */
   isPlacing?: boolean;
+  /**
+   * Who placed the picked-up item when it's another owner's: removing it gives it back to them,
+   * not to us. Undefined while their name loads.
+   */
+  placedByName?: string;
+  /** Whether the picked-up item is another owner's. */
+  isOthersItem?: boolean;
   topInset?: number;
 }
 
@@ -44,11 +51,13 @@ const useStyles = makeStyles(t => ({
 /** Save / Cancel bar shown at the top while in edit mode, edged in the edit-mode accent. */
 export function EditModeToolbar({
   isSaving, onSave, onCancel, selectedPlacedItem, onRemovePlacedItem, onRotatePlacedItem, isPlacing = false,
-  topInset = 0,
+  placedByName, isOthersItem = false, topInset = 0,
 }: Props) {
   const styles = useStyles();
   const hint = selectedPlacedItem
-    ? 'Tap the floor to move it'
+    ? isOthersItem
+      ? `${placedByName ? `${placedByName}'s` : "Another owner's"}. Removing it gives it back to them`
+      : 'Tap the floor to move it'
     : isPlacing
       ? 'Tap the floor to place'
       : 'Tap furniture to move it';

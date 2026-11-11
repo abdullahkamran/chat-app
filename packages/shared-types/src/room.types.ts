@@ -1,6 +1,6 @@
 import { Animation } from "./animation.types";
 import { Dimensions, Orientiation, Position } from "./dimensions.types";
-import { Item, ItemState } from "./item.types";
+import { Item, ItemState, RoomThemeSlot } from "./item.types";
 import { PublicUser, User } from "./user.types";
 
 /**
@@ -42,10 +42,31 @@ export interface RoomDetails extends Room {
 }
 
 export interface RoomItem {
+    /** Absent on a copy placed in edit mode and not saved yet. */
+    _id?: string;
     itemId: Item;
     position: Position;
     orientation: Orientiation;
-    state: ItemState; 
+    state: ItemState;
+    /**
+     * Whose copy it is: who placed it. Any owner may move or remove it; removed, it goes back to
+     * this user's inventory. Absent on a copy not saved yet (it's the editor's).
+     */
+    placedBy?: User['_id'];
+}
+
+/**
+ * `PATCH /rooms/:roomId/items`: the room's items as the editor left them. A saved item keeps its
+ * `_id` (moved, turned or left alone); a new one has none and comes out of the editor's inventory.
+ * Saved items missing from `items` were removed, but only those in `knownItemIds`: items another
+ * owner placed or removed meanwhile are left as they are, so two owners editing at once don't undo
+ * each other.
+ */
+export interface RoomItemsUpdate {
+    items: Array<Pick<RoomItem, '_id' | 'position' | 'orientation' | 'state'> & { itemId: Item['_id'] }>;
+    /** The saved items' IDs when the editor started. */
+    knownItemIds: string[];
+    theme?: Partial<Record<RoomThemeSlot, Item['_id'] | null>> | null;
 }
 
 /** Isometric facing. S = toward the viewer, E = toward screen right. */

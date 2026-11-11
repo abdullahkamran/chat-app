@@ -34,6 +34,18 @@ export interface Item {
     canOwnMultiple?: boolean;
 }
 
+/**
+ * `GET /inventory`: one entry per room item the user owns. Copies are real: placing one in a
+ * room takes it out of `count`, and taking it out of the room (by anyone) gives it back.
+ */
+export interface InventoryEntry {
+    item: Item;
+    /** Copies free to place. */
+    count: number;
+    /** Copies standing in rooms, placed by this user. Owned in all: `count + placed`. */
+    placed: number;
+}
+
 export interface PaginatedItems {
     items: Item[];
     page: number;

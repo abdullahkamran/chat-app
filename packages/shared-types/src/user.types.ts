@@ -31,7 +31,8 @@ export interface User {
     drip: number;
     maxRooms: number;
     favouriteRooms: Array<Room>;
-    inventory: Array<Item['_id']>;
+    /** Room items free to place: item ID → copies. Placed copies aren't counted (see InventoryEntry). */
+    inventory: Record<Item['_id'], number>;
     avatarInventory: Array<AvatarInventoryEntry>;
     badges: Array<Badge>;
     /** Whether people who have this user's number in their contacts see them in Quick Add. */

@@ -1,7 +1,8 @@
 import { randomInt } from 'crypto';
 import { Request, Response } from 'express';
-import mongoose from 'mongoose';
+import mongoose, { ClientSession } from 'mongoose';
 import type { Server } from 'socket.io';
+import { inTransaction } from '../db/transaction';
 import Room, { canManageMembers, IRoom, isProtectedCreator, isRoomOwner } from '../models/room.model';
 import { MailboxRead, RoomMail } from '../models/room-mail.model';
 import { roomLayoutOf } from '../sockets/roomLayout';
@@ -12,7 +13,8 @@ import { friendIdsOf, notFriendsAmong } from '../services/friend.service';
 import { sendPushToUsers } from '../services/notification.service';
 import { findAccessibleRoom, isPersonalRoom } from '../services/room-access.service';
 import { resolveRoomDefaults } from '../services/room-defaults.service';
-import { RoomCategory, themeSlotsOf, type PublicUser, type RoomLeaveResult, type RoomMembers, type RoomThemeSlot } from '@chat-app/shared-types';
+import { addReturn, changeCounts, freeCount, giveBack, type Returns } from '../services/inventory.service';
+import { RoomCategory, themeSlotsOf, type PublicUser, type RoomItemsUpdate, type RoomLeaveResult, type RoomMembers, type RoomThemeSlot } from '@chat-app/shared-types';
 
 /**
  * The people `actorId` asked to add, deduplicated, leaving out `exclude` (the owner, people
@@ -45,7 +47,7 @@ const THEME_SLOTS: RoomThemeSlot[] = ['floor', 'leftWall', 'rightWall'];
  * must be a wallpaper or flooring that fits the slot and is in the owner's inventory.
  * Returns an error message for a 400, or null once applied (not yet saved).
  */
-async function applyTheme(room: IRoom, userId: string, theme: unknown): Promise<string | null> {
+async function applyTheme(room: IRoom, userId: string, theme: unknown, session: ClientSession): Promise<string | null> {
     if (typeof theme !== 'object' || theme === null) return 'theme must be an object';
     const wanted = theme as Partial<Record<RoomThemeSlot, unknown>>;
     const changes: Array<[RoomThemeSlot, string]> = [];
@@ -59,17 +61,70 @@ async function applyTheme(room: IRoom, userId: string, theme: unknown): Promise<
 
     const ids = [...new Set(changes.map(([, id]) => id))];
     const [user, found] = await Promise.all([
-        User.findById(new mongoose.Types.ObjectId(userId)).select('inventory'),
-        Item.find({ _id: { $in: ids } }).select('category'),
+        User.findById(new mongoose.Types.ObjectId(userId)).select('inventory').session(session),
+        Item.find({ _id: { $in: ids } }).select('category').session(session),
     ]);
-    const owned = new Set((user?.inventory ?? []).map(id => id.toString()));
     for (const [slot, id] of changes) {
         const item = found.find(i => i._id.toString() === id);
         if (!item || !themeSlotsOf(item).includes(slot)) return `That item can't go on the ${slot}`;
-        if (!owned.has(id)) return "You don't own that item";
+        // A wallpaper or flooring stays in the inventory while it's on a room.
+        if (!user || freeCount(user, id) <= 0) return "You don't own that item";
     }
     for (const [slot, id] of changes) room.theme[slot] = new mongoose.Types.ObjectId(id);
     return null;
+}
+
+/** A room edit refused with a status and message for the client. Thrown to abort its transaction. */
+class EditRefused extends Error {
+    constructor(readonly status: number, message: string) {
+        super(message);
+    }
+}
+
+type ItemInput = RoomItemsUpdate['items'][number];
+
+const isObjectId = (v: unknown): v is string => typeof v === 'string' && mongoose.isValidObjectId(v);
+const isPoint = (p: unknown): boolean =>
+    typeof p === 'object' && p !== null && ['x', 'y', 'z'].every((k) => Number.isFinite((p as Record<string, unknown>)[k]));
+
+/** Checks the shape of a `RoomItemsUpdate`. Returns an error message for a 400, or null. */
+function badItemsUpdate(body: Partial<RoomItemsUpdate>): string | null {
+    if (!Array.isArray(body.items)) return 'items must be an array';
+    for (const i of body.items as unknown[]) {
+        if (typeof i !== 'object' || i === null) return 'Each item must be an object';
+        const item = i as Partial<ItemInput>;
+        if (item._id !== undefined && !isObjectId(item._id)) return 'Invalid item _id';
+        if (item._id === undefined && !isObjectId(item.itemId)) return 'Invalid itemId';
+        if (!isPoint(item.position)) return 'Invalid item position';
+    }
+    if (body.knownItemIds !== undefined && !(Array.isArray(body.knownItemIds) && body.knownItemIds.every(isObjectId))) {
+        return 'knownItemIds must be an array of item IDs';
+    }
+    return null;
+}
+
+type SavedItem = IRoom['items'][number] & { _id: mongoose.Types.ObjectId };
+
+/** Who a placed copy goes back to. Items from before `placedBy` existed are the creator's. */
+const placerOf = (room: Pick<IRoom, 'ownerId'>, item: Pick<SavedItem, 'placedBy'>) => item.placedBy ?? room.ownerId;
+
+/** What taking every item out of a room gives back, and to whom. */
+function returnsOf(room: Pick<IRoom, 'ownerId' | 'items'>): Returns {
+    const returns: Returns = new Map();
+    for (const item of room.items ?? []) addReturn(returns, placerOf(room, item), item.itemId);
+    return returns;
+}
+
+/**
+ * Deletes the group room matching `filter` and gives its items back to whoever placed them, in one
+ * transaction. Returns the deleted room, or null when none matched.
+ */
+function deleteRoomGivingBack(filter: Record<string, unknown>) {
+    return inTransaction(async (session) => {
+        const deleted = await Room.findOneAndDelete(filter, { session }).select('owners members ownerId items');
+        if (deleted) await giveBack(returnsOf(deleted), session);
+        return deleted;
+    });
 }
 
 const NO_MEMBERS_IN_PERSONAL_ROOMS = "Personal rooms don't have members";
@@ -189,46 +244,106 @@ const controller = {
         }
     },
 
+    /**
+     * PATCH /rooms/:roomId/items (RoomItemsUpdate) — an owner saves the room's layout and theme.
+     * A new item comes out of the editor's inventory; a removed one goes back to whoever placed it,
+     * which may be another owner. Merged with what other owners saved meanwhile (see RoomItemsUpdate).
+     */
     updateItems: async (req: Request, res: Response): Promise<void> => {
         const { roomId } = req.params;
         const userId = req.user!.userId;
-        const { items, theme } = req.body;
+        const body = req.body as Partial<RoomItemsUpdate>;
 
-        if (!Array.isArray(items)) {
-            res.status(400).send({ error: 'items must be an array' });
+        const bad = badItemsUpdate(body);
+        if (bad) {
+            res.status(400).send({ error: bad });
             return;
         }
+        if (!mongoose.isValidObjectId(roomId)) {
+            res.status(404).send({ error: 'Room not found' });
+            return;
+        }
+        const wanted = body.items as ItemInput[];
 
-        let room;
+        let room: IRoom;
         try {
-            room = await Room.findById(new mongoose.Types.ObjectId(roomId));
-            if (!room) {
-                res.status(404).send({ error: 'Room not found' });
-                return;
-            }
-            if (!isRoomOwner(room, userId)) {
-                res.status(403).send({ error: 'Only room owners can edit items' });
-                return;
-            }
+            // One transaction, so inventories and the room change together. Another save to the
+            // room, or a purchase by someone whose copy comes back, at the same moment makes
+            // Mongoose run it again from the top.
+            room = await inTransaction(async (session) => {
+                const room = await Room.findById(roomId).session(session);
+                if (!room) throw new EditRefused(404, 'Room not found');
+                if (!isRoomOwner(room, userId)) throw new EditRefused(403, 'Only room owners can edit items');
 
-            if (theme !== undefined && theme !== null) {
-                const error = await applyTheme(room, userId, theme);
-                if (error) {
-                    res.status(400).send({ error });
-                    return;
+                if (body.theme !== undefined && body.theme !== null) {
+                    const error = await applyTheme(room, userId, body.theme, session);
+                    if (error) throw new EditRefused(400, error);
                 }
-            }
 
-            room.items = items.map((i: { itemId: string; position: { x: number; y: number; z: number }; orientation: string; state: string }) => ({
-                itemId: new mongoose.Types.ObjectId(i.itemId),
-                position: i.position,
-                orientation: i.orientation,
-                state: i.state,
-            }));
-            await room.save();
+                const saved = new Map((room.items as SavedItem[]).map((i) => [i._id.toString(), i]));
+                // An old client sends no knownItemIds: it means to replace everything.
+                const known = new Set(body.knownItemIds ?? saved.keys());
+                const me = new mongoose.Types.ObjectId(userId);
+                const kept = new Set<string>();
+                const taken = new Map<string, number>();
+                const returns: Returns = new Map();
+                const next: Array<Record<string, unknown>> = [];
+
+                for (const i of wanted) {
+                    const look = { position: i.position, orientation: i.orientation, state: i.state };
+                    if (i._id) {
+                        const was = saved.get(i._id);
+                        // Gone: another owner took it out meanwhile, and it's back with its placer.
+                        if (!was || kept.has(i._id)) continue;
+                        kept.add(i._id);
+                        // What it is and whose stays as saved; only where it stands and how changes.
+                        next.push({ _id: was._id, itemId: was.itemId, placedBy: placerOf(room, was), ...look });
+                    } else {
+                        next.push({ itemId: new mongoose.Types.ObjectId(i.itemId), placedBy: me, ...look });
+                        taken.set(i.itemId, (taken.get(i.itemId) ?? 0) + 1);
+                    }
+                }
+                for (const [id, was] of saved) {
+                    if (kept.has(id)) continue;
+                    // Known and not sent back: the editor took it out. Unknown: another owner placed
+                    // it after the editor started, so it stays.
+                    if (known.has(id)) addReturn(returns, placerOf(room, was), was.itemId);
+                    else next.push({ _id: was._id, itemId: was.itemId, placedBy: placerOf(room, was), position: was.position, orientation: was.orientation, state: was.state });
+                }
+
+                if (taken.size) {
+                    const items = await Item.find({ _id: { $in: [...taken.keys()] } }).select('name category').session(session);
+                    for (const id of taken.keys()) {
+                        const item = items.find((it) => it._id.toString() === id);
+                        if (!item) throw new EditRefused(400, 'Unknown item');
+                        if (themeSlotsOf(item).length) throw new EditRefused(400, `${item.name} goes on the walls or floor`);
+                    }
+                }
+                // What the editor places, less their own copies they took out.
+                const mine = new Map([...taken].map(([id, n]) => [id, -n]));
+                for (const [id, n] of returns.get(userId) ?? []) mine.set(id, (mine.get(id) ?? 0) + n);
+                returns.delete(userId);
+                if (!(await changeCounts(userId, mine, session))) {
+                    const user = await User.findById(me).select('inventory').session(session);
+                    const shortId = [...mine].find(([id, n]) => n < 0 && freeCount(user ?? {}, id) < -n)?.[0];
+                    const name = shortId && (await Item.findById(shortId).select('name').session(session))?.name;
+                    throw new EditRefused(409, `You don't have another ${name ?? 'copy of that item'} to place`);
+                }
+                await giveBack(returns, session);
+
+                room.set('items', next);
+                await room.save({ session });
+                return room;
+            });
         } catch (e) {
-            console.log(`Error: ${e}`);
-            res.sendStatus(500);
+            if (e instanceof EditRefused) {
+                res.status(e.status).send({ error: e.message });
+            } else if (e instanceof mongoose.Error.ValidationError) {
+                res.status(400).send({ error: e.message });
+            } else {
+                console.log(`Error: ${e}`);
+                res.sendStatus(500);
+            }
             return;
         }
         res.sendStatus(204);
@@ -558,10 +673,10 @@ const controller = {
 
                 if (members.length === 0) {
                     // The last one out: nobody is left to own the room, so it goes.
-                    const deleted = await Room.findOneAndDelete({
+                    const deleted = await deleteRoomGivingBack({
                         _id: room._id,
                         members: [new mongoose.Types.ObjectId(userId)],
-                    }).select('owners members');
+                    });
                     if (!deleted) continue;
                     await afterRoomDeleted(req, deleted, userId);
                     const result: RoomLeaveResult = { deleted: true };
@@ -595,7 +710,8 @@ const controller = {
         }
     },
 
-    // DELETE /rooms/:roomId — an owner deletes a group room for everyone. Personal rooms stay.
+    // DELETE /rooms/:roomId — an owner deletes a group room for everyone, and its items go back to
+    // whoever placed them. Personal rooms stay.
     deleteRoom: async (req: Request, res: Response): Promise<void> => {
         const { roomId } = req.params;
         const userId = req.user!.userId;
@@ -619,11 +735,11 @@ const controller = {
             }
             // Ownership is checked again in the delete, and who to tell is read from the room as it
             // was deleted, so someone added a moment before is told too.
-            const deleted = await Room.findOneAndDelete({
+            const deleted = await deleteRoomGivingBack({
                 _id: room._id,
                 category: RoomCategory.GROUP,
                 owners: userId,
-            }).select('owners members');
+            });
             if (!deleted) {
                 res.status(409).send({ error: ROOM_CHANGED });
                 return;

@@ -1,3 +1,4 @@
+import { Alert } from 'react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -28,6 +29,7 @@ import {
   type Position,
   type RoomInteraction,
   type RoomItem,
+  type RoomItemsUpdate,
   type RoomOccupant,
   type RoomPresenceState,
   type RoomTheme,
@@ -112,7 +114,7 @@ export interface TranscriptEntry {
 export function useRoomSession(roomId: string, capabilities: EngineCapabilities) {
   const { data: roomDetails, isLoading, error } = useRoomDetails(roomId);
   const queryClient = useQueryClient();
-  const { data: inventoryItems = [] } = useInventory();
+  const { data: inventory = [] } = useInventory();
   const [actors, setActors] = useState<Record<User['_id'], ActorState>>({});
   // Remote actors' avatars by user id. The local actor's comes from auth.
   const [avatars, setAvatars] = useState<Record<User['_id'], Avatar>>({});
@@ -169,6 +171,8 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
   const [mode, setMode] = useState<RoomMode>('play');
   const isEditMode = mode === 'edit';
   const [pendingItems, setPendingItems] = useState<RoomItem[]>([]);
+  // The saved items when editing started: what the save may take out (see RoomItemsUpdate).
+  const [editBase, setEditBase] = useState<RoomItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [selectedPlacedItem, setSelectedPlacedItem] = useState<RoomItem | null>(null);
   // Wallpapers and floorings applied while editing; saved with the items.
@@ -515,6 +519,8 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
       return next;
     });
     queryClient.invalidateQueries({ queryKey: ['roomDetails', roomId] });
+    // Another owner may have taken out a copy of ours, which went back to our inventory.
+    queryClient.invalidateQueries({ queryKey: ['inventory'] });
   }
 
   function receiveExit({ userId }: { userId: string }) {
@@ -1090,6 +1096,7 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
   function enterEdit() {
     setPicking(null);
     setPendingItems(roomDetails?.items ? [...roomDetails.items] : []);
+    setEditBase(roomDetails?.items ?? []);
     setPendingTheme(roomDetails?.theme ?? null);
     setSelectedItem(null);
     setSelectedPlacedItem(null);
@@ -1101,32 +1108,43 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     setSelectedItem(null);
     setSelectedPlacedItem(null);
     setPendingItems([]);
+    setEditBase([]);
     setPendingTheme(null);
   }
 
   async function saveEdit() {
     setIsSaving(true);
     try {
-      const body = pendingItems.map(ri => ({
-        itemId: ri.itemId._id,
-        position: ri.position,
-        orientation: ri.orientation,
-        state: ri.state,
-      }));
-      const theme = pendingTheme && {
-        floor: pendingTheme.floor?._id ?? null,
-        leftWall: pendingTheme.leftWall?._id ?? null,
-        rightWall: pendingTheme.rightWall?._id ?? null,
+      const update: RoomItemsUpdate = {
+        items: pendingItems.map(ri => ({
+          _id: ri._id,
+          itemId: ri.itemId._id,
+          position: ri.position,
+          orientation: ri.orientation,
+          state: ri.state,
+        })),
+        knownItemIds: editBase.flatMap(ri => (ri._id ? [ri._id] : [])),
+        theme: pendingTheme && {
+          floor: pendingTheme.floor?._id ?? null,
+          leftWall: pendingTheme.leftWall?._id ?? null,
+          rightWall: pendingTheme.rightWall?._id ?? null,
+        },
       };
-      await api.patch(`/api/v1/rooms/${roomId}/items`, { items: body, theme });
+      await api.patch(`/api/v1/rooms/${roomId}/items`, update);
+      // Placed copies left the inventory, and removed ones went back to their placers.
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
       // Play mode draws the room's saved items, so load the new layout before leaving edit
       // mode; otherwise the old items show until the room is entered again.
       await queryClient.invalidateQueries({ queryKey: ['roomDetails', roomId] });
       setMode('play');
       setSelectedItem(null);
       setSelectedPlacedItem(null);
+      setEditBase([]);
     } catch (e) {
       console.error('Failed to save room layout', e);
+      // Still editing, so nothing is lost; the counts may have changed under us.
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      Alert.alert("Couldn't save the room", e instanceof Error ? e.message : 'Try again.');
     } finally {
       setIsSaving(false);
     }
@@ -1197,10 +1215,8 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
       return;
     }
 
-    // An inventory item is selected: place a copy, as many as are owned
+    // An inventory item is selected: place a copy, while there are copies free
     if (selectedItem) {
-      const ownedCount = inventoryItems.filter(i => i._id === selectedItem._id).length;
-      const placedCount = pendingItems.filter(ri => ri.itemId._id === selectedItem._id).length;
       const newItem: RoomItem = {
         itemId: selectedItem,
         position: { x: gx, y: gy, z: 0 },
@@ -1208,7 +1224,7 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
         state: ItemState.NONE,
       };
       if (fitsAt(pendingItems, newItem, roomDimensions)) {
-        if (placedCount < ownedCount) setPendingItems(current => [...current, newItem]);
+        if ((available[selectedItem._id] ?? 0) > 0) setPendingItems(current => [...current, newItem]);
       } else if (onFloor) {
         setSelectedItem(null);
         setSelectedPlacedItem(onFloor);
@@ -1246,6 +1262,26 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
 
   const edit: EditState = { selectedItem, selectedPlaced: selectedPlacedItem };
 
+  /**
+   * Item ID → copies the user can still place while editing: free in their inventory, less the
+   * ones placed in this edit, plus their own saved ones taken out in it (those come back to them on
+   * save; another owner's go back to that owner).
+   */
+  const available = useMemo(() => {
+    const result: Record<Item['_id'], number> = {};
+    for (const e of inventory) result[e.item._id] = e.count;
+    if (!isEditMode) return result;
+    const kept = new Set(pendingItems.flatMap(ri => (ri._id ? [ri._id] : [])));
+    for (const ri of pendingItems) {
+      if (!ri._id) result[ri.itemId._id] = (result[ri.itemId._id] ?? 0) - 1;
+    }
+    for (const ri of editBase) {
+      const mine = (ri.placedBy ?? roomDetails?.ownerId) === userId;
+      if (mine && ri._id && !kept.has(ri._id)) result[ri.itemId._id] = (result[ri.itemId._id] ?? 0) + 1;
+    }
+    return result;
+  }, [inventory, isEditMode, pendingItems, editBase, roomDetails?.ownerId, userId]);
+
   return {
     roomDetails,
     isLoading,
@@ -1257,6 +1293,8 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     actors: renderedActors,
     localActorId: userId,
     edit,
+    /** Item ID → copies the user can still place in this edit, for the inventory drawer. */
+    available,
     typingUserIds,
     /** Chat messages since entering, oldest first, capped at TRANSCRIPT_MAX. */
     transcript,

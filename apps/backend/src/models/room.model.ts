@@ -15,6 +15,8 @@ export interface IRoom extends Omit<Room, '_id' | 'ownerId' | 'owners'>, Omit<Ro
         position: { x: number; y: number; z: number };
         orientation: string;
         state: string;
+        /** Whose copy it is. Taken out of the room, it goes back to their inventory. */
+        placedBy: mongoose.Types.ObjectId;
     }>;
     theme: {
         floor: mongoose.Types.ObjectId | null;
@@ -61,6 +63,7 @@ const RoomSchema = new Schema<IRoom, IRoomModel>(
                 },
                 orientation: { type: String, enum: Object.values(Orientiation), default: Orientiation.ZERO },
                 state: { type: String, enum: Object.values(ItemState), default: ItemState.NONE },
+                placedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
             },
         ],
         doors: [
@@ -99,6 +102,8 @@ RoomSchema.index(
 // look rooms up by member or owner.
 RoomSchema.index({ members: 1 });
 RoomSchema.index({ owners: 1 });
+// How many copies of each item a user has standing in rooms (placedCounts in inventory.service.ts).
+RoomSchema.index({ 'items.placedBy': 1 });
 
 RoomSchema.statics.getAll = function () {
     return this.find({});

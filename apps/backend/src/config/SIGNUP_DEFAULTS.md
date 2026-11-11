@@ -52,7 +52,7 @@ Every new user receives one variant for each mandatory avatar part plus a defaul
 
 ## Room Inventory
 
-None assigned by default (`inventoryItemNames` is empty).
+One copy of each item named in `inventoryItemNames`, added to `User.inventory` (item ID → copies free to place).
 
 ---
 

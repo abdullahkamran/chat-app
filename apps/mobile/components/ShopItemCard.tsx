@@ -10,6 +10,8 @@ import { formatPrice } from '@/utils/formatPrice';
 
 interface ShopItemCardProps {
     item: Item;
+    /** Copies the user owns, free and placed. */
+    ownedCount?: number;
     onPress: () => void;
 }
 
@@ -38,10 +40,10 @@ const useStyles = makeStyles(t => ({
         height: 52,
     },
     info: { flex: 1, gap: 2 },
-    price: { marginTop: t.space.xs },
+    priceRow: { flexDirection: 'row', alignItems: 'center', gap: t.space.sm, marginTop: t.space.xs },
 }));
 
-export default function ShopItemCard({ item, onPress }: ShopItemCardProps) {
+export default function ShopItemCard({ item, ownedCount = 0, onPress }: ShopItemCardProps) {
     const t = useTheme();
     const styles = useStyles();
     const source = resolveItemSource(item.assetUrl);
@@ -57,7 +59,10 @@ export default function ShopItemCard({ item, onPress }: ShopItemCardProps) {
             <View style={styles.info}>
                 <AppText variant="heading" numberOfLines={1}>{item.name}</AppText>
                 <AppText variant="caption" color="textSecondary" numberOfLines={2}>{item.description}</AppText>
-                <AppText variant="label" color="reward" style={styles.price}>{formatPrice(item.price)}</AppText>
+                <View style={styles.priceRow}>
+                    <AppText variant="label" color="reward">{formatPrice(item.price)}</AppText>
+                    {ownedCount > 0 && <AppText variant="caption" color="secondary">Owned {ownedCount}</AppText>}
+                </View>
             </View>
             <Ionicons name="chevron-forward" size={20} color={t.colors.textMuted} />
         </Pressable>

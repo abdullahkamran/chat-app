@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Animation, AvatarItem, Item } from '@chat-app/shared-types';
+import { useInventory } from '@/hooks/useInventory';
 import { useAuth } from '@/context/auth.context';
 import { api } from '@/lib/api';
 import { AppText, Badge, EmptyState, ScreenHeader, SegmentedControl, Spinner } from '@/components/ui';
@@ -82,11 +83,7 @@ export default function InventoryScreen(): React.JSX.Element {
     const insets = useSafeAreaInsets();
     const [inventoryTab, setInventoryTab] = useState<InventoryTab>('items');
 
-    const { data: items = [], isLoading: isLoadingItems } = useQuery<Item[]>({
-        queryKey: ['inventory'],
-        queryFn: () => api.get<Item[]>('/api/v1/inventory'),
-        enabled: !!userId && inventoryTab === 'items',
-    });
+    const { data: entries = [], isLoading: isLoadingItems } = useInventory({ enabled: !!userId && inventoryTab === 'items' });
 
     const { data: avatarInventory = [], isLoading: isLoadingOutfits } = useQuery<PopulatedAvatarInventoryEntry[]>({
         queryKey: ['avatar-inventory'],
@@ -99,17 +96,6 @@ export default function InventoryScreen(): React.JSX.Element {
         queryFn: () => api.get<Animation[]>('/api/v1/inventory/animations'),
         enabled: !!userId && inventoryTab === 'animations',
     });
-
-    // Group duplicate items (canOwnMultiple) into { item, count } entries
-    const groupedItems = items.reduce<Array<{ item: Item; count: number }>>((acc, item) => {
-        const existing = acc.find((e) => e.item._id === item._id);
-        if (existing) {
-            existing.count++;
-        } else {
-            acc.push({ item, count: 1 });
-        }
-        return acc;
-    }, []);
 
     const [selectedItem, setSelectedItem] = useState<Item | null>(null);
     const [modalVisible, setModalVisible] = useState(false);
@@ -152,10 +138,10 @@ export default function InventoryScreen(): React.JSX.Element {
                     <Spinner style={styles.loader} size="large" />
                 ) : (
                     <FlatList
-                        data={groupedItems}
+                        data={entries}
                         keyExtractor={({ item }) => item._id}
                         contentContainerStyle={styles.list}
-                        renderItem={({ item: { item, count } }) => {
+                        renderItem={({ item: { item, count, placed } }) => {
                             const source = resolveItemSource(item.assetUrl);
                             return (
                                 <Pressable
@@ -164,11 +150,14 @@ export default function InventoryScreen(): React.JSX.Element {
                                 >
                                     <View style={styles.thumbTile}>
                                         {source && <Image source={source} style={styles.itemThumb} contentFit="contain" />}
-                                        {count > 1 && <Badge count={count} ringColor={t.colors.surface} />}
+                                        {/* Copies free to place; ones standing in rooms are counted below. */}
+                                        <Badge count={count} showZero tone={count > 0 ? 'primary' : 'muted'} ringColor={t.colors.surface} />
                                     </View>
                                     <View style={styles.info}>
                                         <AppText variant="heading" numberOfLines={1}>{item.name}</AppText>
-                                        <AppText variant="caption" color="textSecondary">{item.category}</AppText>
+                                        <AppText variant="caption" color="textSecondary" numberOfLines={1}>
+                                            {placed > 0 ? `${item.category} · ${placed} in rooms` : item.category}
+                                        </AppText>
                                     </View>
                                     <Ionicons name="chevron-forward" size={20} color={t.colors.textMuted} />
                                 </Pressable>

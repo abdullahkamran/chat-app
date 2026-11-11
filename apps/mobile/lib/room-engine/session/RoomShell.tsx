@@ -93,7 +93,7 @@ export function RoomShell({ session, camera, children, controls }: Readonly<Prop
   const liftStyle = useAnimatedStyle(() => ({ transform: [{ translateY: -lift.value }] }));
   const roomStyle = useAnimatedStyle(() => ({ transform: [{ translateY: lift.value }] }));
   const {
-    roomDetails, isLoading, error, isOwner, isSaving, mode, edit, scene, typingNames, intents, canEmote,
+    roomDetails, isLoading, error, isOwner, isSaving, mode, edit, available, scene, typingNames, intents, canEmote,
     isAlone, userId, transcript, picking, outgoingRequest, incomingRequest, emoteNotice,
   } = session;
   const isEditMode = mode === 'edit';
@@ -117,7 +117,12 @@ export function RoomShell({ session, camera, children, controls }: Readonly<Prop
   };
   const { mode: cameraMode, localOffscreen } = camera.state;
   const showFindMe = !isEditMode && localOffscreen && (cameraMode === 'free' || cameraMode === 'focus');
+  // The picked-up item in edit mode, when another owner placed it: the toolbar names them.
+  const othersPlacer = edit.selectedPlaced?.placedBy && edit.selectedPlaced.placedBy !== userId
+    ? edit.selectedPlaced.placedBy
+    : null;
   const names = useUsernames([
+    ...(othersPlacer ? [othersPlacer] : []),
     ...transcript.filter(e => e.userId !== userId).map(e => e.userId),
     ...[outgoingRequest?.toUserId, incomingRequest?.fromUserId, emoteNotice?.userId].filter((id): id is string => !!id),
   ]);
@@ -179,6 +184,8 @@ export function RoomShell({ session, camera, children, controls }: Readonly<Prop
           onRemovePlacedItem={intents.removeSelectedPlaced}
           onRotatePlacedItem={intents.rotateSelectedPlaced}
           isPlacing={edit.selectedItem !== null}
+          isOthersItem={othersPlacer !== null}
+          placedByName={othersPlacer ? names[othersPlacer] : undefined}
         />
       ) : (
         <View style={[styles.roomHeader, { paddingTop: insets.top + 4 }]}>
@@ -218,7 +225,7 @@ export function RoomShell({ session, camera, children, controls }: Readonly<Prop
           </View>
 
           {isEditMode && (
-            <InventoryDrawer selectedItem={edit.selectedItem} onSelectItem={intents.selectInventoryItem} pendingItems={scene?.items ?? []} theme={scene?.theme} />
+            <InventoryDrawer selectedItem={edit.selectedItem} onSelectItem={intents.selectInventoryItem} available={available} theme={scene?.theme} />
           )}
           {/* Above whichever drawer or chat input is open, so a request is seen either way. */}
           {!isEditMode && (

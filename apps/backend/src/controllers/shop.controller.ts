@@ -4,6 +4,8 @@ import Item from '../models/item.model';
 import User from '../models/user.model';
 import { requireAuth } from '../middleware/auth.middleware';
 import { logTransaction } from './transaction.controller';
+import { freeCount, inventoryPath, placedCounts } from '../services/inventory.service';
+import type { InventoryEntry } from '@chat-app/shared-types';
 
 // ── Shop Router ───────────────────────────────────────────────────────────────
 // Mounted at /api/v1/shop in index.ts
@@ -63,8 +65,12 @@ shopRouter.post('/buy', requireAuth, async (req: Request, res: Response): Promis
             return;
         }
 
-        const alreadyOwned = user.inventory.some((id) => id.toString() === itemId);
-        if (alreadyOwned && !item.canOwnMultiple) {
+        // The stored ID, not the request's string, keys the count.
+        const id = item._id.toString();
+        // Copies standing in rooms are owned too.
+        const alreadyOwned = !item.canOwnMultiple
+            && (freeCount(user, id) > 0 || ((await placedCounts(userId, [id])).get(id) ?? 0) > 0);
+        if (alreadyOwned) {
             res.status(409).send({ error: 'Item already owned' });
             return;
         }
@@ -91,14 +97,9 @@ shopRouter.post('/buy', requireAuth, async (req: Request, res: Response): Promis
 
         const balanceBefore = { ...user.amount };
 
-        // canOwnMultiple items use $push to allow duplicates; others use $addToSet
-        const inventoryUpdate = item.canOwnMultiple
-            ? { $push: { inventory: new mongoose.Types.ObjectId(itemId) } }
-            : { $addToSet: { inventory: new mongoose.Types.ObjectId(itemId) } };
-
         const updated = await User.findByIdAndUpdate(
             new mongoose.Types.ObjectId(userId),
-            { $inc: inc, ...inventoryUpdate },
+            { $inc: { ...inc, [inventoryPath(id)]: 1 } },
             { new: true }
         );
 
@@ -125,16 +126,28 @@ shopRouter.post('/buy', requireAuth, async (req: Request, res: Response): Promis
 // Mounted at /api/v1/inventory in index.ts
 export const inventoryRouter = express.Router();
 
-// GET /api/v1/inventory  (auth required)
+// GET /api/v1/inventory  (auth required) — InventoryEntry[]: every room item the user owns, free
+// to place or standing in a room, by name.
 inventoryRouter.get('/', requireAuth, async (req: Request, res: Response): Promise<void> => {
     const userId = req.user!.userId;
     try {
-        const user = await User.findById(new mongoose.Types.ObjectId(userId)).populate('inventory');
+        const [user, placed] = await Promise.all([
+            User.findById(new mongoose.Types.ObjectId(userId)).select('inventory'),
+            placedCounts(userId),
+        ]);
         if (!user) {
             res.status(404).send({ error: 'User not found' });
             return;
         }
-        res.send(user.inventory);
+        const ids = new Set([...placed.keys()]);
+        for (const [id, n] of user.inventory ?? []) if (n > 0) ids.add(id);
+        const items = await Item.find({ _id: { $in: [...ids] } }).sort({ name: 1 });
+        const entries: InventoryEntry[] = items.map((item) => ({
+            item: item.toJSON() as unknown as InventoryEntry['item'],
+            count: freeCount(user, item._id as mongoose.Types.ObjectId),
+            placed: placed.get(item._id.toString()) ?? 0,
+        }));
+        res.send(entries);
     } catch (e) {
         console.error(e);
         res.sendStatus(500);

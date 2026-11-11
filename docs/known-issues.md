@@ -158,6 +158,24 @@ disagree after a crash. Since 2026-11-11 the room's `members` and `owners` are t
   Error" instead of "username already exists". Catch Mongo's duplicate-key error (code 11000) on save and
   answer 409 from its `keyPattern`.
 
+### 9. The server doesn't check where room items stand
+
+Found on 2026-11-11 while making room items counted copies that owners place from their own inventories.
+
+**Seen:**
+- Two owners who place something on the same free cell at the same moment both save, and the two items
+  overlap until someone moves one.
+- A client calling the API directly can place items off the floor or on top of each other.
+
+**Why:** `updateItems` in `apps/backend/src/controllers/room.controller.ts` checks ownership, counts and
+item types, but trusts positions: footprint, bounds and overlap checks live only in the client
+(`fitsAt` in `apps/mobile/lib/room-engine/core/editLayout.ts`). A save merges with what other owners saved
+meanwhile, so neither client saw the other's new item when it checked.
+
+**Fix:** port `fitsAt` to the backend (next to `blockedCells` in `apps/backend/src/sockets/roomLayout.ts`) and
+check the merged layout inside the transaction. Refuse a save that adds or moves an item onto taken or
+off-room floor with 409, naming the item, so the client can reload and redo it.
+
 ---
 
 ## Friends

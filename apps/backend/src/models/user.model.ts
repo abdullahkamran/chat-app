@@ -7,7 +7,8 @@ export interface IUser
         Document {
     dateOfBirth?: Date;
     favouriteRooms: mongoose.Types.ObjectId[];
-    inventory: mongoose.Types.ObjectId[];
+    /** Room items free to place: item ID → copies. Placing one takes it out; see inventory.service.ts. */
+    inventory: Map<string, number>;
     avatarInventory: Array<{ item: mongoose.Types.ObjectId; variantId: string }>;
     avatars: mongoose.Types.ObjectId[];
     selectedAvatar: mongoose.Types.ObjectId | null;
@@ -71,7 +72,9 @@ const UserSchema = new Schema<IUser, IUserModel>(
         drip: { type: Number, default: 0 },
         maxRooms: { type: Number, default: 5 },
         favouriteRooms: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Room' }],
-        inventory: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Item' }],
+        // A map, not an array of IDs, so a count can be changed and checked in one atomic update
+        // (`$inc: { 'inventory.<itemId>': n }`). Copies standing in rooms aren't here.
+        inventory: { type: Map, of: { type: Number, min: 0 }, default: {} },
         avatarInventory: [
             {
                 item: { type: mongoose.Schema.Types.ObjectId, ref: 'AvatarItem', required: true },

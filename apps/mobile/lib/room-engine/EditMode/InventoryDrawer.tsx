@@ -6,14 +6,15 @@ import { AppText, Badge, Spinner } from '@/components/ui';
 import { makeStyles, useTheme } from '@/constants/theme';
 import { resolveItemSource } from '@/constants/avatarAssets';
 import { useInventory } from '@/hooks/useInventory';
-import { themeSlotsOf, type Item, type RoomItem, type RoomTheme } from '@chat-app/shared-types';
+import { themeSlotsOf, type Item, type RoomTheme } from '@chat-app/shared-types';
 import { Drawer } from '../components/Drawer';
 
 interface Props {
   selectedItem: Item | null;
   /** Null when the selected card is tapped again, to go back to picking up placed items. */
   onSelectItem: (item: Item | null) => void;
-  pendingItems: RoomItem[];
+  /** Item ID → copies the user can still place in this edit (the session's `available`). */
+  available: Record<Item['_id'], number>;
   /** The walls and floor as they stand in edit mode, to mark the wallpaper and flooring in use. */
   theme?: RoomTheme;
 }
@@ -64,20 +65,11 @@ const useStyles = makeStyles(t => ({
 }));
 
 /** Bottom drawer showing the user's room-item inventory for placement. */
-export function InventoryDrawer({ selectedItem, onSelectItem, pendingItems, theme }: Props) {
+export function InventoryDrawer({ selectedItem, onSelectItem, available, theme }: Props) {
   const t = useTheme();
   const styles = useStyles();
-  const { data: rawItems, isLoading } = useInventory();
-
-  const groupedItems = (rawItems ?? []).reduce<Array<{ item: Item; ownedCount: number }>>((acc, item) => {
-    const existing = acc.find((e) => e.item._id === item._id);
-    if (existing) {
-      existing.ownedCount++;
-    } else {
-      acc.push({ item, ownedCount: 1 });
-    }
-    return acc;
-  }, []);
+  // Everything the user owns, placed copies included, so an item all in rooms still shows (at 0).
+  const { data: groupedItems = [], isLoading } = useInventory();
 
   // Only the categories the user owns something in, so no tab is ever empty.
   const categories = [...new Set(groupedItems.map(e => e.item.category))].sort();
@@ -105,12 +97,11 @@ export function InventoryDrawer({ selectedItem, onSelectItem, pendingItems, them
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.list}
-        renderItem={({ item: { item, ownedCount } }) => {
+        renderItem={({ item: { item } }) => {
           // Wallpapers and floorings go on the walls or floor, not in a cell: never used up,
           // and marked while they're on the room.
           const isThemeItem = themeSlotsOf(item).length > 0;
-          const placedCount = pendingItems.filter(ri => ri.itemId._id === item._id).length;
-          const remaining = ownedCount - placedCount;
+          const remaining = available[item._id] ?? 0;
           const exhausted = !isThemeItem && remaining <= 0;
           const isSelected = isThemeItem ? themeIds.has(item._id) : selectedItem?._id === item._id;
           return (
@@ -129,7 +120,7 @@ export function InventoryDrawer({ selectedItem, onSelectItem, pendingItems, them
                   style={[styles.itemImage, exhausted && styles.itemImageExhausted]}
                   contentFit="contain"
                 />
-                {ownedCount > 1 && !isThemeItem && (
+                {!isThemeItem && (
                   <Badge
                     count={Math.max(remaining, 0)}
                     showZero

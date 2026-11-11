@@ -6,6 +6,7 @@ import AvatarItemModel from '../models/avatar-item.model';
 import ItemModel from '../models/item.model';
 import { logTransaction } from '../controllers/transaction.controller';
 import { createPersonalRoom } from './personal-room.service';
+import { inventoryPath } from './inventory.service';
 
 /**
  * Sets up a newly created user. Their personal room comes first and is required: if it can't be
@@ -135,8 +136,9 @@ async function grantInventoryItems(userId: mongoose.Types.ObjectId): Promise<voi
         const found = await ItemModel.find({ name: { $in: names } }).select('_id name');
 
         if (found.length) {
+            // One copy of each. Signup runs once per user, so this never adds a second.
             await User.findByIdAndUpdate(userId, {
-                $addToSet: { inventory: { $each: found.map(i => i._id) } },
+                $inc: Object.fromEntries(found.map(i => [inventoryPath(i._id as mongoose.Types.ObjectId), 1])),
             });
         }
 
