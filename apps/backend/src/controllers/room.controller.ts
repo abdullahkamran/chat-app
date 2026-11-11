@@ -1,16 +1,18 @@
+import { randomInt } from 'crypto';
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import type { Server } from 'socket.io';
-import Room, { canManageMembers, IRoom } from '../models/room.model';
+import Room, { canManageMembers, IRoom, isProtectedCreator, isRoomOwner } from '../models/room.model';
+import { MailboxRead, RoomMail } from '../models/room-mail.model';
 import { roomLayoutOf } from '../sockets/roomLayout';
-import { announceMemberRemoved, announceMembersAdded, announceRoomItemsChanged } from '../sockets/socketHandler';
+import { announceMemberRemoved, announceMembersAdded, announceOwnersChanged, announceRoomItemsChanged } from '../sockets/socketHandler';
 import Item from '../models/item.model';
 import User, { PUBLIC_USER_FIELDS } from '../models/user.model';
 import { friendIdsOf, notFriendsAmong } from '../services/friend.service';
 import { sendPushToUsers } from '../services/notification.service';
 import { findAccessibleRoom, isPersonalRoom } from '../services/room-access.service';
 import { resolveRoomDefaults } from '../services/room-defaults.service';
-import { RoomCategory, themeSlotsOf, type PublicUser, type RoomMembers, type RoomRemovalReason, type RoomThemeSlot } from '@chat-app/shared-types';
+import { RoomCategory, themeSlotsOf, type PublicUser, type RoomLeaveResult, type RoomMembers, type RoomThemeSlot } from '@chat-app/shared-types';
 
 /**
  * The people `actorId` asked to add, deduplicated, leaving out `exclude` (the owner, people
@@ -83,12 +85,31 @@ function notifyAdded(req: Request, room: Pick<IRoom, '_id' | 'name'>, userIds: s
     );
 }
 
-/** Take a member out of a room, on the room and on their user document. */
-async function dropMember(req: Request, roomId: string, userId: string, reason: RoomRemovalReason): Promise<void> {
-    await Room.updateOne({ _id: roomId }, { $pull: { members: userId } });
-    await User.updateOne({ _id: userId }, { $pull: { rooms: roomId } });
-    announceMemberRemoved(req.app.get('io') as Server, roomId, userId, reason);
+/**
+ * Clean up after a group room was deleted: its postbox goes, and everyone in it is taken out and
+ * told. `actorId` (who deleted it, or the last to leave) is told they left.
+ */
+async function afterRoomDeleted(req: Request, room: Pick<IRoom, '_id' | 'members' | 'owners'>, actorId: string): Promise<void> {
+    const people = [...new Set([...room.members, ...room.owners].map((id) => id.toString()))];
+    await Promise.all([
+        RoomMail.deleteMany({ roomId: room._id }),
+        MailboxRead.deleteMany({ roomId: room._id }),
+    ]);
+    const io = req.app.get('io') as Server;
+    for (const id of people) announceMemberRemoved(io, room._id.toString(), id, id === actorId ? 'left' : 'deleted');
 }
+
+/** Someone was made an owner: the room and their devices hear of it, and they get a push. */
+function notifyNewOwner(req: Request, room: Pick<IRoom, '_id' | 'name'>, userId: string, body: string): void {
+    const roomId = room._id.toString();
+    announceOwnersChanged(req.app.get('io') as Server, roomId, [userId]);
+    sendPushToUsers([userId], { title: room.name, body, type: 'owner' }, { roomId, senderUserId: req.user!.userId });
+}
+
+/** How many times leaving re-reads the room when someone else changed it at the same moment. */
+const LEAVE_ATTEMPTS = 5;
+
+const ROOM_CHANGED = 'The room changed just now. Try again.';
 
 const controller = {
     // GET /rooms/:id — the room's summary, for anyone who may enter it.
@@ -133,20 +154,12 @@ const controller = {
                 name: name.trim(),
                 description: typeof description === 'string' ? description.trim() : '',
                 category: RoomCategory.GROUP,
-                members: memberIds,
+                // The creator is the first owner and, like every owner, a member too.
+                members: [creatorId, ...memberIds],
+                owners: [creatorId],
                 ownerId: creatorId,
             });
             const addedRoom = await Room.createRoom(room);
-            await User.findByIdAndUpdate(
-                new mongoose.Types.ObjectId(creatorId),
-                { $addToSet: { ownedRooms: addedRoom._id } },
-            );
-            if (memberIds.length) {
-                await User.updateMany(
-                    { _id: { $in: memberIds } },
-                    { $addToSet: { rooms: addedRoom._id } },
-                );
-            }
             res.status(201).send(addedRoom);
             notifyAdded(req, addedRoom, memberIds);
         } catch (e) {
@@ -193,8 +206,8 @@ const controller = {
                 res.status(404).send({ error: 'Room not found' });
                 return;
             }
-            if (room.ownerId.toString() !== userId) {
-                res.status(403).send({ error: 'Only the room owner can edit items' });
+            if (!isRoomOwner(room, userId)) {
+                res.status(403).send({ error: 'Only room owners can edit items' });
                 return;
             }
 
@@ -235,23 +248,16 @@ const controller = {
         const skip = (page - 1) * limit;
 
         try {
-            const user = await User.findById(new mongoose.Types.ObjectId(userId)).select('rooms ownedRooms');
-            if (!user) {
-                res.status(404).send({ error: 'User not found' });
-                return;
-            }
-
-            const allRoomIds = [...new Set([
-                ...user.rooms.map((id) => id.toString()),
-                ...user.ownedRooms.map((id) => id.toString()),
-            ])].map((id) => new mongoose.Types.ObjectId(id));
+            const me = new mongoose.Types.ObjectId(userId);
             const friendIds = (await friendIdsOf(userId)).map((id) => new mongoose.Types.ObjectId(id));
 
-            // The user's own rooms (their personal room among them) and rooms they're in, plus every
-            // friend's personal room: those are open to them like a DM.
+            // Group rooms they're in (owners are members too), their own personal room (which has
+            // no members, only its owner), and every friend's personal room: those are open to
+            // them like a DM. The rooms themselves are the record of who is in them.
             const filter = {
                 $or: [
-                    { _id: { $in: allRoomIds } },
+                    { members: me },
+                    { owners: me },
                     { category: RoomCategory.PERSONAL, ownerId: { $in: friendIds } },
                 ],
             };
@@ -273,24 +279,27 @@ const controller = {
         }
     },
 
-    // GET /rooms/:roomId/members — owner and members, for anyone who may enter the room.
+    // GET /rooms/:roomId/members — everyone in the room, owners first, for anyone who may enter it.
     getMembers: async (req: Request, res: Response): Promise<void> => {
         const { roomId } = req.params;
         const userId = req.user!.userId;
         try {
             const room = await findAccessibleRoom(roomId, userId, 'personLimit');
             if (sendIfNoAccess(res, room)) return;
-            const canManage = canManageMembers(room, userId);
-            await room.populate<{ ownerId: PublicUser; members: PublicUser[] }>([
-                { path: 'ownerId', select: PUBLIC_USER_FIELDS },
-                { path: 'members', select: PUBLIC_USER_FIELDS, options: { sort: { username: 1 } } },
-            ]);
+            const ownerIds = room.owners.map((id) => id.toString());
+            // A personal room has no members; its owner is the only one who belongs to it.
+            const ids = isPersonalRoom(room) ? room.owners : room.members;
+            // A member whose account was deleted isn't found, and drops out.
+            const people = await User.find({ _id: { $in: ids } }).select(PUBLIC_USER_FIELDS).sort({ username: 1 }).lean();
+            const members = people.map((u) => ({ ...u, _id: u._id.toString() }) as unknown as PublicUser);
+            const rank = (u: PublicUser) => (ownerIds.includes(u._id) ? 0 : 1);
+            members.sort((a, b) => rank(a) - rank(b));
             const body: RoomMembers = {
-                owner: room.ownerId as unknown as PublicUser,
-                // A member whose account was deleted populates as null.
-                members: (room.members as unknown as (PublicUser | null)[]).filter((m): m is PublicUser => !!m),
+                members,
+                ownerIds,
+                creatorId: isProtectedCreator(room, room.ownerId.toString()) ? room.ownerId.toString() : null,
                 personLimit: room.personLimit,
-                canManageMembers: canManage,
+                canManageMembers: canManageMembers(room, userId),
             };
             res.send(body);
         } catch (e) {
@@ -299,7 +308,7 @@ const controller = {
         }
     },
 
-    // POST /rooms/:roomId/members { userIds } — add people to an existing room.
+    // POST /rooms/:roomId/members { userIds } — an owner adds people to an existing room.
     addMembers: async (req: Request, res: Response): Promise<void> => {
         const { roomId } = req.params;
         const userId = req.user!.userId;
@@ -308,7 +317,7 @@ const controller = {
             return;
         }
         try {
-            const room = await Room.findById(roomId).select('ownerId members personLimit name category');
+            const room = await Room.findById(roomId).select('owners members personLimit name category');
             if (!room) {
                 res.status(404).send({ error: 'Room not found' });
                 return;
@@ -318,10 +327,10 @@ const controller = {
                 return;
             }
             if (!canManageMembers(room, userId)) {
-                res.status(403).send({ error: 'Only the room owner can add people' });
+                res.status(403).send({ error: 'Only room owners can add people' });
                 return;
             }
-            const already = [room.ownerId.toString(), ...room.members.map((id) => id.toString())];
+            const already = room.members.map((id) => id.toString());
             const picked = await idsToAdd(userId, req.body?.userIds, already);
             if ('error' in picked) {
                 res.status(400).send({ error: picked.error });
@@ -332,12 +341,14 @@ const controller = {
                 res.status(400).send({ error: 'Everyone picked is already in the room' });
                 return;
             }
-            // The limit check is part of the update, so two adds at once can't both pass it.
-            // Owner + current members + new members must fit.
+            // The limit and ownership checks are part of the update, so two adds at once can't
+            // both pass the limit, and an owner who left a moment ago can't add. Members (owners
+            // included) plus the new ones must fit.
             const updated = await Room.findOneAndUpdate(
                 {
                     _id: room._id,
-                    $expr: { $lte: [{ $add: [{ $size: '$members' }, newIds.length, 1] }, '$personLimit'] },
+                    owners: userId,
+                    $expr: { $lte: [{ $add: [{ $size: '$members' }, newIds.length] }, '$personLimit'] },
                 },
                 { $addToSet: { members: { $each: newIds.map((id) => new mongoose.Types.ObjectId(id)) } } },
             );
@@ -345,7 +356,6 @@ const controller = {
                 res.status(400).send({ error: `A room holds at most ${room.personLimit} people, you included` });
                 return;
             }
-            await User.updateMany({ _id: { $in: newIds } }, { $addToSet: { rooms: room._id } });
             res.sendStatus(204);
             notifyAdded(req, room, newIds);
         } catch (e) {
@@ -354,7 +364,10 @@ const controller = {
         }
     },
 
-    // DELETE /rooms/:roomId/members/:userId — remove someone from the room.
+    /**
+     * DELETE /rooms/:roomId/members/:userId — an owner removes someone, other owners included, as in
+     * WhatsApp. Not the creator, and not themselves (they leave instead).
+     */
     removeMember: async (req: Request, res: Response): Promise<void> => {
         const { roomId, userId: targetId } = req.params;
         const userId = req.user!.userId;
@@ -363,7 +376,7 @@ const controller = {
             return;
         }
         try {
-            const room = await Room.findById(roomId).select('ownerId members category');
+            const room = await Room.findById(roomId).select('ownerId owners members category');
             if (!room) {
                 res.status(404).send({ error: 'Room not found' });
                 return;
@@ -373,26 +386,149 @@ const controller = {
                 return;
             }
             if (!canManageMembers(room, userId)) {
-                res.status(403).send({ error: 'Only the room owner can remove people' });
+                res.status(403).send({ error: 'Only room owners can remove people' });
                 return;
             }
-            if (room.ownerId.toString() === targetId) {
-                res.status(400).send({ error: "The room owner can't be removed" });
+            if (targetId === userId) {
+                res.status(400).send({ error: 'Leave the room instead' });
+                return;
+            }
+            if (isProtectedCreator(room, targetId)) {
+                res.status(400).send({ error: "The room's creator can't be removed" });
                 return;
             }
             if (!room.members.some((id) => id.toString() === targetId)) {
                 res.status(404).send({ error: 'Not a member of this room' });
                 return;
             }
-            await dropMember(req, roomId, targetId, 'removed');
+            // Checked again in the write: the caller must still own the room, and the target must
+            // still be in it and not its creator. Two owners removing each other at once can't
+            // both succeed, since the second no longer owns the room, so an owner always remains.
+            const { modifiedCount } = await Room.updateOne(
+                { _id: room._id, members: targetId, owners: userId, $nor: [{ ownerId: targetId, owners: targetId }] },
+                { $pull: { members: targetId, owners: targetId } },
+            );
+            if (!modifiedCount) {
+                res.status(409).send({ error: ROOM_CHANGED });
+                return;
+            }
             res.sendStatus(204);
+            announceMemberRemoved(req.app.get('io') as Server, roomId, targetId, 'removed');
         } catch (e) {
             console.log(`Error: ${e}`);
             res.sendStatus(500);
         }
     },
 
-    // POST /rooms/:roomId/leave — a member leaves. The owner can't (what happens to their room is still open).
+    // POST /rooms/:roomId/owners { userId } — an owner makes a member an owner too.
+    addOwner: async (req: Request, res: Response): Promise<void> => {
+        const { roomId } = req.params;
+        const targetId: unknown = req.body?.userId;
+        const userId = req.user!.userId;
+        if (!mongoose.isValidObjectId(roomId)) {
+            res.status(404).send({ error: 'Room not found' });
+            return;
+        }
+        if (typeof targetId !== 'string' || !mongoose.isValidObjectId(targetId)) {
+            res.status(400).send({ error: 'Expected a userId' });
+            return;
+        }
+        try {
+            const room = await Room.findById(roomId).select('owners members category name');
+            if (!room) {
+                res.status(404).send({ error: 'Room not found' });
+                return;
+            }
+            if (isPersonalRoom(room)) {
+                res.status(400).send({ error: "A personal room can't have other owners" });
+                return;
+            }
+            if (!canManageMembers(room, userId)) {
+                res.status(403).send({ error: 'Only room owners can make others owners' });
+                return;
+            }
+            if (!room.members.some((id) => id.toString() === targetId)) {
+                res.status(404).send({ error: 'Not a member of this room' });
+                return;
+            }
+            if (isRoomOwner(room, targetId)) {
+                res.status(400).send({ error: 'Already an owner' });
+                return;
+            }
+            // Checked again in the write, in case the caller or the target left meanwhile.
+            const { modifiedCount } = await Room.updateOne(
+                { _id: room._id, owners: userId, members: targetId },
+                { $addToSet: { owners: targetId } },
+            );
+            if (!modifiedCount) {
+                res.status(409).send({ error: ROOM_CHANGED });
+                return;
+            }
+            res.sendStatus(204);
+            notifyNewOwner(req, room, targetId, `${req.user!.username} made you an owner of the room`);
+        } catch (e) {
+            console.log(`Error: ${e}`);
+            res.sendStatus(500);
+        }
+    },
+
+    /**
+     * DELETE /rooms/:roomId/owners/:userId — an owner dismisses another owner, who stays in the room
+     * as a member (WhatsApp's "Dismiss as admin"). Not the creator, and not themselves.
+     */
+    dismissOwner: async (req: Request, res: Response): Promise<void> => {
+        const { roomId, userId: targetId } = req.params;
+        const userId = req.user!.userId;
+        if (!mongoose.isValidObjectId(roomId) || !mongoose.isValidObjectId(targetId)) {
+            res.status(404).send({ error: 'Not found' });
+            return;
+        }
+        try {
+            const room = await Room.findById(roomId).select('ownerId owners category');
+            if (!room) {
+                res.status(404).send({ error: 'Room not found' });
+                return;
+            }
+            if (!canManageMembers(room, userId)) {
+                res.status(403).send({ error: 'Only room owners can dismiss owners' });
+                return;
+            }
+            if (targetId === userId) {
+                res.status(400).send({ error: 'Leave the room instead' });
+                return;
+            }
+            if (!isRoomOwner(room, targetId)) {
+                res.status(400).send({ error: 'Not an owner' });
+                return;
+            }
+            if (isProtectedCreator(room, targetId)) {
+                res.status(400).send({ error: "The room's creator can't be dismissed" });
+                return;
+            }
+            // Checked again in the write. As with removing, two owners dismissing each other at once
+            // can't both succeed.
+            const { modifiedCount } = await Room.updateOne(
+                { _id: room._id, owners: { $all: [userId, targetId] }, ownerId: { $ne: targetId } },
+                { $pull: { owners: targetId } },
+            );
+            if (!modifiedCount) {
+                res.status(409).send({ error: ROOM_CHANGED });
+                return;
+            }
+            res.sendStatus(204);
+            // Their devices refetch the room, so an edit they have open closes.
+            announceOwnersChanged(req.app.get('io') as Server, roomId, [targetId]);
+        } catch (e) {
+            console.log(`Error: ${e}`);
+            res.sendStatus(500);
+        }
+    },
+
+    /**
+     * POST /rooms/:roomId/leave — anyone leaves a group room, owners too. When the last owner
+     * leaves, a member picked at random owns the room; when the last person leaves, the room is
+     * deleted. Answers RoomLeaveResult.
+     */
     leave: async (req: Request, res: Response): Promise<void> => {
         const { roomId } = req.params;
         const userId = req.user!.userId;
@@ -401,20 +537,98 @@ const controller = {
             return;
         }
         try {
-            const room = await Room.findById(roomId).select('ownerId members');
+            // Who inherits the room depends on everyone else in it, so the write only lands if
+            // owners and members are still what was read. If someone changed them at the same
+            // moment (another owner leaving, say), read again and redo it.
+            for (let attempt = 0; attempt < LEAVE_ATTEMPTS; attempt++) {
+                const room = await Room.findById(roomId).select('owners members category name');
+                if (!room) {
+                    res.status(404).send({ error: 'Room not found' });
+                    return;
+                }
+                if (isPersonalRoom(room)) {
+                    res.status(400).send({ error: "You can't leave your own personal room" });
+                    return;
+                }
+                if (!room.members.some((id) => id.toString() === userId)) {
+                    res.status(404).send({ error: 'Not a member of this room' });
+                    return;
+                }
+                const members = room.members.filter((id) => id.toString() !== userId);
+
+                if (members.length === 0) {
+                    // The last one out: nobody is left to own the room, so it goes.
+                    const deleted = await Room.findOneAndDelete({
+                        _id: room._id,
+                        members: [new mongoose.Types.ObjectId(userId)],
+                    }).select('owners members');
+                    if (!deleted) continue;
+                    await afterRoomDeleted(req, deleted, userId);
+                    const result: RoomLeaveResult = { deleted: true };
+                    res.send(result);
+                    return;
+                }
+
+                let owners = room.owners.filter((id) => id.toString() !== userId);
+                let newOwnerId: string | undefined;
+                if (owners.length === 0) {
+                    const heir = members[randomInt(members.length)];
+                    owners = [heir];
+                    newOwnerId = heir.toString();
+                }
+                const { modifiedCount } = await Room.updateOne(
+                    { _id: room._id, owners: [...room.owners], members: [...room.members] },
+                    { $set: { owners, members } },
+                );
+                if (!modifiedCount) continue;
+
+                const result: RoomLeaveResult = { deleted: false, newOwnerId };
+                res.send(result);
+                announceMemberRemoved(req.app.get('io') as Server, roomId, userId, 'left');
+                if (newOwnerId) notifyNewOwner(req, room, newOwnerId, `${req.user!.username} left, so you now own the room`);
+                return;
+            }
+            res.status(409).send({ error: ROOM_CHANGED });
+        } catch (e) {
+            console.log(`Error: ${e}`);
+            res.sendStatus(500);
+        }
+    },
+
+    // DELETE /rooms/:roomId — an owner deletes a group room for everyone. Personal rooms stay.
+    deleteRoom: async (req: Request, res: Response): Promise<void> => {
+        const { roomId } = req.params;
+        const userId = req.user!.userId;
+        if (!mongoose.isValidObjectId(roomId)) {
+            res.status(404).send({ error: 'Room not found' });
+            return;
+        }
+        try {
+            const room = await Room.findById(roomId).select('owners category');
             if (!room) {
                 res.status(404).send({ error: 'Room not found' });
                 return;
             }
-            if (room.ownerId.toString() === userId) {
-                res.status(400).send({ error: "The room owner can't leave their room" });
+            if (isPersonalRoom(room)) {
+                res.status(400).send({ error: "Your personal room can't be deleted" });
                 return;
             }
-            if (!room.members.some((id) => id.toString() === userId)) {
-                res.status(404).send({ error: 'Not a member of this room' });
+            if (!canManageMembers(room, userId)) {
+                res.status(403).send({ error: 'Only room owners can delete the room' });
                 return;
             }
-            await dropMember(req, roomId, userId, 'left');
+            // Ownership is checked again in the delete, and who to tell is read from the room as it
+            // was deleted, so someone added a moment before is told too.
+            const deleted = await Room.findOneAndDelete({
+                _id: room._id,
+                category: RoomCategory.GROUP,
+                owners: userId,
+            }).select('owners members');
+            if (!deleted) {
+                res.status(409).send({ error: ROOM_CHANGED });
+                return;
+            }
+            await afterRoomDeleted(req, deleted, userId);
             res.sendStatus(204);
         } catch (e) {
             console.log(`Error: ${e}`);

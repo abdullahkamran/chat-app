@@ -30,8 +30,6 @@ export interface User {
     popularity: number;
     drip: number;
     maxRooms: number;
-    rooms: Array<Room>;
-    ownedRooms: Array<Room>;
     favouriteRooms: Array<Room>;
     inventory: Array<Item['_id']>;
     avatarInventory: Array<AvatarInventoryEntry>;

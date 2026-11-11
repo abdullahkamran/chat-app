@@ -59,7 +59,7 @@ None assigned by default (`inventoryItemNames` is empty).
 ## Personal Room
 
 Every user has exactly one personal room ([`personal-room.service.ts`](../services/personal-room.service.ts)),
-added to `ownedRooms`. Unlike the other defaults it is **required**: if it can't be created, the signup is undone
+whose only owner is the user (`owners: [userId]`). Unlike the other defaults it is **required**: if it can't be created, the signup is undone
 (the user is deleted) and returns 500. A unique partial index on personal rooms' `ownerId` stops a second one,
 and `deleteByID` won't delete one. Users from before this rule have no personal room: reset the DB
 (`POST /api/v1/dev/reset`).

@@ -14,6 +14,7 @@ import {
   ItemPlacement,
   ItemState,
   Orientiation,
+  isRoomOwner,
   themeSlotsOf,
   type ActorAction,
   type ActorActionKind,
@@ -174,7 +175,13 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
   const [pendingTheme, setPendingTheme] = useState<RoomTheme | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  const isOwner = roomDetails?.ownerId === userId;
+  // Any of the room's owners may edit it.
+  const isOwner = !!roomDetails && isRoomOwner(roomDetails, userId);
+  // Dismissed as an owner mid-edit: the edit can't be saved, so drop it.
+  useEffect(() => {
+    if (isEditMode && roomDetails && !isOwner) cancelEdit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditMode, isOwner]);
 
   const roomDimensions = {
     x: roomDetails?.dimensions?.x || 8,

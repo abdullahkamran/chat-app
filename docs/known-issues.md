@@ -119,20 +119,20 @@ re-ask the moment they're declined (the prompt pops up again each time), and thr
 tap, which plays a sound on every device in the room. Allow a few requests per asker per target per minute,
 and a throw per user every second or so; the clients could also keep a short cooldown on the buttons.
 
-### 7. Room membership can be left half-written, and room limits can be dodged
+### 7. A removal can race an enter, a deleted room can leave mail behind, and room limits can be dodged
 
 Found on 2026-10-23 while adding search-and-pick on Create Room, adding and removing members, and leaving.
+(Membership used to be stored twice, on the room and in `User.rooms`/`ownedRooms`, and the two could
+disagree after a crash. Since 2026-11-11 the room's `members` and `owners` are the only record.)
 
 **Seen:**
-- If the server fails between two writes, a user can show as a member of a room in its member list but
-  be refused at the door, or the other way round.
 - A user removed at the same moment they enter can stay visible in the room until they walk out.
+- If the server fails while deleting a room, its postbox notes can be left behind with no room.
 - A client can create a room with any `personLimit` and as many rooms as it likes.
 
 **Why:**
-- Membership is stored twice: `Room.members` and `User.rooms`. Create, add, remove and leave
-  (`room.controller.ts`) write one, then the other, with no transaction. Entering checks `User.rooms`,
-  while the member list and `getDetails` read `Room.members` or `User.rooms` depending on the route.
+- Deleting a room (`deleteRoom`, or the last person leaving) deletes the room, then its `room_mails` and
+  `mailbox_reads`. Nothing reads them once the room is gone, so they are only wasted space.
 - `SEND_ENTER` checks membership in the DB, then awaits a seat check before it adds the user to presence.
   A removal that lands in that gap evicts nothing (`announceMemberRemoved`), and the enter adds them after.
   Nothing more is relayed to them once the client exits, and they can't re-enter.
@@ -140,12 +140,11 @@ Found on 2026-10-23 while adding search-and-pick on Create Room, adding and remo
   `User.maxRooms`. The new member limit is only as strict as that number.
 
 **Fix:**
-- Write both sides in one Mongo transaction, or keep one source of truth: drop `User.rooms` and query
-  `Room.members` for the room list and the door check.
+- Delete a room's postbox in the same transaction as the room, or sweep postboxes whose room is gone.
 - In `SEND_ENTER`, check membership again after the last await, or have removals mark the
   room/user pair so a pending enter is refused.
 - Clamp `personLimit` to a server maximum, or ignore it until rooms can be upgraded, and refuse
-  `createRoom` once `ownedRooms.length >= maxRooms`.
+  `createRoom` once the user owns `maxRooms` group rooms (`Room.countDocuments({ owners: userId, category: 'group' })`).
 
 ### 8. Smaller items
 
@@ -224,7 +223,7 @@ take the same seat.
 
 **Why:** two things live in one process's memory. Room presence (`apps/backend/src/sockets/roomPresence.ts`)
 is a `Map` per process, so each instance only knows its own sockets. And Socket.IO's default adapter only
-broadcasts to sockets on the same instance, so relays (`socket.to(roomId)`) never cross instances. The same goes for layout saves: `announceRoomItemsChanged` only places the people this instance knows and tells only its own sockets. And for membership and friends: the added, removed, members-changed and friends-changed events only reach this instance's sockets, and `announceMemberRemoved` only takes out a removed user standing in the room on this instance. On another instance, the removed user stays and is still relayed to until they exit. With the Redis adapter, evict with `io.in(userChannel).socketsLeave(roomId)` plus a broadcast that tells each instance to drop the user from presence and its sockets' `presentRoomIds`.
+broadcasts to sockets on the same instance, so relays (`socket.to(roomId)`) never cross instances. The same goes for layout saves: `announceRoomItemsChanged` only places the people this instance knows and tells only its own sockets. And for membership and friends: the added, removed, members-changed and friends-changed events only reach this instance's sockets, and `announceMemberRemoved` only takes out a removed user standing in the room on this instance. On another instance, the removed user stays and is still relayed to until they exit. Deleting a room (`deleteRoom`, or the last person leaving) evicts everyone through the same call, so on other instances people stay in a deleted room until they exit; new owners (`announceOwnersChanged`) are also only told on this instance. With the Redis adapter, evict with `io.in(userChannel).socketsLeave(roomId)` plus a broadcast that tells each instance to drop the user from presence and its sockets' `presentRoomIds`.
 
 **Fix:** add Redis, decide room presence issue 1 first, and keep `roomPresence`'s API (made async) so the
 handlers barely change:

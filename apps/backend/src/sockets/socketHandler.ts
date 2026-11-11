@@ -203,8 +203,16 @@ export function announceMembersAdded(io: Server, roomId: string, userIds: string
 }
 
 /**
- * The user can no longer be in the room: removed by a manager, left, or no longer friends with
- * the owner of a personal room. Every socket of theirs standing
+ * The room's owners changed. Its member list and details refetch, in the room and on the devices of
+ * `userIds`, the people made or dismissed as owners (they may be elsewhere in the app).
+ */
+export function announceOwnersChanged(io: Server, roomId: string, userIds: string[]): void {
+    io.to([roomId, ...userIds.map(userChannel)]).emit(SocketEvent.RECEIVE_ROOM_MEMBERS_CHANGED, { roomId });
+}
+
+/**
+ * The user can no longer be in the room: removed by an owner, left, the room was deleted, or no
+ * longer friends with the owner of a personal room. Every socket of theirs standing
  * in the room is taken out (their character leaves, and nothing more is relayed for them), their
  * devices are told so a room on screen closes, and the room's member list refetches.
  * Entering checks membership, so they can't come back in.
@@ -298,7 +306,7 @@ const handler = {
         }));
 
         // Join the room's channel on entry rather than at connect, so rooms joined or created
-        // while connected work at once, and owners (`ownedRooms`) hear their own rooms.
+        // while connected work at once, and owners hear their own rooms.
         // A first entry carries no state: the user appears at the entry door. A re-entry after
         // a reconnect carries where the user was, so others place them there directly.
         socket.on(SocketEvent.SEND_ENTER, inOrder(SocketEvent.SEND_ENTER, async ({ roomId, position, action }: { roomId: string } & RoomPresenceState) => {

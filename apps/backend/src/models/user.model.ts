@@ -3,11 +3,9 @@ import { User } from '@chat-app/shared-types';
 
 // Override ref-array fields with ObjectId since mongoose stores references, not populated docs
 export interface IUser
-    extends Omit<User, '_id' | 'rooms' | 'ownedRooms' | 'favouriteRooms' | 'inventory' | 'avatarInventory' | 'avatars' | 'selectedAvatar' | 'animations' | 'dateOfBirth'>,
+    extends Omit<User, '_id' | 'favouriteRooms' | 'inventory' | 'avatarInventory' | 'avatars' | 'selectedAvatar' | 'animations' | 'dateOfBirth'>,
         Document {
     dateOfBirth?: Date;
-    rooms: mongoose.Types.ObjectId[];
-    ownedRooms: mongoose.Types.ObjectId[];
     favouriteRooms: mongoose.Types.ObjectId[];
     inventory: mongoose.Types.ObjectId[];
     avatarInventory: Array<{ item: mongoose.Types.ObjectId; variantId: string }>;
@@ -72,8 +70,6 @@ const UserSchema = new Schema<IUser, IUserModel>(
         popularity: { type: Number, default: 0 },
         drip: { type: Number, default: 0 },
         maxRooms: { type: Number, default: 5 },
-        rooms: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Room' }],
-        ownedRooms: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Room' }],
         favouriteRooms: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Room' }],
         inventory: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Item' }],
         avatarInventory: [

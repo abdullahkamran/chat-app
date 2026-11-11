@@ -16,7 +16,14 @@ export type RoomCategory = (typeof RoomCategory)[keyof typeof RoomCategory];
 
 export interface Room {
     _id: string;
+    /** Who made the room. For a personal room, whose it is. Rights go by `owners`, not this. */
     ownerId: string;
+    /**
+     * Who may manage the room: add and remove people, make others owners, edit it, delete it.
+     * A group room's creator is its first owner, and an owner can make any member one too. A
+     * personal room's only owner is `ownerId`. Use `isRoomOwner`.
+     */
+    owners: string[];
     name: string;
     description: string;
     category: RoomCategory;
@@ -26,6 +33,7 @@ export interface Room {
 }
 
 export interface RoomDetails extends Room {
+    /** Everyone in a group room, its owners included. Empty for a personal room. */
     members: Array<PublicUser>;
     dimensions: Dimensions;
     items: Array<RoomItem>;
@@ -142,21 +150,41 @@ export interface RoomTheme {
     rightWall: Item;
 }
 
-/** `GET /rooms/:roomId/members`: the owner, everyone else, and what the caller may do. */
+/** Whether the user is one of the room's owners. */
+export function isRoomOwner(room: Pick<Room, 'owners'>, userId: string | null | undefined): boolean {
+    return !!userId && (room.owners ?? []).includes(userId);
+}
+
+/** `GET /rooms/:roomId/members`: who is in the room, and what the caller may do. */
 export interface RoomMembers {
-    owner: PublicUser;
+    /** Everyone in the room, owners first, then by username. */
     members: Array<PublicUser>;
-    /** Most people the room holds, owner included. */
+    /** Which of `members` own the room. */
+    ownerIds: string[];
+    /**
+     * The room's creator while they own it, else null. As in WhatsApp, other owners can't remove
+     * the creator or dismiss them as an owner.
+     */
+    creatorId: string | null;
+    /** Most people the room holds, owners included. */
     personLimit: number;
-    /** Whether the caller may add and remove members (the owner today; room admins later). */
+    /** Whether the caller may add and remove people, make and dismiss owners and delete the room: an owner. */
     canManageMembers: boolean;
 }
 
+/** `POST /rooms/:roomId/leave`: what leaving did to the room. */
+export interface RoomLeaveResult {
+    /** The last person left, so the room was deleted. */
+    deleted: boolean;
+    /** The last owner left, so this member was picked at random to own the room. */
+    newOwnerId?: string;
+}
+
 /**
- * Why a user can no longer be in a room (`RECEIVE_REMOVED_FROM_ROOM`): removed by a manager, left,
- * or no longer friends with the owner of a personal room they could visit.
+ * Why a user can no longer be in a room (`RECEIVE_REMOVED_FROM_ROOM`): removed by an owner, left,
+ * an owner deleted the room, or no longer friends with the owner of a personal room they could visit.
  */
-export type RoomRemovalReason = 'removed' | 'left' | 'unfriended';
+export type RoomRemovalReason = 'removed' | 'left' | 'deleted' | 'unfriended';
 
 /** `RECEIVE_ROOM_VISITED`, to a personal room's owner: a friend came in while they weren't there. */
 export interface RoomVisit {

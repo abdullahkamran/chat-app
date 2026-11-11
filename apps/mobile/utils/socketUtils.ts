@@ -26,8 +26,11 @@ export function announceAvatarChanged() {
  */
 export function listenForAccountEvents(socket: Socket, queryClient: QueryClient): () => void {
   const refetchRooms = () => queryClient.invalidateQueries({ queryKey: ['rooms'] });
-  const refetchMembers = ({ roomId }: { roomId: string }) =>
+  // The room's details carry its owners, which decide who may edit it.
+  const refetchMembers = ({ roomId }: { roomId: string }) => {
     queryClient.invalidateQueries({ queryKey: ['roomMembers', roomId] });
+    queryClient.invalidateQueries({ queryKey: ['roomDetails', roomId] });
+  };
 
   const refetchFriends = () => {
     refetchFriendData(queryClient);

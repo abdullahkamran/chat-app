@@ -3,8 +3,12 @@ import { Room, RoomDetails } from '@chat-app/shared-types';
 import { Orientiation, ItemState, RoomCategory } from '@chat-app/shared-types';
 
 // Override ownerId to use ObjectId since mongoose stores a reference, not a plain string
-export interface IRoom extends Omit<Room, '_id' | 'ownerId'>, Omit<RoomDetails, '_id' | 'ownerId' | 'members' | 'items' | 'theme'>, Document {
+export interface IRoom extends Omit<Room, '_id' | 'ownerId' | 'owners'>, Omit<RoomDetails, '_id' | 'ownerId' | 'owners' | 'members' | 'items' | 'theme'>, Document {
+    /** Who made the room; for a personal room, whose it is. Rights go by `owners`. */
     ownerId: mongoose.Types.ObjectId;
+    /** Who manages the room. In a group room, a subset of `members`. In a personal room, `[ownerId]`. */
+    owners: mongoose.Types.ObjectId[];
+    /** Everyone in a group room, owners included. Always empty in a personal room. */
     members: mongoose.Types.ObjectId[];
     items: Array<{
         itemId: mongoose.Types.ObjectId;
@@ -32,6 +36,7 @@ const RoomSchema = new Schema<IRoom, IRoomModel>(
         description: { type: String, default: '' },
         category: { type: String, enum: Object.values(RoomCategory), default: RoomCategory.GROUP },
         personLimit: { type: Number, default: 10 },
+        owners: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
         members: {
             type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
             validate: {
@@ -90,6 +95,11 @@ RoomSchema.index(
     { unique: true, partialFilterExpression: { category: RoomCategory.PERSONAL }, name: 'one_personal_room_per_owner' },
 );
 
+// The rooms are the only record of who is in them: a user's room list and friend suggestions
+// look rooms up by member or owner.
+RoomSchema.index({ members: 1 });
+RoomSchema.index({ owners: 1 });
+
 RoomSchema.statics.getAll = function () {
     return this.find({});
 };
@@ -103,13 +113,26 @@ RoomSchema.statics.deleteByID = function (room: { _id: mongoose.Types.ObjectId }
     return this.deleteOne({ _id: room._id, category: { $ne: RoomCategory.PERSONAL } });
 };
 
+/** Whether the user is one of the room's owners. */
+export function isRoomOwner(room: Pick<IRoom, 'owners'>, userId: string): boolean {
+    return room.owners.some((id) => id.toString() === userId);
+}
+
 /**
- * Whether the user may add and remove the room's members. Only the owner today, and never in a
- * personal room, which has no members. Room admins, when they come, are checked here, so the
- * routes that call this don't change.
+ * Whether the user may manage the room's people (add, remove, make or dismiss owners) and delete
+ * it: any of its owners, and never in a personal room, which has no members.
  */
-export function canManageMembers(room: Pick<IRoom, 'ownerId' | 'category'>, userId: string): boolean {
-    return room.category !== RoomCategory.PERSONAL && room.ownerId.toString() === userId;
+export function canManageMembers(room: Pick<IRoom, 'owners' | 'category'>, userId: string): boolean {
+    return room.category !== RoomCategory.PERSONAL && isRoomOwner(room, userId);
+}
+
+/**
+ * Whether the user is the room's creator and still owns it. As in WhatsApp, other owners can't
+ * remove the creator or dismiss them as an owner; they can only leave by choice. A creator who left
+ * and was added back is an ordinary member until made an owner again.
+ */
+export function isProtectedCreator(room: Pick<IRoom, 'ownerId' | 'owners'>, userId: string): boolean {
+    return room.ownerId.toString() === userId && isRoomOwner(room, userId);
 }
 
 const RoomModel = mongoose.model<IRoom, IRoomModel>('Room', RoomSchema);

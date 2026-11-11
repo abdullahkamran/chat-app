@@ -19,14 +19,15 @@ export default function RoomScreen() {
     return () => setActiveRoomId(null);
   }, [roomId, setActiveRoomId]);
 
-  // Removed by the owner, or left on another device: close the room (and its member list, if open).
+  // Removed by an owner, the room deleted, or left on another device: close the room (and its member list, if open).
   useEffect(() => {
     const socket = socketUtils.socket;
     if (!socket) return;
     const onRemoved = (p: { roomId: string; reason: RoomRemovalReason }) => {
       if (p.roomId !== roomId) return;
       router.dismissTo('/(tabs)');
-      if (p.reason === 'removed') Alert.alert('Removed from room', 'The owner removed you from this room.');
+      if (p.reason === 'removed') Alert.alert('Removed from room', 'An owner removed you from this room.');
+      if (p.reason === 'deleted') Alert.alert('Room deleted', 'An owner deleted this room.');
       if (p.reason === 'unfriended') Alert.alert('Room closed', "You're no longer friends with this room's owner.");
     };
     socket.on(SocketEvent.RECEIVE_REMOVED_FROM_ROOM, onRemoved);

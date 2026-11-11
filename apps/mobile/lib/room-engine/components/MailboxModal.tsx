@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ROOM_MAIL_MAX_LENGTH, RoomCategory, type RoomDetails, type RoomMail } from '@chat-app/shared-types';
+import { isRoomOwner, ROOM_MAIL_MAX_LENGTH, RoomCategory, type RoomDetails, type RoomMail } from '@chat-app/shared-types';
 import { AppText, EmptyState, IconButton, Spinner } from '@/components/ui';
 import { makeStyles, useTheme } from '@/constants/theme';
 import { useMailbox, useMailboxMutations } from '@/hooks/useMailbox';
@@ -150,7 +150,7 @@ export function MailboxModal({ room, userId, visible, onClose }: Readonly<Props>
   const [text, setText] = useState('');
   const [focused, setFocused] = useState(false);
 
-  const isOwner = room.ownerId === userId;
+  const isOwner = isRoomOwner(room, userId);
   const isPersonal = room.category === RoomCategory.PERSONAL;
   const unread = data?.unread ?? 0;
 

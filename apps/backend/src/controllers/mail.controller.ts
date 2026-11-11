@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import type { Server } from 'socket.io';
 import { ROOM_MAIL_MAX_LENGTH, type PublicUser, type RoomMail, type RoomMailbox } from '@chat-app/shared-types';
-import Room, { IRoom } from '../models/room.model';
+import Room, { IRoom, isRoomOwner } from '../models/room.model';
 import { MailboxRead, RoomMail as RoomMailModel, IRoomMail } from '../models/room-mail.model';
 import { PUBLIC_USER_FIELDS } from '../models/user.model';
 import { sendPushToUsers } from '../services/notification.service';
@@ -16,10 +16,10 @@ const MAILBOX_LIMIT = 50;
 /** Longest stretch of a mail's text put in its push. */
 const PUSH_PREVIEW_LENGTH = 100;
 
-type MailRoom = Pick<IRoom, '_id' | 'ownerId' | 'members' | 'category'>;
+type MailRoom = Pick<IRoom, '_id' | 'ownerId' | 'owners' | 'members' | 'category'>;
 
 function isOwner(room: MailRoom, userId: string): boolean {
-    return room.ownerId.toString() === userId;
+    return isRoomOwner(room, userId);
 }
 
 /**
@@ -38,7 +38,7 @@ function canPost(room: MailRoom, userId: string): boolean {
 
 /** Who reads a new mail in this room, other than its author. */
 function readersOf(room: MailRoom, authorId: string): string[] {
-    const readers = isPersonalRoom(room) ? [room.ownerId] : [room.ownerId, ...room.members];
+    const readers = isPersonalRoom(room) ? room.owners : room.members;
     return [...new Set(readers.map((id) => id.toString()))].filter((id) => id !== authorId);
 }
 
@@ -155,8 +155,8 @@ const controller = {
                 res.status(404).send({ error: 'Mail not found' });
                 return;
             }
-            if (mail.authorId.toString() !== userId && !(await Room.exists({ _id: roomId, ownerId: userId }))) {
-                res.status(403).send({ error: 'Only its author or the room owner can delete this' });
+            if (mail.authorId.toString() !== userId && !(await Room.exists({ _id: roomId, owners: userId }))) {
+                res.status(403).send({ error: 'Only its author or a room owner can delete this' });
                 return;
             }
             await RoomMailModel.deleteOne({ _id: mailId });

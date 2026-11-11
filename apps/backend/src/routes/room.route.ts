@@ -41,8 +41,20 @@ roomRouter.delete('/:roomId/members/:userId', requireAuth, (req, res) => {
     roomController.removeMember(req, res);
 });
 
+roomRouter.post('/:roomId/owners', requireAuth, (req, res) => {
+    roomController.addOwner(req, res);
+});
+
+roomRouter.delete('/:roomId/owners/:userId', requireAuth, (req, res) => {
+    roomController.dismissOwner(req, res);
+});
+
 roomRouter.post('/:roomId/leave', requireAuth, (req, res) => {
     roomController.leave(req, res);
+});
+
+roomRouter.delete('/:roomId', requireAuth, (req, res) => {
+    roomController.deleteRoom(req, res);
 });
 
 roomRouter.get('/:id', requireAuth, (req, res) => {

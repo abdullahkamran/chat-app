@@ -55,7 +55,7 @@ export async function areFriends(a: string, b: string): Promise<boolean> {
  * requested. Ranked by contacts, then mutual friends, then shared rooms.
  */
 export async function suggestionsFor(userId: string): Promise<FriendSuggestion[]> {
-    const me = await User.findById(userId).select('rooms ownedRooms contactMatches dismissedSuggestions');
+    const me = await User.findById(userId).select('contactMatches dismissedSuggestions');
     if (!me) return [];
 
     const mine = await Friendship.find({ $or: [{ requester: userId }, { recipient: userId }] })
@@ -97,9 +97,10 @@ export async function suggestionsFor(userId: string): Promise<FriendSuggestion[]
         }
     }
 
-    const rooms = await Room.find({ _id: { $in: [...me.rooms, ...me.ownedRooms] } }).select('ownerId members');
+    // Group rooms they're in. Members include owners; personal rooms have no members, so share nobody.
+    const rooms = await Room.find({ members: userId }).select('members');
     for (const room of rooms) {
-        for (const id of [room.ownerId, ...room.members]) reasonFor(id.toString()).sharedRooms++;
+        for (const id of room.members) reasonFor(id.toString()).sharedRooms++;
     }
 
     const candidates = [...reasons.keys()].filter((id) => !excluded.has(id));

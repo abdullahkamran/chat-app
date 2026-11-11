@@ -90,8 +90,8 @@ The client was meant to (now commented out):
 
 ### Wrong recipients
 
-3. **Room owners never get pushes.** Recipients come from `room.members`, but the creator is stored as
-   `ownerId` (and in their own `ownedRooms`), not in `members`.
+3. ~~**Room owners never get pushes.**~~ Fixed 2026-11-11: a group room's `members` now include its owners,
+   so they are among the recipients.
 4. **People in the room get pushed too.** The server doesn't skip users who are in the room right now, even
    though it knows who is (`roomPresence`). The only planned guard was client-side and only for the room on
    screen. Better to skip present users on the server.

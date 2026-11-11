@@ -73,6 +73,7 @@ export const mockRooms: Room[] = [
     {
         _id: "room_001",
         ownerId: "user_001",
+        owners: ["user_001"],
         name: "Cozy Living Room",
         description: "A warm and inviting living space",
         category: "Living Room",
@@ -87,6 +88,7 @@ export const mockRooms: Room[] = [
     {
         _id: "room_002",
         ownerId: "user_002",
+        owners: ["user_002"],
         name: "Modern Office",
         description: "A sleek and professional workspace",
         category: "Office",
@@ -101,6 +103,7 @@ export const mockRooms: Room[] = [
     {
         _id: "room_003",
         ownerId: "user_001",
+        owners: ["user_001"],
         name: "Relaxation Zone",
         description: "A peaceful space for unwinding",
         category: "Bedroom",
@@ -115,6 +118,7 @@ export const mockRooms: Room[] = [
     {
         _id: "room_004",
         ownerId: "user_003",
+        owners: ["user_003"],
         name: "Party Central",
         description: "The ultimate party destination",
         category: "Entertainment",
@@ -129,6 +133,7 @@ export const mockRooms: Room[] = [
     {
         _id: "room_005",
         ownerId: "user_002",
+        owners: ["user_002"],
         name: "Gaming Den",
         description: "A dedicated space for gaming enthusiasts",
         category: "Gaming",
