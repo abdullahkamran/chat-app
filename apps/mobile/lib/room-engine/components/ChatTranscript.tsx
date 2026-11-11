@@ -17,6 +17,8 @@ interface LineProps {
   /** The signed-in user, whose lines read "You". */
   userId: User['_id'];
   names: Record<User['_id'], string>;
+  /** A sender's name was tapped. */
+  onNamePress?: (userId: User['_id']) => void;
 }
 
 /** A sender's color, the same on every line and every device. */
@@ -80,13 +82,17 @@ const useStyles = makeStyles(t => ({
   },
 }));
 
-function Line({ entry, userId, names }: Readonly<LineProps>) {
+function Line({ entry, userId, names, onNamePress }: Readonly<LineProps>) {
   const t = useTheme();
   const styles = useStyles();
   const mine = entry.userId === userId;
   return (
     <Text style={styles.lineText}>
-      <Text style={[styles.name, { color: mine ? t.colors.primary : nameColor(t, entry.userId) }]}>
+      <Text
+        style={[styles.name, { color: mine ? t.colors.primary : nameColor(t, entry.userId) }]}
+        onPress={onNamePress && (() => onNamePress(entry.userId))}
+        suppressHighlighting
+      >
         {mine ? 'You' : names[entry.userId] ?? '…'}
       </Text>
       {'  '}
@@ -128,8 +134,8 @@ export function TranscriptPeek({ entries, userId, names }: Readonly<{ entries: T
   );
 }
 
-/** Every message since entering, newest at the bottom, scrollable. */
-export function TranscriptPanel({ entries, userId, names }: Readonly<{ entries: TranscriptEntry[] } & Omit<LineProps, 'entry'>>) {
+/** Every message since entering, newest at the bottom, scrollable. Tapping a name shows that person in the room. */
+export function TranscriptPanel({ entries, userId, names, onNamePress }: Readonly<{ entries: TranscriptEntry[] } & Omit<LineProps, 'entry'>>) {
   const styles = useStyles();
   return (
     <Animated.View style={styles.panel} entering={FadeIn.duration(150)} exiting={FadeOut.duration(150)}>
@@ -145,7 +151,7 @@ export function TranscriptPanel({ entries, userId, names }: Readonly<{ entries: 
           renderItem={({ item }) => (
             <View style={styles.panelRow}>
               <View style={{ flex: 1 }}>
-                <Line entry={item} userId={userId} names={names} />
+                <Line entry={item} userId={userId} names={names} onNamePress={onNamePress} />
               </View>
               <AppText variant="caption" color="textMuted" style={styles.time}>{clockTime(item.sentAt)}</AppText>
             </View>

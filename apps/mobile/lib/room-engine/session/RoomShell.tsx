@@ -1,7 +1,7 @@
 import { usePreventRemove, useRouter } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedKeyboard, useAnimatedStyle, useDerivedValue } from 'react-native-reanimated';
+import Animated, { useAnimatedKeyboard, useAnimatedReaction, useAnimatedStyle, useDerivedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EmoteType, RoomCategory, type Animation } from '@chat-app/shared-types';
@@ -19,6 +19,7 @@ import { TypingIndicator } from '../components/TypingIndicator';
 import { EditModeToolbar } from '../EditMode/EditModeToolbar';
 import { InventoryDrawer } from '../EditMode/InventoryDrawer';
 import { useUsernames } from '../hooks/useUsernames';
+import type { RoomCamera } from './useRoomCamera';
 import type { RoomSession } from './useRoomSession';
 
 const useStyles = makeStyles(t => ({
@@ -52,10 +53,20 @@ const useStyles = makeStyles(t => ({
     paddingHorizontal: t.space.sm,
     paddingBottom: t.space.sm,
   },
+  findMe: {
+    position: 'absolute',
+    top: t.space.sm,
+    right: t.space.sm,
+  },
 }));
+
+/** The open transcript panel's share of the room's height (ChatTranscript's panel style). */
+const TRANSCRIPT_PANEL_SHARE = 0.45;
 
 interface Props {
   session: RoomSession;
+  /** Camera buttons and what the engine reports back. */
+  camera: RoomCamera;
   /** The engine's renderer. */
   children: ReactNode;
   /** The middle of the room toolbar (the experimental joystick). Hidden with the toolbar in edit mode. */
@@ -67,7 +78,7 @@ interface Props {
  * input, avatar or emote drawer or inventory drawer, and the loading / error states. The
  * engine renders in between.
  */
-export function RoomShell({ session, children, controls }: Readonly<Props>) {
+export function RoomShell({ session, camera, children, controls }: Readonly<Props>) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const styles = useStyles();
@@ -88,6 +99,24 @@ export function RoomShell({ session, children, controls }: Readonly<Props>) {
   const isEditMode = mode === 'edit';
   // The full transcript, in place of the peek. Tapping the room closes it.
   const [transcriptOpen, setTranscriptOpen] = useState(false);
+  // Tell the camera how much of the room the keyboard and the open transcript hide, so it
+  // keeps the local actor in the part still showing.
+  const [roomHeight, setRoomHeight] = useState(0);
+  const panelInset = !isEditMode && drawer === null && transcriptOpen ? roomHeight * TRANSCRIPT_PANEL_SHARE : 0;
+  const { bottomInset } = camera.link;
+  useAnimatedReaction(
+    () => lift.value + panelInset,
+    inset => bottomInset.set(inset),
+    [panelInset, bottomInset],
+  );
+  // A name in the transcript shows that person; your own takes the camera back to you.
+  const showPerson = (uid: string) => {
+    setTranscriptOpen(false);
+    if (uid === userId) camera.followMe();
+    else camera.focus(uid);
+  };
+  const { mode: cameraMode, localOffscreen } = camera.state;
+  const showFindMe = !isEditMode && localOffscreen && (cameraMode === 'free' || cameraMode === 'focus');
   const names = useUsernames([
     ...transcript.filter(e => e.userId !== userId).map(e => e.userId),
     ...[outgoingRequest?.toUserId, incomingRequest?.fromUserId, emoteNotice?.userId].filter((id): id is string => !!id),
@@ -169,7 +198,7 @@ export function RoomShell({ session, children, controls }: Readonly<Props>) {
 
       <View style={styles.body}>
         <Animated.View style={[{ flex: 1 }, liftStyle]}>
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1 }} onLayout={e => setRoomHeight(e.nativeEvent.layout.height)}>
             <Animated.View style={[{ flex: 1 }, roomStyle]}>
               {children}
             </Animated.View>
@@ -184,7 +213,7 @@ export function RoomShell({ session, children, controls }: Readonly<Props>) {
               />
             )}
             {showChat && (transcriptOpen
-              ? <TranscriptPanel entries={transcript} userId={userId} names={names} />
+              ? <TranscriptPanel entries={transcript} userId={userId} names={names} onNamePress={showPerson} />
               : <TranscriptPeek entries={transcript} userId={userId} names={names} />)}
           </View>
 
@@ -216,6 +245,8 @@ export function RoomShell({ session, children, controls }: Readonly<Props>) {
               mailHint={mailHint}
               onOpenMailbox={openMailbox}
               onEdit={isOwner ? intents.enterEdit : undefined}
+              overview={cameraMode === 'overview'}
+              onToggleOverview={camera.toggleOverview}
             />
           )}
           {/* A drawer opens under the toolbar, in the chat input's place. */}
@@ -231,6 +262,12 @@ export function RoomShell({ session, children, controls }: Readonly<Props>) {
             </View>
           )}
         </Animated.View>
+        {/* Outside the lifted chrome, so the keyboard never pushes it under the header. */}
+        {showFindMe && (
+          <View style={styles.findMe}>
+            <IconButton icon="locate" variant="primary" onPress={camera.followMe} accessibilityLabel="Find me" />
+          </View>
+        )}
       </View>
 
       <MailboxModal room={roomDetails} userId={userId} visible={mailboxOpen} onClose={() => setMailboxOpen(false)} />

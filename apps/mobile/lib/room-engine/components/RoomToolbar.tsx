@@ -19,6 +19,9 @@ interface Props {
   onOpenMailbox: () => void;
   /** Room owners get the decorate button. */
   onEdit?: () => void;
+  /** The camera is framing everyone; the button toggles it. */
+  overview: boolean;
+  onToggleOverview: () => void;
 }
 
 const useStyles = makeStyles(t => ({
@@ -42,10 +45,10 @@ const useStyles = makeStyles(t => ({
 
 /**
  * The room's play-mode actions in one bar over the chat input: emotes and avatar on the
- * left, postbox and decorate on the right, the joystick in the middle.
+ * left, see-everyone, postbox and decorate on the right, the joystick in the middle.
  */
 export function RoomToolbar({
-  center, drawer, onToggleDrawer, canEmote, unread, mailHint, onOpenMailbox, onEdit,
+  center, drawer, onToggleDrawer, canEmote, unread, mailHint, onOpenMailbox, onEdit, overview, onToggleOverview,
 }: Readonly<Props>) {
   const t = useTheme();
   const styles = useStyles();
@@ -74,6 +77,14 @@ export function RoomToolbar({
       </View>
       {center ? <View style={styles.center}>{center}</View> : null}
       <View style={styles.side}>
+        <IconButton
+          icon={overview ? 'scan' : 'scan-outline'}
+          variant="surface"
+          size={size}
+          active={overview}
+          onPress={onToggleOverview}
+          accessibilityLabel={overview ? 'Back to you' : 'See everyone'}
+        />
         <MailboxButton unread={unread} hint={mailHint} size={size} onPress={onOpenMailbox} />
         {onEdit && (
           <IconButton icon="color-wand-outline" variant="surface" size={size} onPress={onEdit} accessibilityLabel="Decorate room" />

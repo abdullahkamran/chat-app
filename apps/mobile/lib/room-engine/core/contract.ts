@@ -124,6 +124,43 @@ export interface RoomRendererProps {
    * An engine that doesn't support it ignores it, and tap-to-walk still works.
    */
   steering?: SteeringInput;
+  /** The shell's link to the camera: its buttons, the covered part of the room, and state back. */
+  camera: CameraLink;
+}
+
+/**
+ * What the camera is doing. The camera is per device and never networked.
+ * - `intro`: entering the room, showing everyone before gliding to the local actor.
+ * - `follow`: keeping the local actor in view.
+ * - `free`: the user panned; the camera stays put until they walk or ask for it back.
+ * - `overview`: framing everyone in the room, kept up to date as they move.
+ * - `focus`: briefly showing one actor, then going back.
+ */
+export type CameraMode = 'intro' | 'follow' | 'free' | 'overview' | 'focus';
+
+export type CameraCommand =
+  | { kind: 'toggleOverview' }
+  | { kind: 'followMe' }
+  | { kind: 'focus'; actorId: string };
+
+/** What the shell needs to know to draw its camera buttons. */
+export interface CameraViewState {
+  mode: CameraMode;
+  /** The local actor is out of view. */
+  localOffscreen: boolean;
+}
+
+/**
+ * Camera input from the shell, and state back. The engine owns the camera itself:
+ * gestures, following, framing.
+ */
+export interface CameraLink {
+  /** The latest command; the engine acts on each new `seq` once. Write with `sendCameraCommand`. */
+  command: SharedValue<{ seq: number; cmd: CameraCommand | null }>;
+  /** Pixels at the bottom of the room hidden by the keyboard or the open transcript. */
+  bottomInset: SharedValue<number>;
+  /** Called on the JS thread when the mode or `localOffscreen` changes. */
+  onChange(state: CameraViewState): void;
 }
 
 /** A point on the floor, in fractional grid coordinates. */

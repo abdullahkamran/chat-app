@@ -1,8 +1,10 @@
 import {
   TILE_H,
   TILE_W,
+  WALL_HEIGHT,
   getEffectiveDimensions,
   gridToScreen,
+  roomCorner,
   type GridOrigin,
   type ScreenPoint,
 } from '@/constants/grid';
@@ -13,6 +15,33 @@ export interface ScreenRect {
   y: number;
   width: number;
   height: number;
+}
+
+/** An axis-aligned box in content (pre-camera) pixels. */
+export interface ContentBounds {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
+/** Breathing room around the room when the camera reaches its edge. */
+const BOUNDS_PAD = { side: 24, top: 16, bottom: 48 };
+
+/**
+ * The part of the content the camera may show: the floor diamond from its left to its
+ * right corner, the walls above it, and its front corner, plus some padding.
+ */
+export function roomContentBounds(origin: GridOrigin, dims: { x: number; y: number }): ContentBounds {
+  const left = gridToScreen(-0.5, dims.y - 0.5, 0, origin);
+  const right = gridToScreen(dims.x - 0.5, -0.5, 0, origin);
+  const front = gridToScreen(dims.x - 0.5, dims.y - 0.5, 0, origin);
+  return {
+    minX: left.x - BOUNDS_PAD.side,
+    maxX: right.x + BOUNDS_PAD.side,
+    minY: roomCorner(origin).y - WALL_HEIGHT - BOUNDS_PAD.top,
+    maxY: front.y + BOUNDS_PAD.bottom,
+  };
 }
 
 /**

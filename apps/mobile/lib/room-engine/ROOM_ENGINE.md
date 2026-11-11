@@ -78,6 +78,25 @@ The pan/pinch camera in `engines/skia/useCamera.ts` zooms the canvas.
 
 Zoom range: `MIN_ZOOM = 0.5`, `MAX_ZOOM = 1.5`, starting at `1.0` (set in `useCamera.ts`).
 
+### Camera behaviour
+
+The camera is per device: nothing about it is sent over the network. It has five modes (`CameraMode` in `core/contract.ts`): `intro`, `follow`, `free`, `overview` and `focus`.
+
+- **Bounds:** the camera stays over the room itself (`roomContentBounds` in `geometry.ts`: floor corners, wall tops, plus padding), not over a viewport-sized box. When the scaled room is smaller than the visible area on an axis, it is centred on that axis. A 10×10 room is about 850 px wide at zoom 1, so it pans sideways on a phone.
+- **Visible area:** the shell reports how much of the room's bottom the keyboard and the open transcript panel hide (`CameraLink.bottomInset`). Clamping, following, framing and the pointers all work in the part still showing, so you stay above the chat input. Drawers shrink the room view itself, which the camera picks up from its new size.
+- **Inertia** (`useCamera.ts`): dragging past an edge stretches with resistance (iOS-style rubber band). Letting go flings with `withDecay` and bounces back at the edges. A touch during a fling stops it and doesn't count as a tap. A pinch can stretch about 15% past the zoom limits, then springs back around the last focal point.
+- **Director** (`useCameraDirector.ts`): one UI-thread frame callback that moves the camera by mode, handles the shell's commands and reports the mode and whether the local actor is off screen (`CameraLink.onChange`). It waits while a gesture, fling or settle spring owns the camera (`busy`).
+  - `intro`: entering a room frames everyone at once, holds 0.7 s, then glides to the local actor. Skipped with Reduce Motion.
+  - `follow`: keeps the local actor inside a dead zone (the middle ~28% × 24% of the visible area, set a little low so bubbles fit), aiming 0.35 s ahead of a walking actor, with an exponential catch-up. The first frame and jumps over 3 tiles cut to the actor. `recentre` glides it right to the middle (after the intro, a focus, "find me", leaving edit mode).
+  - `free`: a pan hands the camera to the user. A floor or item tap or the joystick goes back to `follow`; so does leaving edit mode, which turns `free` on.
+  - `overview`: the toolbar's see-everyone button. Frames everyone's box (heads and bubbles included) and keeps refitting as people move. It never zooms out further than the whole room needs, nor in past 1.0. Pressing it again, or "find me", goes back to `follow`. Walking keeps the overview; panning or pinching ends it.
+  - `focus`: a name tapped in the transcript panel (your own name means "find me"), or an off-screen pointer, centres that person for 3.5 s, then goes back to `overview` if that is where it came from, else to `follow`.
+- **Zoom:** pinching sets the zoom that follow and focus use. It is saved on the device (`cameraPrefs.ts`, in `expo-secure-store`, the only storage the app ships) and restored next time.
+- **Shell controls:** `session/useRoomCamera.ts` makes the `CameraLink` and sends commands (`core/camera.ts`). The toolbar has the see-everyone toggle (`scan` icon). A "find me" button (`locate`) shows at the room's top right when you are off screen in `free` or `focus`.
+- **Off-screen pointers** (`OffscreenPointers.tsx`): for 6 s after someone's latest message, if their head is out of view, a badge with their initial sits on the edge of the visible room, with a nub pointing their way. Tapping it focuses them. Hidden in edit mode.
+- **Reduce Motion** (the OS setting, via `useReducedMotion`): no intro, and the camera cuts instead of gliding; in `follow` it jumps the actor back to the middle when they leave the dead zone, instead of scrolling along.
+- Tuning constants sit at the top of `useCamera.ts`, `useCameraDirector.ts` and `OffscreenPointers.tsx`.
+
 ---
 
 ## Item dimension units
@@ -263,7 +282,7 @@ How it works:
 - **Session** (`steerStart` / `steerMove` / `steerStop` in `useRoomSession.ts`): start drops any pending sit, emote or mutual emote and sets the local action to an empty walk (so the walk clip plays and facing follows motion). Every `STEER_REPORT_MS` (200 ms) it sends a point `STEER_LEAD_MS` (250 ms) of walking ahead of where the actor is drawn, so others walk one continuous line toward it instead of hopping. The first point stands the user up server-side. Stop sends the exact spot, sets the position there and goes idle, and plays an emote chosen while steering. Floor and item taps are ignored while steering.
 - **Load:** about five points a second per steering user; see `docs/known-issues.md` (scaling issue 12).
 
-Not done yet: the camera doesn't follow the actor, mutual-emote walks started mid-steer are overridden by the stick, and there's no user setting (only the env flag).
+Not done yet: mutual-emote walks started mid-steer are overridden by the stick, and there's no user setting (only the env flag).
 
 **Removing it:** delete `joystick/`, then the touch points: `useJoystick` + `controls` + `steering` in `Room.tsx`; the `controls` prop in `RoomShell.tsx` (the toolbar's `center` then stays empty); `steering`, `SteeringInput` and `FloorPoint` in `core/contract.ts`; `useSteerDriver` and `steered` in `SkiaRoomRenderer.tsx`; the `steered` parameter in `ActorOverlay.tsx` and `useActorWalk` (`actorMotion.ts`); the "Joystick steering" block, the `steeringRef` guards in `walkTo` / `interactWith` and the three `steer*` intents in `useRoomSession.ts`; scaling issue 12 in `docs/known-issues.md`. `tsc` points at anything missed.
 
@@ -288,7 +307,9 @@ Not done yet: the camera doesn't follow the actor, mutual-emote walks started mi
 | `apps/mobile/lib/room-engine/engines/skia/skeleton/` | `humanoidV1.ts` (solver arrays; the rig itself is `packages/shared-types/src/humanoid-v1.ts`), `clips.ts` (idle, walk, sit, emotes), `sampler.ts` (worklets), `avatarArt.ts` (draw-list format), `programmerArt.ts` (fallback atlas) |
 | `apps/mobile/lib/room-engine/engines/skia/wearables/` | `useAvatarArts.ts` (composed art for each actor's session-supplied avatar; `useOutfitArts` for any outfit, used by the editor preview), `atlasCache.ts` (download + disk cache by `atlasVersion`), `composeAvatar.ts` (bakes an outfit into one tinted atlas) |
 | `apps/backend/art/` | Wearable source art, rig template and the art workflow (`art/README.md`); `scripts/pack-wearables.ts` packs it |
-| `apps/mobile/lib/room-engine/engines/skia/useCamera.ts` | Pan/pinch camera (0.5x–1.5x) as shared values; taps mapped to content coords |
+| `apps/mobile/lib/room-engine/engines/skia/useCamera.ts` | Pan/pinch camera (0.5x–1.5x) as shared values, clamped to the room with rubber-band edges and fling inertia; taps mapped to content coords |
+| `apps/mobile/lib/room-engine/engines/skia/useCameraDirector.ts` | Moves the camera by mode (intro, follow, overview, focus), handles the shell's camera commands, reports state |
+| `apps/mobile/lib/room-engine/engines/skia/OffscreenPointers.tsx` | Edge badges pointing at people talking out of view; tap to focus them |
 | `apps/mobile/lib/room-engine/engines/skia/actorMotion.ts` | Per-actor shared positions; walks animated on the UI thread |
 
 ### Skia engine notes

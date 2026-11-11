@@ -2,6 +2,7 @@ import type { RoomEngine } from './core/contract';
 import { skiaEngine } from './engines/skia';
 import { Joystick, useJoystick } from './joystick';
 import { RoomShell } from './session/RoomShell';
+import { useRoomCamera } from './session/useRoomCamera';
 import { useRoomSession } from './session/useRoomSession';
 
 // The only engine since the legacy View-based one was deleted (2026-10-22). The contract
@@ -12,10 +13,11 @@ export function Room({ roomId }: Readonly<{ roomId: string }>) {
   const session = useRoomSession(roomId, engine.capabilities);
   // Experimental, off unless EXPO_PUBLIC_ROOM_JOYSTICK=1.
   const steering = useJoystick(session);
+  const camera = useRoomCamera();
   const { Renderer } = engine;
 
   return (
-    <RoomShell session={session} controls={steering && <Joystick stick={steering.stick} />}>
+    <RoomShell session={session} camera={camera} controls={steering && <Joystick stick={steering.stick} />}>
       {session.scene && (
         <Renderer
           scene={session.scene}
@@ -30,6 +32,7 @@ export function Room({ roomId }: Readonly<{ roomId: string }>) {
           onCellTap={session.intents.editCell}
           onActionComplete={session.onActionComplete}
           steering={steering ?? undefined}
+          camera={camera.link}
         />
       )}
     </RoomShell>
