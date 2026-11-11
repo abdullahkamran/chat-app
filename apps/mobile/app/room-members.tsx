@@ -21,14 +21,14 @@ import { PublicUser, RoomLeaveResult, RoomMembers } from '@chat-app/shared-types
 export default function RoomMembersScreen() {
   return (
     <>
-      <RoomMembers />
+      <MembersList />
       {/* This screen is a native modal: dialogs shown while it's open have to present from it. */}
       <DialogHost />
     </>
   );
 }
 
-function RoomMembers() {
+function MembersList() {
   const { roomId } = useLocalSearchParams<{ roomId: string }>();
   const { userId } = useAuth();
   const router = useRouter();
