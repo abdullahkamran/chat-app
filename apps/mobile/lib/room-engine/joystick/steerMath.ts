@@ -46,22 +46,54 @@ function cellBlocked(grid: SteerGrid, cx: number, cy: number): boolean {
 }
 
 /**
- * Whether the body may stand at (x, y), coming from (fx, fy): every cell it would overlap
- * is free or already overlapped. The second part lets it step out of furniture it sits in.
+ * Whether the body may stand at (x, y): every cell it would overlap is free.
  * Cells are centred on grid vertices, so a point's cell is its rounded position.
  */
-function fits(grid: SteerGrid, fx: number, fy: number, x: number, y: number): boolean {
+export function fits(grid: SteerGrid, x: number, y: number): boolean {
   'worklet';
   const r = STEER_BODY_RADIUS;
   for (let cx = Math.round(x - r); cx <= Math.round(x + r); cx++) {
     for (let cy = Math.round(y - r); cy <= Math.round(y + r); cy++) {
-      if (!cellBlocked(grid, cx, cy)) continue;
-      const already = cx >= Math.round(fx - r) && cx <= Math.round(fx + r)
-        && cy >= Math.round(fy - r) && cy <= Math.round(fy + r);
-      if (!already) return false;
+      if (cellBlocked(grid, cx, cy)) return false;
     }
   }
   return true;
+}
+
+/** How far from (x, y) to look for floor to step off furniture onto, in cells. */
+const FREE_SEARCH = 4;
+
+/**
+ * The free floor cell to step onto when the body is inside furniture (sitting on it, or
+ * the furniture was placed on it): the nearest one, leaning toward the stick's direction
+ * so pushing forward off a sofa steps off the front. Null when none is near.
+ */
+export function freeSpot(
+  grid: SteerGrid,
+  x: number,
+  y: number,
+  dir: { dx: number; dy: number },
+): { x: number; y: number } | null {
+  'worklet';
+  const rx = Math.round(x);
+  const ry = Math.round(y);
+  let best: { x: number; y: number } | null = null;
+  let bestScore = Infinity;
+  for (let cx = rx - FREE_SEARCH; cx <= rx + FREE_SEARCH; cx++) {
+    for (let cy = ry - FREE_SEARCH; cy <= ry + FREE_SEARCH; cy++) {
+      if (cx < 0 || cy < 0 || cx >= grid.w || cy >= grid.h || cellBlocked(grid, cx, cy)) continue;
+      const ox = cx - x;
+      const oy = cy - y;
+      const dist = Math.hypot(ox, oy);
+      const along = dist === 0 ? 0 : (ox * dir.dx + oy * dir.dy) / dist;
+      const score = dist - 0.6 * along;
+      if (score < bestScore) {
+        bestScore = score;
+        best = { x: cx, y: cy };
+      }
+    }
+  }
+  return best;
 }
 
 /** Keep the body on the floor, which spans -0.5 to size - 0.5 on each axis. */
@@ -79,9 +111,9 @@ export function steerStep(grid: SteerGrid, x: number, y: number, dx: number, dy:
   'worklet';
   const nx = clampToFloor(x + dx, grid.w);
   const ny = clampToFloor(y + dy, grid.h);
-  if (fits(grid, x, y, nx, ny)) return { x: nx, y: ny };
-  if (fits(grid, x, y, nx, y)) return { x: nx, y };
-  if (fits(grid, x, y, x, ny)) return { x, y: ny };
+  if (fits(grid, nx, ny)) return { x: nx, y: ny };
+  if (fits(grid, nx, y)) return { x: nx, y };
+  if (fits(grid, x, ny)) return { x, y: ny };
   return { x, y };
 }
 

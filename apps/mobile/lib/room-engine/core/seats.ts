@@ -57,6 +57,28 @@ export function seatApproach(item: RoomItem, seat: ItemSeat): GridPoint {
   return { gx: item.position.x + seat.cell.x + step.gx, gy: item.position.y + seat.cell.y + step.gy };
 }
 
+/**
+ * Where someone stands to sit down and lands when getting up: the cell in front of the
+ * seat, else any free cell beside it, else the seat's own cell.
+ */
+export function standingSpot(
+  item: RoomItem,
+  seat: ItemSeat,
+  isWalkable: (gx: number, gy: number) => boolean,
+): GridPoint {
+  const front = seatApproach(item, seat);
+  if (isWalkable(front.gx, front.gy)) return front;
+  const gx = item.position.x + seat.cell.x;
+  const gy = item.position.y + seat.cell.y;
+  const beside = [
+    { gx: gx - 1, gy },
+    { gx: gx + 1, gy },
+    { gx, gy: gy - 1 },
+    { gx, gy: gy + 1 },
+  ].find(c => isWalkable(c.gx, c.gy));
+  return beside ?? { gx, gy };
+}
+
 export function sameSeat(a: SitAction, b: SitAction): boolean {
   return a.itemId === b.itemId && a.at.x === b.at.x && a.at.y === b.at.y && a.seatIndex === b.seatIndex;
 }

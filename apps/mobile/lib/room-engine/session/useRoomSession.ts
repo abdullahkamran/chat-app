@@ -39,7 +39,7 @@ import {
 import type { ActorState, EditCell, EditState, EngineCapabilities, FloorPoint, RoomEffect, RoomMode, RoomScene } from '../core/contract';
 import { fitsAt, itemOnCell, placedOn, samePlace } from '../core/editLayout';
 import { facingFromDelta } from '../core/facing';
-import { findSeat, itemSeats, sameSeat, seatApproach, seatPosition, type SitAction } from '../core/seats';
+import { findSeat, itemSeats, sameSeat, seatPosition, standingSpot as seatStandingSpot, type SitAction } from '../core/seats';
 import { findPath, isLineClear, nearestReachableCell, smoothPath } from '../core/usePathfinding';
 import { useWalkabilityGrid } from '../core/useWalkabilityGrid';
 import { useRoomDetails } from '../hooks/useRoomDetails';
@@ -786,19 +786,8 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     pendingSitRef.current[uid] = action;
   }
 
-  /** The cell in front of a seat, else any free cell beside it, else the seat's own cell. */
   function standingSpot(item: RoomItem, seat: ItemSeat): GridPoint {
-    const front = seatApproach(item, seat);
-    if (isWalkable(front.gx, front.gy)) return front;
-    const gx = item.position.x + seat.cell.x;
-    const gy = item.position.y + seat.cell.y;
-    const beside = [
-      { gx: gx - 1, gy },
-      { gx: gx + 1, gy },
-      { gx, gy: gy - 1 },
-      { gx, gy: gy + 1 },
-    ].find(c => isWalkable(c.gx, c.gy));
-    return beside ?? { gx, gy };
+    return seatStandingSpot(item, seat, isWalkable);
   }
 
   /** A seat someone is sitting on or walking to. */

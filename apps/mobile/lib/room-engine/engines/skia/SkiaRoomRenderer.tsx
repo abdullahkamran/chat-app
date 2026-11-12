@@ -81,8 +81,10 @@ function Room({
   const isEditMode = mode === 'edit';
   const { actors, onActionComplete } = useStressActors(sessionActors, scene.dimensions, sessionOnActionComplete);
   const motions = useActorMotions(actors);
+  const localAction = actors[localActorId]?.action;
   // Experimental joystick (joystick/): moves the local actor while the stick is pushed.
   const steered = useSteerDriver({
+    seat: localAction?.kind === 'sit' ? localAction : undefined,
     steering,
     motion: motions.get(localActorId),
     dimensions: scene.dimensions,

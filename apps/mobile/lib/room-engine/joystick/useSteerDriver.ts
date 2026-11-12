@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   cancelAnimation,
   useFrameCallback,
@@ -11,11 +11,12 @@ import { scheduleOnRN } from 'react-native-worklets';
 
 import type { Dimensions, RoomItem } from '@chat-app/shared-types';
 import type { SteeringInput } from '../core/contract';
+import { findSeat, standingSpot, type SitAction } from '../core/seats';
 import { useWalkabilityGrid } from '../core/useWalkabilityGrid';
 import { STEER_LEAD_MS, STEER_MAX_DT, STEER_REPORT_MS } from './config';
-import { makeSteerGrid, steerAhead, steerStep, stickToGrid } from './steerMath';
+import { fits, freeSpot, makeSteerGrid, steerAhead, steerStep, stickToGrid } from './steerMath';
 
-/** Coming down off a seat when steering away from it, like a walk's first step. */
+/** Coming down off a seat (and stepping off its furniture) when steering away from it, like a walk's first step. */
 const SETTLE_MS = 350;
 
 /** The animated position an engine draws an actor at. */
@@ -33,6 +34,8 @@ interface Options {
   items: RoomItem[];
   /** The local actor's walking pace, so steering and tap-to-walk move at the same speed. */
   msPerCell: number;
+  /** The seat the local actor sits on, if any: steering gets up off its front first. */
+  seat: SitAction | undefined;
 }
 
 /**
@@ -41,7 +44,7 @@ interface Options {
  * stop to the session. Returns whether it is steering now, during which the engine's own
  * walk animation must leave that actor alone.
  */
-export function useSteerDriver({ steering, motion, dimensions, items, msPerCell }: Options): boolean {
+export function useSteerDriver({ steering, motion, dimensions, items, msPerCell, seat }: Options): boolean {
   const [steered, setSteered] = useState(false);
 
   const { blockedCells } = useWalkabilityGrid(dimensions, items);
@@ -50,12 +53,28 @@ export function useSteerDriver({ steering, motion, dimensions, items, msPerCell 
     grid.set(makeSteerGrid(dimensions.x, dimensions.y, blockedCells));
   }, [grid, dimensions.x, dimensions.y, blockedCells]);
 
+  // Where getting up from the current seat lands: the floor in front of it, as when sitting
+  // down. Read on the first steering frame, before the session swaps the sit for a walk.
+  const seatSpot = useMemo(() => {
+    const found = seat && findSeat(items, seat);
+    if (!found) return null;
+    const free = (gx: number, gy: number) =>
+      gx >= 0 && gy >= 0 && gx < dimensions.x && gy < dimensions.y && !blockedCells.has(`${gx},${gy}`);
+    const spot = standingSpot(found.item, found.seat, free);
+    return { x: spot.gx, y: spot.gy };
+  }, [seat, items, blockedCells, dimensions.x, dimensions.y]);
+  const exit = useSharedValue<{ x: number; y: number } | null>(seatSpot);
+  useEffect(() => {
+    exit.set(seatSpot);
+  }, [exit, seatSpot]);
+
   const cellsPerSecond = useSharedValue(1000 / msPerCell);
   useEffect(() => {
     cellsPerSecond.set(1000 / msPerCell);
   }, [cellsPerSecond, msPerCell]);
 
-  const run = useSharedValue({ moving: false, sinceReport: 0 });
+  // hopLeft > 0 while stepping off furniture onto (hopX, hopY), before steering takes over.
+  const run = useSharedValue({ moving: false, sinceReport: 0, hopLeft: 0, hopX: 0, hopY: 0 });
 
   // The session's callbacks change every render; the frame callback must not, or it re-registers.
   const latest = useRef(steering);
@@ -83,8 +102,10 @@ export function useSteerDriver({ steering, motion, dimensions, items, msPerCell 
 
     if (s.x === 0 && s.y === 0) {
       if (state.moving) {
-        run.set({ moving: false, sinceReport: 0 });
-        scheduleOnRN(stop, motion.gx.get(), motion.gy.get());
+        // Let a hop off furniture finish, and stop where it lands rather than inside the furniture.
+        const hopping = state.hopLeft > 0;
+        run.set({ moving: false, sinceReport: 0, hopLeft: 0, hopX: 0, hopY: 0 });
+        scheduleOnRN(stop, hopping ? state.hopX : motion.gx.get(), hopping ? state.hopY : motion.gy.get());
       }
       return;
     }
@@ -103,7 +124,30 @@ export function useSteerDriver({ steering, motion, dimensions, items, msPerCell 
 
     const g = grid.get();
     const dir = stickToGrid(s.x, s.y);
-    const dt = Math.min(STEER_MAX_DT, (frame.timeSincePreviousFrame ?? 16) / 1000);
+    const frameMs = frame.timeSincePreviousFrame ?? 16;
+
+    if (state.hopLeft > 0) {
+      run.set({ ...state, moving: true, hopLeft: state.hopLeft - frameMs });
+      return;
+    }
+    // Inside furniture: step off before steering, never through it. Getting up from a seat
+    // lands in front of it, as sitting down started there; otherwise (furniture placed on
+    // us) the nearest free floor, leaning toward the stick.
+    if (!fits(g, motion.gx.get(), motion.gy.get())) {
+      const e = exit.get();
+      const spot = e && fits(g, e.x, e.y) ? e : freeSpot(g, motion.gx.get(), motion.gy.get(), dir);
+      if (spot) {
+        motion.gx.set(withTiming(spot.x, { duration: SETTLE_MS }));
+        motion.gy.set(withTiming(spot.y, { duration: SETTLE_MS }));
+        scheduleOnRN(move, spot.x, spot.y, spot.x, spot.y);
+        run.set({ moving: true, sinceReport: 0, hopLeft: SETTLE_MS, hopX: spot.x, hopY: spot.y });
+      } else {
+        run.set({ ...state, moving: true, sinceReport });
+      }
+      return;
+    }
+
+    const dt = Math.min(STEER_MAX_DT, frameMs / 1000);
     const distance = cellsPerSecond.get() * dt;
     const p = steerStep(g, motion.gx.get(), motion.gy.get(), dir.dx * distance, dir.dy * distance);
     motion.gx.set(p.x);
@@ -115,8 +159,8 @@ export function useSteerDriver({ steering, motion, dimensions, items, msPerCell 
       scheduleOnRN(move, p.x, p.y, ahead.x, ahead.y);
       sinceReport = 0;
     }
-    run.set({ moving: true, sinceReport });
-  }, [stick, motion, run, grid, cellsPerSecond, start, move, stop]);
+    run.set({ moving: true, sinceReport, hopLeft: 0, hopX: 0, hopY: 0 });
+  }, [stick, motion, run, grid, exit, cellsPerSecond, start, move, stop]);
 
   useFrameCallback(onFrame);
 
