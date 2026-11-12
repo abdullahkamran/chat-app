@@ -8,6 +8,14 @@ export const TILE_H = 40;
 export const WALL_HEIGHT = 200;
 /** Rows of wall cells, each one grid unit (TILE_H) of height. */
 export const WALL_ROWS = WALL_HEIGHT / TILE_H;
+/**
+ * Texture pixels per cell side for floorings and wallpapers. Both are flat, seamless images
+ * that tile in x and y: a floor cell and a wall cell (TILE_W/2 wide, TILE_H tall) are squares
+ * before projection, so a 1280 px texture spans 10 cells on either. 128 keeps them sharp
+ * on 3x screens (a floor cell is 80 pt across). Matches TEXTURE_PX_PER_CELL in
+ * apps/backend/scripts/item-placeholders.ts.
+ */
+export const TEXTURE_PX_PER_CELL = 128;
 
 /**
  * The two walls. The right wall stands on the floor's back edge along the x axis

@@ -1,6 +1,6 @@
 import mongoose, { Document, Model, Schema } from 'mongoose';
 import { Room, RoomDetails } from '@chat-app/shared-types';
-import { Orientiation, ItemState, RoomCategory } from '@chat-app/shared-types';
+import { DEFAULT_ROOM_DIMENSIONS, Orientiation, ItemState, RoomCategory } from '@chat-app/shared-types';
 
 // Override ownerId to use ObjectId since mongoose stores a reference, not a plain string
 export interface IRoom extends Omit<Room, '_id' | 'ownerId' | 'owners'>, Omit<RoomDetails, '_id' | 'ownerId' | 'owners' | 'members' | 'items' | 'theme'>, Document {
@@ -48,10 +48,11 @@ const RoomSchema = new Schema<IRoom, IRoomModel>(
                 message: "Personal rooms don't have members",
             },
         },
+        // Rooms get ROOM_DEFAULTS_CATALOG.dimensions on creation; these defaults are the same, as a backstop.
         dimensions: {
-            x: { type: Number, default: 0 },
-            y: { type: Number, default: 0 },
-            z: { type: Number, default: 0 },
+            x: { type: Number, default: DEFAULT_ROOM_DIMENSIONS.x },
+            y: { type: Number, default: DEFAULT_ROOM_DIMENSIONS.y },
+            z: { type: Number, default: DEFAULT_ROOM_DIMENSIONS.z },
         },
         items: [
             {

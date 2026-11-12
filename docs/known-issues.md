@@ -277,6 +277,12 @@ variant in `syncRigAssets()`). With the expanded catalog (2026-10-29) that is ro
 which adds seconds of startup against a remote database. Batch each pass into one `bulkWrite`, and skip
 `syncRigAssets()` updates whose `atlasVersion` already matches. `syncNewVariants()` reads all items once and
 only writes missing variants, and its `$ne` guard keeps concurrent boots from adding a variant twice.
+
+`backfillRoomDimensions()` (added 2026-11-12, `apps/backend/src/services/room-defaults.service.ts`) also
+runs on every boot, right after the sync: one `updateMany` that gives rooms saved as 0×0 the default size.
+It's idempotent, so concurrent boots are harmless, but its filter can't use an index and scans every room
+each boot. Once old rooms are fixed everywhere, move it into the same one-off migration job or delete it.
+
 ### 4. No health checks or graceful shutdown
 
 **Seen (with rolling deploys):** an orchestrator can't tell a booting or broken instance from a ready one, and

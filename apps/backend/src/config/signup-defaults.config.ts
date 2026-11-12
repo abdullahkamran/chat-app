@@ -53,10 +53,9 @@ export const SIGNUP_DEFAULTS = {
 
     /**
      * The user's personal room (personal-room.service.ts), named "{username}'s Room".
-     * personLimit and theme/doors come from room-defaults.catalog.ts.
+     * personLimit, dimensions and theme/doors come from room-defaults.catalog.ts.
      */
     defaultRoom: {
         description: 'Welcome to my room!',
-        dimensions: { x: 10, y: 10, z: 0 },
     },
 };

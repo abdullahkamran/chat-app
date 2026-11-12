@@ -8,7 +8,7 @@ import { resolveItemSource } from '@/constants/avatarAssets';
  * App-lifetime cache of decoded Skia images, keyed by catalog asset URL.
  *
  * Skia's useImage fetches and decodes on every mount and keeps nothing, so large
- * theme images (the floor is ~2500 px) reappeared slowly on each room entry and
+ * theme images (the default floor was ~2500 px) reappeared slowly on each room entry and
  * every copy of an item decoded its own image. Here each asset loads once.
  */
 const decoded = new Map<string, SkImage>();

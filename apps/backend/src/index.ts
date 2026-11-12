@@ -21,6 +21,7 @@ import devRouter from './routes/dev.route';
 import connect from './db/connect';
 import socketHandler from './sockets/socketHandler';
 import { syncCatalog } from './services/catalog-sync.service';
+import { backfillRoomDimensions } from './services/room-defaults.service';
 
 const PORT = process.env.PORT;
 
@@ -64,6 +65,7 @@ io.on('connection', socketHandler.clientConnected);
 async function main() {
     await connect();
     await syncCatalog();
+    await backfillRoomDimensions();
     server.listen(PORT, () => console.log(`Server started. Listening on port ${PORT}`));
 }
 

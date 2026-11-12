@@ -10,7 +10,10 @@
  *
  * Shapes match how the Skia engine fits item images (geometry.ts itemRect): a floor item
  * is an isometric box exactly filling its footprint rect, a wall item a panel along the
- * wall, a flooring a floor diamond and a wallpaper a flat rectangle.
+ * wall, and floorings and wallpapers flat seamless textures the engine tiles across the
+ * floor and walls (TEXTURE_PX_PER_CELL pixels per cell).
+ *
+ * To redraw floorings or wallpapers after changing their patterns, delete their files first.
  */
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
@@ -28,6 +31,8 @@ const TILE_W = 80;
 const TILE_H = 40;
 /** Pixels per content pixel, so placeholders stay sharp on high-density screens. */
 const K = 2;
+/** apps/mobile/constants/grid.ts: texture pixels per floor or wall cell side. */
+const TEXTURE_PX_PER_CELL = 128;
 
 /** Art colours per category. Art data, not app UI. */
 const CATEGORY_COLORS: Record<string, string> = {
@@ -93,66 +98,74 @@ function wallPanel(name: string, dims: { x: number; z: number }, color: string):
 }
 
 /**
- * Flooring patterns, drawn on a 10×10 grid of unit cells (u, v) and projected onto the
- * floor diamond, so lines follow the room grid.
+ * Flooring tiles: flat, seamless textures the engine repeats across the floor along the grid's
+ * axes (Backdrop.tsx). Each is `cells` floor cells wide (u, along grid x) and tall (v, along
+ * grid y), drawn in cell units, so its edges must line up with the next copy: strokes are
+ * drawn as rects starting at the line, never centred on a tile edge.
  */
-const FLOOR_PATTERNS: Record<string, () => string> = {
-    'Wood Planks Floor': () => {
-        const out = [`<rect width="10" height="10" fill="#b5835a"/>`];
-        for (let v = 0; v < 10; v += 0.5) {
-            const offset = (v * 2) % 3;
-            out.push(`<line x1="0" y1="${v}" x2="10" y2="${v}" stroke="#7a5536" stroke-width="0.04"/>`);
-            for (let u = offset; u < 10; u += 3) {
-                out.push(`<line x1="${u}" y1="${v}" x2="${u}" y2="${v + 0.5}" stroke="#7a5536" stroke-width="0.04"/>`);
+const FLOOR_PATTERNS: Record<string, { cells: [number, number]; draw: () => string }> = {
+    'Wood Planks Floor': {
+        // Boards half a cell wide, three cells long, joints staggered over three rows.
+        cells: [3, 1.5],
+        draw: () => {
+            const out = [`<rect width="3" height="1.5" fill="#b5835a"/>`];
+            for (let row = 0; row < 3; row++) {
+                const v = row * 0.5;
+                out.push(`<rect x="0" y="${v}" width="3" height="0.04" fill="#7a5536"/>`);
+                out.push(`<rect x="${row}" y="${v}" width="0.04" height="0.5" fill="#7a5536"/>`);
             }
-        }
-        return out.join('');
+            return out.join('');
+        },
     },
-    'Checkerboard Floor': () => {
-        const out = [`<rect width="10" height="10" fill="#f2f2f2"/>`];
-        for (let u = 0; u < 10; u++) for (let v = 0; v < 10; v++) {
-            if ((u + v) % 2) out.push(`<rect x="${u}" y="${v}" width="1" height="1" fill="#222222"/>`);
-        }
-        return out.join('');
+    'Checkerboard Floor': {
+        cells: [2, 2],
+        draw: () => `<rect width="2" height="2" fill="#f2f2f2"/>`
+            + `<rect x="1" y="0" width="1" height="1" fill="#222222"/><rect x="0" y="1" width="1" height="1" fill="#222222"/>`,
     },
-    'Carpet Floor': () => {
-        const out = [`<rect width="10" height="10" fill="#9c3d4a"/>`];
-        for (let i = 0; i < 400; i++) {
-            out.push(`<circle cx="${(i * 7.31) % 10}" cy="${(i * 3.77) % 10}" r="0.03" fill="#7d2f3a"/>`);
-        }
-        return out.join('');
+    'Carpet Floor': {
+        cells: [4, 4],
+        draw: () => {
+            const out = [`<rect width="4" height="4" fill="#9c3d4a"/>`];
+            for (let i = 0; i < 64; i++) {
+                out.push(`<circle cx="${(i * 2.93) % 4}" cy="${(i * 1.51) % 4}" r="0.03" fill="#7d2f3a"/>`);
+            }
+            return out.join('');
+        },
     },
-    'Tile Floor': () => {
-        const out = [`<rect width="10" height="10" fill="#dfe6ea"/>`];
-        for (let i = 0; i <= 10; i++) {
-            out.push(`<line x1="${i}" y1="0" x2="${i}" y2="10" stroke="#a9b4ba" stroke-width="0.05"/>`);
-            out.push(`<line x1="0" y1="${i}" x2="10" y2="${i}" stroke="#a9b4ba" stroke-width="0.05"/>`);
-        }
-        return out.join('');
+    'Tile Floor': {
+        cells: [1, 1],
+        draw: () => `<rect width="1" height="1" fill="#dfe6ea"/>`
+            + `<rect width="1" height="0.05" fill="#a9b4ba"/><rect width="0.05" height="1" fill="#a9b4ba"/>`,
     },
-    'Concrete Floor': () => {
-        const out = [`<rect width="10" height="10" fill="#9b9d9e"/>`];
-        for (let i = 0; i < 300; i++) {
-            out.push(`<circle cx="${(i * 5.17) % 10}" cy="${(i * 2.93) % 10}" r="0.04" fill="#7f8182"/>`);
-        }
-        return out.join('');
+    'Concrete Floor': {
+        cells: [4, 4],
+        draw: () => {
+            const out = [`<rect width="4" height="4" fill="#9b9d9e"/>`];
+            for (let i = 0; i < 48; i++) {
+                out.push(`<circle cx="${(i * 2.07) % 4}" cy="${(i * 1.17) % 4}" r="0.04" fill="#7f8182"/>`);
+            }
+            return out.join('');
+        },
     },
-    'Grass Floor': () => {
-        const out = [`<rect width="10" height="10" fill="#5fa04e"/>`];
-        for (let u = 0; u < 10; u += 2) out.push(`<rect x="${u}" y="0" width="1" height="10" fill="#6db35b"/>`);
-        return out.join('');
+    'Grass Floor': {
+        // Mown stripes, one cell wide, running along grid y.
+        cells: [2, 2],
+        draw: () => `<rect width="2" height="2" fill="#5fa04e"/><rect x="0" y="0" width="1" height="2" fill="#6db35b"/>`,
     },
 };
 
 function flooring(name: string): string {
-    const w = 1024, h = 512, n = 10;
-    const pattern = (FLOOR_PATTERNS[name] ?? (() => `<rect width="10" height="10" fill="${FALLBACK_COLOR}"/>`))();
-    // (u, v) → diamond: u runs down-right from the top vertex, v down-left.
-    const m = [w / 2 / n, h / 2 / n, -w / 2 / n, h / 2 / n, w / 2, 0].join(' ');
-    return svg(w, h, `<g transform="matrix(${m})">${pattern}</g>`);
+    const pattern = FLOOR_PATTERNS[name] ?? { cells: [1, 1] as [number, number], draw: () => `<rect width="1" height="1" fill="${FALLBACK_COLOR}"/>` };
+    const [cw, ch] = pattern.cells;
+    return svg(cw * TEXTURE_PX_PER_CELL, ch * TEXTURE_PX_PER_CELL,
+        `<g transform="scale(${TEXTURE_PX_PER_CELL})">${pattern.draw()}</g>`);
 }
 
-/** Wallpaper patterns on a 640×384 sheet; the engine covers the wall with it. */
+/**
+ * Wallpaper patterns on a 640×384 sheet (10 × 6 wall cells at 64 px), drawn at
+ * TEXTURE_PX_PER_CELL / 64 scale. Like floorings they are seamless and the engine tiles them
+ * along and up the wall.
+ */
 const WALL_PATTERNS: Record<string, () => string> = {
     'Brick Wallpaper': () => {
         const out = [`<rect width="640" height="384" fill="#d9d2c5"/>`];
@@ -188,7 +201,8 @@ const WALL_PATTERNS: Record<string, () => string> = {
 
 function wallpaper(name: string): string {
     const pattern = (WALL_PATTERNS[name] ?? (() => `<rect width="640" height="384" fill="${FALLBACK_COLOR}"/>`))();
-    return svg(640, 384, pattern);
+    const k = TEXTURE_PX_PER_CELL / 64;
+    return svg(640 * k, 384 * k, `<g transform="scale(${k})">${pattern}</g>`);
 }
 
 async function main() {

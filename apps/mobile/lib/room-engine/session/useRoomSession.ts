@@ -34,6 +34,7 @@ import {
   type RoomPresenceState,
   type RoomTheme,
   type User,
+  DEFAULT_ROOM_DIMENSIONS,
 } from '@chat-app/shared-types';
 import type { ActorState, EditCell, EditState, EngineCapabilities, FloorPoint, RoomEffect, RoomMode, RoomScene } from '../core/contract';
 import { fitsAt, itemOnCell, placedOn, samePlace } from '../core/editLayout';
@@ -188,8 +189,9 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
   }, [isEditMode, isOwner]);
 
   const roomDimensions = {
-    x: roomDetails?.dimensions?.x || 8,
-    y: roomDetails?.dimensions?.y || 6,
+    // Only before the room loads: every saved room has its own size (the backend backfills old ones).
+    x: roomDetails?.dimensions?.x || DEFAULT_ROOM_DIMENSIONS.x,
+    y: roomDetails?.dimensions?.y || DEFAULT_ROOM_DIMENSIONS.y,
     z: 0,
   };
 

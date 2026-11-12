@@ -17,7 +17,7 @@ function isDuplicateKey(e: unknown): boolean {
 export async function createPersonalRoom(userId: mongoose.Types.ObjectId, username: string): Promise<IRoom> {
     let room = await RoomModel.findOne({ ownerId: userId, category: RoomCategory.PERSONAL });
     if (!room) {
-        const { description, dimensions } = SIGNUP_DEFAULTS.defaultRoom;
+        const { description } = SIGNUP_DEFAULTS.defaultRoom;
         const roomDefaults = await resolveRoomDefaults();
         try {
             room = await new RoomModel({
@@ -26,7 +26,6 @@ export async function createPersonalRoom(userId: mongoose.Types.ObjectId, userna
                 name: `${username}'s Room`,
                 description,
                 category: RoomCategory.PERSONAL,
-                dimensions,
                 ...roomDefaults,
             }).save();
         } catch (e) {

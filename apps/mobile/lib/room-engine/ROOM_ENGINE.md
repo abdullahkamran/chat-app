@@ -142,20 +142,37 @@ The art is drawn for the right wall; `NINETY` mirrors it onto the left one (`wal
 
 ## Floor area
 
-For the default room (`dimensions.x = 8`, `dimensions.y = 6`):
+Every room, personal and group, is `DEFAULT_ROOM_DIMENSIONS` (10 × 10, in `@chat-app/shared-types`), set at creation from `ROOM_DEFAULTS_CATALOG` on the backend. Rooms can't be resized yet, but they may grow later, so always read the room's own `dimensions`, never assume 10 × 10. The backend gives any room saved without a size the default one on boot (`backfillRoomDimensions`).
+
+For the default room (`dimensions.x = 10`, `dimensions.y = 10`):
 
 | Measurement            | Formula                             | Value (zoom 1.0) |
 |------------------------|-------------------------------------|------------------|
-| Floor diamond width    | `(roomX + roomY) * TILE_W / 2`      | 560 px           |
-| Floor diamond height   | `(roomX + roomY) * TILE_H / 2`      | 280 px           |
-| Total canvas height    | `WALL_HEIGHT + floor diamond height`| 480 px           |
+| Floor diamond width    | `(roomX + roomY) * TILE_W / 2`      | 800 px           |
+| Floor diamond height   | `(roomX + roomY) * TILE_H / 2`      | 400 px           |
+| Total canvas height    | `WALL_HEIGHT + floor diamond height`| 600 px           |
 
 Origin placement:
 ```
 origin.x = canvasWidth / 2 - ((roomX - roomY) * TILE_W) / 4
 origin.y = WALL_HEIGHT
 ```
-For a 390 px wide canvas: `origin.x = 195 - 20 = 175`, `origin.y = 200`.
+For a 390 px wide canvas: `origin.x = 195 - 0 = 195`, `origin.y = 200`.
+
+## Floor and wall textures: tiled, never stretched
+
+Floorings and wallpapers are **flat, seamless textures that tile in x and y** (`engines/skia/Backdrop.tsx`, `fillTiled`). Each surface is filled with its texture as a repeating image shader, so:
+
+- **Scale is fixed, not fitted:** `TEXTURE_PX_PER_CELL` (128, `constants/grid.ts`) texture pixels per cell side. Floor cells and wall cells (`TILE_W / 2` wide, `TILE_H` tall) are both squares before projection, so a 1280 px texture spans 10 cells on either. A bigger room shows more repeats; a texture is never stretched to the room.
+- **Clipped to the room:** the shader only fills the floor rhombus or the wall's parallelogram, so a texture never draws past the room whatever its size. A partial repeat at an edge is cut off, never squeezed.
+- **Projection:** on the floor, texture x runs along grid x and texture y along grid y. On a wall, texture x runs along the wall and texture y down it, sheared by `WALL_SLOPE` like the wall. Both walls' and the floor's repeats start at the back corner where the walls meet, so the patterns meet there. The left wall's texture isn't mirrored.
+- **Seams:** the walls reach `SEAM_OVERLAP` px under the floor and the left wall over the corner line, so no anti-aliased hairline of background shows between surfaces.
+
+Art rules for floorings and wallpapers (placeholders come from `apps/backend/scripts/item-placeholders.ts`):
+
+- Flat, top-down (floor) or straight-on (wall), opaque, seamless on all four edges.
+- Width and height a whole number of cells at 128 px per cell (fractions work if the pattern still meets itself, e.g. wood planks are 3 × 1.5 cells). Small repeats are fine; the engine tiles them.
+- The default theme's art (`test-floor.png`, `test-wallpaper.png`) is one 10-cell repeat, so it isn't seamless yet; a bigger room would show seams until it's redrawn as tileable art.
 
 ---
 
@@ -163,13 +180,13 @@ For a 390 px wide canvas: `origin.x = 195 - 20 = 175`, `origin.y = 200`.
 
 The walls are drawn in `engines/skia/Backdrop.tsx` above the floor as **sheared parallelograms**, recorded once into the backdrop `SkPicture`.
 
-| Wall         | Width formula               | Value (8×6 room) | Height              |
-|--------------|-----------------------------|------------------|---------------------|
-| Left wall    | `roomY * TILE_W / 2`        | 240 px           | `WALL_HEIGHT` = 200 px |
-| Right wall   | `roomX * TILE_W / 2`        | 320 px           | `WALL_HEIGHT` = 200 px |
-| Combined     | `(roomX + roomY) * TILE_W/2`| 560 px           | 200 px              |
+| Wall         | Width formula               | Value (10×10 room) | Height              |
+|--------------|-----------------------------|--------------------|---------------------|
+| Left wall    | `roomY * TILE_W / 2`        | 400 px             | `WALL_HEIGHT` = 200 px |
+| Right wall   | `roomX * TILE_W / 2`        | 400 px             | `WALL_HEIGHT` = 200 px |
+| Combined     | `(roomX + roomY) * TILE_W/2`| 800 px             | 200 px              |
 
-Each wall image is a flat rectangle sheared vertically so its edges follow the isometric grid lines:
+Each wall's texture is tiled flat and sheared vertically so it follows the isometric grid lines (see Floor and wall textures above):
 
 ```
 shear = TILE_H / TILE_W = 0.5      (tan of the axis angle, ≈ 26.565°)
@@ -178,7 +195,7 @@ Right wall: +0.5   — leans right-down, matching the gx axis
 Left wall:  −0.5   — leans left-down, matching the gy axis
 ```
 
-Both walls meet at the back-top corner over the grid origin. The floor tiles are drawn after the walls, so they cover the parts of the walls that reach below the floor line.
+Both walls meet at the back-top corner over the grid origin. The floor is drawn after the walls, so it covers the strip of wall that reaches just below the floor line.
 
 ---
 

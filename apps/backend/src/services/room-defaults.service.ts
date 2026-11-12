@@ -1,9 +1,11 @@
 import mongoose from 'mongoose';
 import ItemModel from '../models/item.model';
+import RoomModel from '../models/room.model';
 import { ROOM_DEFAULTS_CATALOG } from '../catalog/room-defaults.catalog';
 
 export interface ResolvedRoomDefaults {
     personLimit: number;
+    dimensions: { x: number; y: number; z: number };
     theme: {
         floor: mongoose.Types.ObjectId | null;
         leftWall: mongoose.Types.ObjectId | null;
@@ -38,6 +40,7 @@ export async function resolveRoomDefaults(overrides: { personLimit?: number } = 
 
     return {
         personLimit,
+        dimensions: { ...ROOM_DEFAULTS_CATALOG.dimensions },
         theme: {
             floor: findId(themeNames.floorItemName),
             leftWall: findId(themeNames.leftWallItemName),
@@ -45,4 +48,17 @@ export async function resolveRoomDefaults(overrides: { personLimit?: number } = 
         },
         doors,
     };
+}
+
+/**
+ * Gives rooms saved without a floor size the default one. Group rooms used to be created
+ * without `dimensions`, so they were stored as 0×0 and the server had no floor to place
+ * people on. Idempotent, so it's safe on every boot and on several instances at once.
+ */
+export async function backfillRoomDimensions(): Promise<void> {
+    const { modifiedCount } = await RoomModel.updateMany(
+        { $or: [{ 'dimensions.x': { $not: { $gt: 0 } } }, { 'dimensions.y': { $not: { $gt: 0 } } }] },
+        { $set: { dimensions: ROOM_DEFAULTS_CATALOG.dimensions } },
+    );
+    if (modifiedCount) console.log(`[room-defaults] gave ${modifiedCount} room(s) the default dimensions`);
 }

@@ -72,7 +72,7 @@ A personal room has no members. It's open to its owner and their friends, like a
 | Description | Welcome to my room!     |
 | Category    | personal                |
 | Person Limit| 10                      |
-| Dimensions  | 10 × 10 × 0            |
+| Dimensions  | 10 × 10 × 0 (`DEFAULT_ROOM_DIMENSIONS`, via `ROOM_DEFAULTS_CATALOG`, same as group rooms) |
 
 ---
 
