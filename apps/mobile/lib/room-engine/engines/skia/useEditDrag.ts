@@ -84,6 +84,22 @@ function shapeOf(ri: RoomItem): Omit<LiftTarget, 'rect'> {
 }
 
 /**
+ * A content point in units along `wall` from the corner and up from the floor, unrounded:
+ * wall cell (col, row) spans col..col + 1 and row..row + 1 (see wallCellAt).
+ *
+ * Must stay above cellUnder: the worklets plugin turns each worklet into a value made in
+ * place, capturing what it calls right then, so a worklet declared further down is
+ * missing on the UI thread and calling it crashes the app (a long press on a wall item did).
+ */
+function onWall(wall: WallSide, x: number, y: number, origin: GridOrigin) {
+  'worklet';
+  const corner = roomCorner(origin);
+  const along = (wall === 'right' ? x - corner.x : corner.x - x) / (TILE_W / 2);
+  const up = (corner.y + Math.abs(along) * (TILE_H / 2) - y) / TILE_H;
+  return { along, up };
+}
+
+/**
  * The cell under a content point: grid x and y on the floor (cells are centred on grid
  * vertices, so rounded), or column and row along `wall` (see wallCellAt). Not bounded.
  */
@@ -95,18 +111,6 @@ function cellUnder(surface: 'floor' | 'wall', wall: WallSide, x: number, y: numb
   }
   const w = onWall(wall, x, y, origin);
   return { a: Math.floor(w.along), b: Math.floor(w.up) };
-}
-
-/**
- * A content point in units along `wall` from the corner and up from the floor, unrounded:
- * wall cell (col, row) spans col..col + 1 and row..row + 1 (see wallCellAt).
- */
-function onWall(wall: WallSide, x: number, y: number, origin: GridOrigin) {
-  'worklet';
-  const corner = roomCorner(origin);
-  const along = (wall === 'right' ? x - corner.x : corner.x - x) / (TILE_W / 2);
-  const up = (corner.y + Math.abs(along) * (TILE_H / 2) - y) / TILE_H;
-  return { along, up };
 }
 
 /** Clamps into lo..hi, or to lo when hi < lo (an item bigger than its surface). */
