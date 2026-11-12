@@ -45,8 +45,8 @@ const WALL = ItemPlacement.WALL;
  * Source of truth for all room/shop items.
  * On startup, new entries here are inserted into the DB automatically.
  * Existing DB entries are never overwritten — to update a record in dev,
- * drop the `items` collection and restart. The exception is layout data
- * (`seats`, `frontAssetUrl`), which is rewritten on every startup.
+ * drop the `items` collection and restart. The exceptions are layout data
+ * (`seats`, `frontAssetUrl`) and `canOwnMultiple`, which are rewritten on every startup.
  */
 export const ITEMS_CATALOG: CatalogItem[] = [
     {
