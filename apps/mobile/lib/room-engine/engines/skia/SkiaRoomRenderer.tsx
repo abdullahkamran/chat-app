@@ -115,8 +115,10 @@ function Room({
 
     const actorId = hitTestActors(motions, { x, y }, origin, AVATAR_HEIGHT);
     if (actorId && onActorTap(actorId)) return;
-    resumeFollow();
     const item = hitTestItems(scene.items, { x, y }, origin);
+    // A tap off the floor (a wall, the void) is nothing to walk to, so the camera stays put too.
+    if (!item && !cellAt(point.gx, point.gy, scene.dimensions)) return;
+    resumeFollow();
     if (item) onItemTap(item);
     else onFloorTap(point);
   };

@@ -962,10 +962,17 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
   function walkTo({ gx, gy }: GridPoint) {
     // The stick is in charge while it is pushed.
     if (isEditMode || steeringRef.current) return;
-    // Clamp to the floor, whose cells are centred on grid vertices: it spans -0.5 to size - 0.5.
-    const destGx = Math.max(-0.5, Math.min(roomDimensions.x - 0.5, gx));
-    const destGy = Math.max(-0.5, Math.min(roomDimensions.y - 0.5, gy));
-    walkMeTo(destGx, destGy);
+    const me = actors[userId];
+    if (!me) return;
+    // The floor's cells are centred on grid vertices: it spans -0.5 to size - 0.5. A tap off
+    // it (on a wall, or the void) goes nowhere rather than walking to the nearest edge.
+    if (gx < -0.5 || gy < -0.5 || gx > roomDimensions.x - 0.5 || gy > roomDimensions.y - 0.5) return;
+    // Nor does a tap on a spot nobody can stand on or get to (furniture, a walled-off corner).
+    const goal = cellOf(gx, gy);
+    if (!isWalkable(goal.gx, goal.gy)) return;
+    const end = nearestReachableCell(cellOf(me.position.x, me.position.y), goal, isWalkable);
+    if (end.gx !== goal.gx || end.gy !== goal.gy) return;
+    walkMeTo(gx, gy);
   }
 
   /**
