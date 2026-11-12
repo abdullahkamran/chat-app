@@ -23,6 +23,8 @@ const ZOOM_STRETCH = 0.15;
 const RUBBER_BAND = 0.55;
 /** Per-millisecond velocity kept by a fling; closer to 1 glides further. */
 const FLING_DECELERATION = 0.997;
+/** Fingers resting this long (ms) before lifting from a pinch don't fling. */
+const MAX_FLING_PAUSE_MS = 80;
 /** Springs back into bounds after a stretched pan or pinch. */
 const SETTLE_SPRING = { damping: 26, stiffness: 260, mass: 1 };
 /** The visible height never counts as less than this, so a tall keyboard can't collapse the maths. */
@@ -163,6 +165,17 @@ export function useCamera({ width, height, contentBounds, state, inset, onTap, o
   // Gesture start state. A shared value, not a closure object: each worklet gets its own copy of captured objects.
   const start = useSharedValue({ scale: 1, tx: 0, ty: 0, focalX: 0, focalY: 0 });
   const focal = useSharedValue({ x: 0, y: 0 });
+  /**
+   * The pinch's reference point, reset whenever a finger lands or lifts. The focal point jumps
+   * to the new centre of the fingers then, so measuring from the old one would shift the view.
+   * `scale`, `tx` and `ty` are raw (before the rubber band), `shown` is the zoom on screen and `pinch` the event scale then.
+   */
+  const anchor = useSharedValue({ pointers: 0, pinch: 1, scale: 1, shown: 1, tx: 0, ty: 0, focalX: 0, focalY: 0 });
+  /** The pinch's current raw (pre-rubber-band) camera, to re-anchor from without drift. */
+  const live = useSharedValue({ scale: 1, tx: 0, ty: 0 });
+  const pinching = useSharedValue(false);
+  /** The pinch's last focal point and its smoothed velocity (px/s), so letting go flings like a pan. */
+  const track = useSharedValue({ x: 0, y: 0, t: 0, vx: 0, vy: 0 });
 
   useEffect(() => {
     bounds.set(contentBounds);
@@ -195,6 +208,23 @@ export function useCamera({ width, height, contentBounds, state, inset, onTap, o
       'worklet';
       if (finished) busy.set(false);
     };
+    /** Glides on with `velocity` (px/s) and bounces back at the edges, like a scroll view. */
+    const fling = (value: SharedValue<number>, velocity: number, range: [number, number]) => {
+      'worklet';
+      if (range[0] === range[1]) {
+        value.set(withSpring(range[0], SETTLE_SPRING));
+        return;
+      }
+      flinging.set(flinging.get() + 1);
+      value.set(withDecay(
+        { velocity, deceleration: FLING_DECELERATION, clamp: range, rubberBandEffect: true, rubberBandFactor: 0.8 },
+        () => {
+          const left = Math.max(0, flinging.get() - 1);
+          flinging.set(left);
+          if (left === 0 && !pinching.get()) busy.set(false);
+        },
+      ));
+    };
 
     const pan = Gesture.Pan()
       .maxPointers(1)
@@ -209,54 +239,102 @@ export function useCamera({ width, height, contentBounds, state, inset, onTap, o
         tx.set(softClamp(start.get().tx + e.translationX, rangeX(s), width));
         ty.set(softClamp(start.get().ty + e.translationY, rangeY(s), height));
       })
-      .onEnd(e => {
+      .onEnd((e, success) => {
         const s = scale.get();
-        const fling = (value: SharedValue<number>, velocity: number, range: [number, number]) => {
-          'worklet';
-          if (range[0] === range[1]) {
-            value.set(withSpring(range[0], SETTLE_SPRING));
-            return;
+        // A second finger cancels the pan: the pinch takes the camera over from here, so no fling.
+        if (!success || pinching.get()) {
+          if (!pinching.get()) {
+            tx.set(withSpring(clampTo(tx.get(), rangeX(s)), SETTLE_SPRING));
+            ty.set(withSpring(clampTo(ty.get(), rangeY(s)), SETTLE_SPRING, settleDone));
           }
-          flinging.set(flinging.get() + 1);
-          value.set(withDecay(
-            { velocity, deceleration: FLING_DECELERATION, clamp: range, rubberBandEffect: true, rubberBandFactor: 0.8 },
-            () => {
-              const left = flinging.get() - 1;
-              flinging.set(left);
-              if (left === 0) busy.set(false);
-            },
-          ));
-        };
+          return;
+        }
         fling(tx, e.velocityX, rangeX(s));
         fling(ty, e.velocityY, rangeY(s));
         if (flinging.get() === 0) busy.set(false);
       });
 
-    // Zooms around the focal point and follows it, so two fingers also pan.
+    // Zooms around the fingers and follows them, like a photo gallery: the content under the
+    // fingers stays under them, so two fingers also pan. Landing or lifting a finger re-anchors
+    // instead of jumping, and the fingers left on screen carry on panning from where they are.
     const pinch = Gesture.Pinch()
       .onStart(e => {
         stopAll();
+        flinging.set(0);
         busy.set(true);
+        pinching.set(true);
         // The overview's zoom is the director's; pinching it takes the camera over.
         const m = mode.get();
         if (m === 'overview' || m === 'intro') mode.set('free');
-        start.set({ scale: scale.get(), tx: tx.get(), ty: ty.get(), focalX: e.focalX, focalY: e.focalY });
+        const s = scale.get();
+        const x = tx.get();
+        const y = ty.get();
+        const fx = Number.isFinite(e.focalX) ? e.focalX : width / 2;
+        const fy = Number.isFinite(e.focalY) ? e.focalY : height / 2;
+        const p = Number.isFinite(e.scale) && e.scale > 0 ? e.scale : 1;
+        anchor.set({ pointers: e.numberOfPointers, pinch: p, scale: s, shown: s, tx: x, ty: y, focalX: fx, focalY: fy });
+        live.set({ scale: s, tx: x, ty: y });
+        focal.set({ x: fx, y: fy });
+        track.set({ x: fx, y: fy, t: Date.now(), vx: 0, vy: 0 });
       })
       .onUpdate(e => {
-        const s0 = start.get();
-        const next = softZoom(s0.scale * e.scale);
-        const ratio = next / s0.scale;
+        if (!Number.isFinite(e.focalX) || !Number.isFinite(e.focalY) || !Number.isFinite(e.scale) || e.scale <= 0) return;
+        let a = anchor.get();
+        if (e.numberOfPointers !== a.pointers) {
+          // A finger landed or lifted, so the focal point jumped: carry on from here.
+          const l = live.get();
+          a = { pointers: e.numberOfPointers, pinch: e.scale, scale: l.scale, shown: scale.get(), tx: l.tx, ty: l.ty, focalX: e.focalX, focalY: e.focalY };
+          anchor.set(a);
+          focal.set({ x: e.focalX, y: e.focalY });
+          // Measure speed from the new centre too, or the jump would read as a fast swipe.
+          track.set({ ...track.get(), x: e.focalX, y: e.focalY, t: Date.now() });
+          return;
+        }
+        // One finger left only pans; it keeps the zoom.
+        const raw = e.numberOfPointers >= 2
+          ? Math.min(MAX_ZOOM * 2, Math.max(MIN_ZOOM / 2, (a.scale * e.scale) / a.pinch))
+          : a.scale;
+        const next = softZoom(raw);
+        const ratio = next / a.shown;
+        const rawX = e.focalX - (a.focalX - a.tx) * ratio;
+        const rawY = e.focalY - (a.focalY - a.ty) * ratio;
+        live.set({ scale: raw, tx: rawX, ty: rawY });
+        const now = Date.now();
+        const k = track.get();
+        const dt = now - k.t;
+        if (dt > 0) {
+          // Smoothed, so one uneven frame doesn't decide the fling.
+          const vx = ((e.focalX - k.x) / dt) * 1000;
+          const vy = ((e.focalY - k.y) / dt) * 1000;
+          track.set({ x: e.focalX, y: e.focalY, t: now, vx: k.vx * 0.3 + vx * 0.7, vy: k.vy * 0.3 + vy * 0.7 });
+        }
         scale.set(next);
         focal.set({ x: e.focalX, y: e.focalY });
-        tx.set(softClamp(e.focalX - (s0.focalX - s0.tx) * ratio, rangeX(next), width));
-        ty.set(softClamp(e.focalY - (s0.focalY - s0.ty) * ratio, rangeY(next), height));
+        tx.set(softClamp(rawX, rangeX(next), width));
+        ty.set(softClamp(rawY, rangeY(next), height));
+      })
+      .onFinalize(() => {
+        pinching.set(false);
       })
       .onEnd(() => {
-        // Spring back inside the zoom limits around the last focal point, and inside the edges.
+        pinching.set(false);
         const s = scale.get();
         const target = clampZoom(s);
         zoom.set(target);
         scheduleOnRN(onZoom, target);
+        if (target === s) {
+          // Inside the zoom limits: glide on with the fingers' speed, the same as a swipe.
+          // Fingers held still before lifting don't fling.
+          const k = track.get();
+          const still = Date.now() - k.t > MAX_FLING_PAUSE_MS;
+          const vx = still || !Number.isFinite(k.vx) ? 0 : k.vx;
+          const vy = still || !Number.isFinite(k.vy) ? 0 : k.vy;
+          fling(tx, vx, rangeX(s));
+          fling(ty, vy, rangeY(s));
+          if (flinging.get() === 0) busy.set(false);
+          return;
+        }
+        // Past a zoom limit: spring back inside it around the last focal point, and inside the edges.
         const ratio = target / s;
         const f = focal.get();
         const targetX = clampTo(f.x - (f.x - tx.get()) * ratio, rangeX(target));
@@ -287,7 +365,7 @@ export function useCamera({ width, height, contentBounds, state, inset, onTap, o
       });
 
     return Gesture.Race(Gesture.Simultaneous(pan, pinch), tap);
-  }, [width, height, onTap, onZoom, scale, tx, ty, start, focal, bounds, busy, mode, zoom, inset, flinging, stoppedFling]);
+  }, [width, height, onTap, onZoom, scale, tx, ty, start, focal, bounds, busy, mode, zoom, inset, flinging, stoppedFling, anchor, live, pinching, track]);
 
   const camera: Camera = useMemo(() => ({ scale, tx, ty }), [scale, tx, ty]);
   const rig: CameraRig = { ...state, camera, busy, bounds, inset, width, height };
