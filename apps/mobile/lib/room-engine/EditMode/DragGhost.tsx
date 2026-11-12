@@ -17,11 +17,11 @@ interface Props {
 }
 
 /**
- * The dragged item under the finger while it isn't over the room (over the inventory, or
- * just out of it). Over the room the engine draws it where it would land instead.
+ * The dragged item under the finger while it is over the inventory drawer. Over the room
+ * the engine draws the item itself, following the finger.
  */
 export function DragGhost({ drag, link, layerOffset }: Readonly<Props>) {
-  const visible = !!drag && !drag.shown;
+  const visible = drag?.over === 'away';
   const follow = useAnimatedStyle(() => {
     const p = link.pointer.get();
     const o = layerOffset.get();

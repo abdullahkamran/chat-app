@@ -54,10 +54,10 @@ export function EditModeToolbar({
   const hint = drag
     ? dragHint(drag)
     : hasPickedUp
-      ? 'Hold and drag to move it'
+      ? 'Tap anywhere to close'
       : isPlacing
         ? 'Tap to place, or drag it into the room'
-        : 'Tap furniture for options, hold to move';
+        : 'Hold furniture to move it, or hold still for options';
   return (
     <View style={[styles.toolbar, { paddingTop: topInset + 8 }]}>
       <View style={styles.row}>

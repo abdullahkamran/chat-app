@@ -27,8 +27,12 @@ import type { EditLink, DragTarget, EditDrag } from '../../core/contract';
 import { itemDepth, itemRect } from './geometry';
 import { clampTo, offsetRange, visibleHeight, type CameraRig } from './useCamera';
 
-/** How long a placed item is held before it lifts, like a home-screen widget. */
-const LIFT_MS = 300;
+/**
+ * A long press on a placed item, like on a home-screen widget: held this long without
+ * moving, it is picked up and its menu opens. Moving on from there drags it. 400 ms is
+ * Android's default long-press timeout (ViewConfiguration.DEFAULT_LONG_PRESS_TIMEOUT).
+ */
+const LONG_PRESS_MS = 400;
 /**
  * The target is read this far above the finger, in screen pixels, so the cells it lands
  * on show above the fingertip instead of under it.
@@ -89,10 +93,26 @@ function cellUnder(surface: 'floor' | 'wall', wall: WallSide, x: number, y: numb
     const g = screenToGrid(x, y, origin);
     return { a: Math.round(g.gx), b: Math.round(g.gy) };
   }
+  const w = onWall(wall, x, y, origin);
+  return { a: Math.floor(w.along), b: Math.floor(w.up) };
+}
+
+/**
+ * A content point in units along `wall` from the corner and up from the floor, unrounded:
+ * wall cell (col, row) spans col..col + 1 and row..row + 1 (see wallCellAt).
+ */
+function onWall(wall: WallSide, x: number, y: number, origin: GridOrigin) {
+  'worklet';
   const corner = roomCorner(origin);
   const along = (wall === 'right' ? x - corner.x : corner.x - x) / (TILE_W / 2);
   const up = (corner.y + Math.abs(along) * (TILE_H / 2) - y) / TILE_H;
-  return { a: Math.floor(along), b: Math.floor(up) };
+  return { along, up };
+}
+
+/** Clamps into lo..hi, or to lo when hi < lo (an item bigger than its surface). */
+function clampFloat(v: number, lo: number, hi: number) {
+  'worklet';
+  return Math.min(Math.max(lo, hi), Math.max(lo, v));
 }
 
 /**
@@ -115,11 +135,6 @@ function targetAt(list: readonly LiftTarget[], x: number, y: number) {
   return -1;
 }
 
-function clampInt(v: number, lo: number, hi: number) {
-  'worklet';
-  return Math.min(Math.max(lo, hi), Math.max(lo, v));
-}
-
 interface Options {
   enabled: boolean;
   link: EditLink;
@@ -134,8 +149,24 @@ interface Options {
   /** The view the canvas fills, to map window coordinates into it. */
   viewRef: AnimatedRef<View>;
   onLift(item: RoomItem): void;
+  onItemMenu(item: RoomItem): void;
   onDragOver(target: DragTarget): void;
   onDrop(): void;
+}
+
+/** Movement, in screen pixels, after which a held item counts as dragged. */
+const TOUCH_SLOP = 8;
+
+/**
+ * A long press on a placed item. `phase`: 0 none, 1 its menu is open (the press held still),
+ * 2 dragging (the finger moved past TOUCH_SLOP from `x`, `y`, where the press landed).
+ * `shape` is taken at the press, for the drag.
+ */
+interface Hold {
+  phase: 0 | 1 | 2;
+  x: number;
+  y: number;
+  shape: DragShape | null;
 }
 
 /**
@@ -147,7 +178,7 @@ interface Options {
  * it also puts the picked-up item's place on screen in `link.selection`, for its menu.
  */
 export function useEditDrag({
-  enabled, link, rig, origin, dimensions, items, drag, selected, viewRef, onLift, onDragOver, onDrop,
+  enabled, link, rig, origin, dimensions, items, drag, selected, viewRef, onLift, onItemMenu, onDragOver, onDrop,
 }: Options) {
   const { camera, bounds, inset, width, height } = rig;
   const { pointer, selection } = link;
@@ -156,21 +187,43 @@ export function useEditDrag({
   const shape = useSharedValue<DragShape | null>(null);
   const targets = useSharedValue<LiftTarget[]>([]);
   const pressed = useSharedValue(-1);
-  const lifting = useSharedValue(false);
   const tracking = useSharedValue(false);
   const view = useSharedValue({ x: 0, y: 0 });
   const lastKey = useSharedValue('');
+  const hold = useSharedValue<Hold>({ phase: 0, x: 0, y: 0, shape: null });
+  /**
+   * Where the dragged item's anchor is under the finger, in grid units and unrounded
+   * (x, y, z as in RoomItem.position), so it is drawn following the finger smoothly while
+   * it snaps to whole cells. `active` while it is over the room.
+   */
+  const dragFree = useSharedValue({ x: 0, y: 0, z: 0, active: false });
 
   // The worklets call stable functions that forward to the latest callbacks.
-  const latest = useRef({ onLift, onDragOver, onDrop, liftable: [] as RoomItem[] });
+  const latest = useRef({
+    onLift, onItemMenu, onDragOver, onDrop,
+    liftable: [] as RoomItem[],
+    /**
+     * The long-pressed item. Kept here because `liftable` empties as soon as its drag starts,
+     * and the drag and drop must not look it up by index.
+     */
+    held: null as RoomItem | null,
+  });
   useEffect(() => {
     latest.current.onLift = onLift;
+    latest.current.onItemMenu = onItemMenu;
     latest.current.onDragOver = onDragOver;
     latest.current.onDrop = onDrop;
   });
   const [forward] = useState(() => ({
-    lift: (i: number) => {
-      const item = latest.current.liftable[i];
+    /** A long press: the item is picked up and its menu opens. */
+    press: (i: number) => {
+      const item = latest.current.liftable[i] ?? null;
+      latest.current.held = item;
+      if (item) latest.current.onItemMenu(item);
+    },
+    /** The finger moved on: the menu closes and the item is dragged. */
+    lift: () => {
+      const item = latest.current.held;
       if (item) latest.current.onLift(item);
     },
     over: (target: DragTarget) => latest.current.onDragOver(target),
@@ -212,36 +265,51 @@ export function useEditDrag({
     return Gesture.Pan()
       .enabled(enabled)
       .maxPointers(1)
-      .activateAfterLongPress(LIFT_MS)
+      .activateAfterLongPress(LONG_PRESS_MS)
       .onTouchesDown((e, manager) => {
         const touch = e.allTouches[0];
         if (!touch) return;
         const p = toContent(touch.x, touch.y);
         const i = targetAt(targets.get(), p.x, p.y);
         // Not on an item: leave the touch to the camera and the tap.
-        if (i < 0) manager.fail();
-        else pressed.set(i);
+        if (i < 0) {
+          manager.fail();
+          return;
+        }
+        pressed.set(i);
       })
       .onStart(e => {
+        // Held still for LONG_PRESS_MS: picked up, its menu open (one vibration, from the session).
         const t = targets.get()[pressed.get()];
         if (!t) return;
         const p = toContent(e.x, e.y - FINGER_LIFT);
         const c = cellUnder(t.surface, t.wall, p.x, p.y, origin);
-        shape.set({ surface: t.surface, w: t.w, h: t.h, grabX: c.a - t.a, grabY: c.b - t.b });
-        lifting.set(true);
-        pointer.set({ x: e.absoluteX, y: e.absoluteY, active: true });
-        scheduleOnRN(forward.lift, pressed.get());
+        const held: DragShape = { surface: t.surface, w: t.w, h: t.h, grabX: c.a - t.a, grabY: c.b - t.b };
+        hold.set({ phase: 1, x: e.absoluteX, y: e.absoluteY, shape: held });
+        scheduleOnRN(forward.press, pressed.get());
       })
       .onUpdate(e => {
-        if (lifting.get()) pointer.set({ x: e.absoluteX, y: e.absoluteY, active: true });
+        const h = hold.get();
+        if (h.phase === 2) {
+          pointer.set({ x: e.absoluteX, y: e.absoluteY, active: true });
+        } else if (h.phase === 1 && Math.hypot(e.absoluteX - h.x, e.absoluteY - h.y) > TOUCH_SLOP) {
+          // Moved on from the long press: the menu closes and the item follows the finger.
+          shape.set(h.shape);
+          hold.set({ ...h, phase: 2 });
+          pointer.set({ x: e.absoluteX, y: e.absoluteY, active: true });
+          scheduleOnRN(forward.lift);
+        }
       })
       .onFinalize(() => {
-        if (!lifting.get()) return;
-        lifting.set(false);
+        const phase = hold.get().phase;
+        hold.set({ ...hold.get(), phase: 0 });
+        pressed.set(-1);
+        // Let go with the menu open: it stays open. Let go dragging: the item drops.
+        if (phase !== 2) return;
         pointer.set({ ...pointer.get(), active: false });
         scheduleOnRN(forward.drop);
       });
-  }, [enabled, origin, camera, targets, pressed, shape, lifting, pointer, forward]);
+  }, [enabled, origin, camera, targets, pressed, hold, shape, pointer, forward]);
 
   const dimX = dimensions.x;
   const dimY = dimensions.y;
@@ -275,6 +343,7 @@ export function useEditDrag({
         tracking.set(false);
         lastKey.set('');
         shape.set(null);
+        dragFree.set({ ...dragFree.get(), active: false });
       }
       return;
     }
@@ -314,24 +383,28 @@ export function useEditDrag({
       const scale = camera.scale.get();
       const x = (lx - camera.tx.get()) / scale;
       const y = (ly - FINGER_LIFT - camera.ty.get()) / scale;
+      // The anchor follows the finger unrounded, kept on its surface; the target is the
+      // whole cell nearest it, where the item lands when let go.
       if (s.surface === 'floor') {
-        const c = cellUnder('floor', 'right', x, y, origin);
-        target = {
-          surface: 'floor',
-          gx: clampInt(c.a - s.grabX, 0, dimX - s.w),
-          gy: clampInt(c.b - s.grabY, 0, dimY - s.h),
-        };
+        const g = screenToGrid(x, y, origin);
+        const fx = clampFloat(g.gx - s.grabX, 0, dimX - s.w);
+        const fy = clampFloat(g.gy - s.grabY, 0, dimY - s.h);
+        dragFree.set({ x: fx, y: fy, z: 0, active: true });
+        target = { surface: 'floor', gx: Math.round(fx), gy: Math.round(fy) };
       } else {
         const wall: WallSide = x >= roomCorner(origin).x ? 'right' : 'left';
-        const c = cellUnder('wall', wall, x, y, origin);
+        const w = onWall(wall, x, y, origin);
         const length = wall === 'right' ? dimX : dimY;
-        target = {
-          surface: 'wall',
-          wall,
-          col: clampInt(c.a - s.grabX, 0, length - s.w),
-          row: clampInt(c.b - s.grabY, 0, WALL_ROWS - s.h),
-        };
+        // Cell col spans col..col + 1, so the cell the finger is in is the nearest to along - 0.5.
+        const col = clampFloat(w.along - 0.5 - s.grabX, 0, length - s.w);
+        const row = clampFloat(w.up - 0.5 - s.grabY, 0, WALL_ROWS - s.h);
+        dragFree.set(wall === 'right'
+          ? { x: col, y: 0, z: row, active: true }
+          : { x: 0, y: col, z: row, active: true });
+        target = { surface: 'wall', wall, col: Math.round(col), row: Math.round(row) };
       }
+    } else if (dragFree.get().active) {
+      dragFree.set({ ...dragFree.get(), active: false });
     }
     const key = target === null || target === 'away'
       ? String(target)
@@ -340,11 +413,11 @@ export function useEditDrag({
       lastKey.set(key);
       scheduleOnRN(forward.over, target);
     }
-  }, [selectedRect, selection, pointer, tracking, lastKey, shape, viewRef, view, camera, height, width, inset, bounds, origin, dimX, dimY, forward]);
+  }, [selectedRect, selection, dragFree, pointer, tracking, lastKey, shape, viewRef, view, camera, height, width, inset, bounds, origin, dimX, dimY, forward]);
   const frameCallback = useFrameCallback(onFrame, false);
   useEffect(() => {
     frameCallback.setActive(enabled);
   }, [enabled, frameCallback]);
 
-  return { liftGesture: lift };
+  return { liftGesture: lift, dragFree };
 }

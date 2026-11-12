@@ -170,6 +170,12 @@ export interface RoomRendererProps {
    */
   editLink: EditLink;
   onLift(item: RoomItem): void;
+  /**
+   * A long press on a placed item, like on a home-screen widget: the session picks it up
+   * and opens its menu. Moving on from there drags it (`onLift`); letting go leaves the
+   * menu open.
+   */
+  onItemMenu(item: RoomItem): void;
   onDragOver(target: DragTarget): void;
   onDrop(): void;
   /** The engine finished playing a non-looping action (e.g. a walk reached its destination). */

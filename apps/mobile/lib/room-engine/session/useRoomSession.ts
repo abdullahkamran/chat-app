@@ -43,7 +43,7 @@ import {
 import type {
   ActorState, EditLink, DragTarget, EditCell, EditDrag, EditState, EngineCapabilities, FloorPoint, RoomEffect, RoomMode, RoomScene,
 } from '../core/contract';
-import { cellsOf, fitsAt, itemOnCell, placedOn, planDrop, samePlace, type EditRoom } from '../core/editLayout';
+import { cellsOf, fitsAt, placedOn, planDrop, samePlace, type EditRoom } from '../core/editLayout';
 import { facingFromDelta } from '../core/facing';
 import { findSeat, itemSeats, sameSeat, seatPosition, standingSpot as seatStandingSpot, type SitAction } from '../core/seats';
 import { findPath, isLineClear, nearestReachableCell, smoothPath } from '../core/usePathfinding';
@@ -217,11 +217,6 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
 
   // Any of the room's owners may edit it.
   const isOwner = !!roomDetails && isRoomOwner(roomDetails, userId);
-  // Dismissed as an owner mid-edit: the edit can't be saved, so drop it.
-  useEffect(() => {
-    if (isEditMode && roomDetails && !isOwner) cancelEdit();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isEditMode, isOwner]);
 
   const roomDimensions = {
     // Only before the room loads: every saved room has its own size (the backend backfills old ones).
@@ -233,6 +228,26 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
   const doors = useMemo(() => withEntryDoor(roomDetails?.doors), [roomDetails?.doors]);
   // Where edits lay items out: furniture keeps clear of the doors.
   const editRoom: EditRoom = { x: roomDimensions.x, y: roomDimensions.y, doors };
+
+  /**
+   * Item ID → copies the user can still place while editing: free in their inventory, less the
+   * ones placed in this edit, plus their own saved ones taken out in it (those come back to them on
+   * save; another owner's go back to that owner).
+   */
+  const available = useMemo(() => {
+    const result: Record<Item['_id'], number> = {};
+    for (const e of inventory) result[e.item._id] = e.count;
+    if (!isEditMode) return result;
+    const kept = new Set(pendingItems.flatMap(ri => (ri._id ? [ri._id] : [])));
+    for (const ri of pendingItems) {
+      if (!ri._id) result[ri.itemId._id] = (result[ri.itemId._id] ?? 0) - 1;
+    }
+    for (const ri of editBase) {
+      const mine = (ri.placedBy ?? roomDetails?.ownerId) === userId;
+      if (mine && ri._id && !kept.has(ri._id)) result[ri.itemId._id] = (result[ri.itemId._id] ?? 0) + 1;
+    }
+    return result;
+  }, [inventory, isEditMode, pendingItems, editBase, roomDetails?.ownerId, userId]);
 
   const { isWalkable } = useWalkabilityGrid(
     roomDimensions,
@@ -1148,6 +1163,14 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     setEditBase([]);
     setPendingTheme(null);
   }
+  // After cancelEdit, which the React Compiler needs declared before it is used.
+  // Dismissed as an owner mid-edit: the edit can't be saved, so drop it.
+  useEffect(() => {
+    // Reacts to the server taking away ownership, not to our own state.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (isEditMode && roomDetails && !isOwner) cancelEdit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditMode, isOwner]);
 
   async function saveEdit() {
     if (dragRef.current) return;
@@ -1234,19 +1257,15 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
   }
 
   /**
-   * `cell` is the floor or wall cell tapped (null off both), `hit` the item whose art was
-   * tapped, and `onCell` the one on the tapped cell. Floor items go on floor cells, wall
-   * items on wall cells. Nothing is ever replaced: a tap on a taken cell picks that item
-   * up instead.
+   * A tap in edit mode: `cell` is the floor or wall cell tapped (null off both). It closes
+   * an open item menu, or places a copy of the chosen inventory card on a free cell (floor
+   * items on floor cells, wall items on wall cells; nothing is ever replaced).
    */
-  function editCell(cell: EditCell | null, hit: RoomItem | null) {
-    const onCell = cell ? itemOnCell(pendingItems, cell) : hit;
-
-    // An item is picked up, its menu open: like a home-screen widget's, a tap on another
-    // item opens that one's, and any other tap closes it. Items move by dragging.
+  function editCell(cell: EditCell | null) {
+    // An item's menu is open: like a home-screen widget's, any tap closes it. Menus open
+    // on a one-second hold (openItemMenu) and items move by dragging, never on a tap.
     if (selectedPlacedItem) {
-      const other = hit ?? onCell;
-      setSelectedPlacedItem(other && other !== selectedPlacedItem ? other : null);
+      setSelectedPlacedItem(null);
       return;
     }
 
@@ -1261,16 +1280,8 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
       const newItem = cell && placedOn(fresh, cell);
       if (newItem && fitsAt(pendingItems, newItem, editRoom)) {
         if ((available[selectedItem._id] ?? 0) > 0) setPendingItems(current => [...current, newItem]);
-      } else if (onCell) {
-        setSelectedItem(null);
-        setSelectedPlacedItem(onCell);
       }
-      return;
     }
-
-    // Nothing selected: pick up the tapped item
-    const target = hit ?? onCell;
-    if (target) setSelectedPlacedItem(target);
   }
 
   // ── Drag and drop ─────────────────────────────────────────────────────────
@@ -1279,13 +1290,14 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
   // slides to the nearest free spot (planDrop). A placed item let go over the inventory
   // is put away.
 
-  /** A placed item held down in the room: it comes off the floor and follows the finger. */
+  /** A long-pressed item dragged on from its menu: it comes off the floor and follows the finger. */
   function liftPlaced(item: RoomItem) {
     if (!isEditMode || isSaving || dragRef.current || !pendingItems.includes(item)) return;
     setSelectedItem(null);
     setSelectedPlacedItem(null);
-    setDrag({ item, source: 'placed', target: null });
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    // Starts where it stands, so it never blinks out before the first target arrives. No
+    // vibration: the long press that opened its menu gave the one.
+    setDrag({ item, source: 'placed', target: cellsOf(item)[0] ?? null });
   }
 
   /**
@@ -1309,13 +1321,25 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     const current = dragRef.current;
     if (!current || sameTarget(current.target, target)) return;
     setDrag({ ...current, target });
-    if (target && target !== 'away') Haptics.selectionAsync().catch(() => {});
+  }
+
+  /**
+   * A long press on a placed item, like on a home-screen widget: one vibration, and its
+   * menu opens. Dragging on lifts it (liftPlaced closes the menu).
+   */
+  function openItemMenu(item: RoomItem) {
+    // The engine has ended the lift and won't drop it: clear it, or nothing could be lifted again.
+    if (dragRef.current) setDrag(null);
+    if (!isEditMode || !pendingItems.includes(item)) return;
+    setSelectedItem(null);
+    setSelectedPlacedItem(item);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
   }
 
   /**
    * Let go of the dragged item: placed where it is over (things in the way moved aside),
    * put away over the inventory, or back where it came from when it can't go there. A
-   * placed item held and let go without moving opens its menu, like a home-screen widget.
+   * light tap when it lands somewhere new.
    */
   function drop() {
     const current = dragRef.current;
@@ -1336,7 +1360,6 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     }
     const stayed = source === 'placed' && samePlace(plan.placed, item);
     setPendingItems(plan.items);
-    setSelectedPlacedItem(stayed ? plan.placed : null);
     if (!stayed) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
   }
 
@@ -1385,25 +1408,6 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
 
   const edit: EditState = { selectedItem, selectedPlaced: selectedPlacedItem, drag: dragPreview?.view ?? null };
 
-  /**
-   * Item ID → copies the user can still place while editing: free in their inventory, less the
-   * ones placed in this edit, plus their own saved ones taken out in it (those come back to them on
-   * save; another owner's go back to that owner).
-   */
-  const available = useMemo(() => {
-    const result: Record<Item['_id'], number> = {};
-    for (const e of inventory) result[e.item._id] = e.count;
-    if (!isEditMode) return result;
-    const kept = new Set(pendingItems.flatMap(ri => (ri._id ? [ri._id] : [])));
-    for (const ri of pendingItems) {
-      if (!ri._id) result[ri.itemId._id] = (result[ri.itemId._id] ?? 0) - 1;
-    }
-    for (const ri of editBase) {
-      const mine = (ri.placedBy ?? roomDetails?.ownerId) === userId;
-      if (mine && ri._id && !kept.has(ri._id)) result[ri.itemId._id] = (result[ri.itemId._id] ?? 0) + 1;
-    }
-    return result;
-  }, [inventory, isEditMode, pendingItems, editBase, roomDetails?.ownerId, userId]);
 
   return {
     roomDetails,
@@ -1460,6 +1464,7 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
       removeSelectedPlaced,
       editCell,
       liftPlaced,
+      openItemMenu,
       dragFromInventory,
       dragOver,
       drop,

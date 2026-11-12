@@ -17,7 +17,7 @@ import {
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
-import { gridToScreen, isMirrored, type GridOrigin } from '@/constants/grid';
+import { TILE_H, TILE_W, gridToScreen, isMirrored, type GridOrigin } from '@/constants/grid';
 import { artPalette, useTheme } from '@/constants/theme';
 import type { ActorAction, ActorActionKind, Facing, RoomItem } from '@chat-app/shared-types';
 import type { ActorState, RoomEffect } from '../../core/contract';
@@ -87,9 +87,16 @@ interface ItemDraw {
   dst: number[];
   rect: number[];
   selected: boolean;
+  /** The item being dragged: drawn on top, following `dragFree` instead of its cell. */
+  dragged: boolean;
+  /** Its position (RoomItem.position), to offset a dragged item from. */
+  pos: [number, number, number];
   /** Drawn flipped left-to-right about the rect's centre line (see isMirrored). */
   mirrored: boolean;
 }
+
+/** Depth that puts a dragged item over everything else, like a widget held over the home screen. */
+const DRAGGED_DEPTH = 1e6;
 
 /** Per-actor animation playhead, carried across frames on the UI thread. */
 interface AnimRuntime extends AvatarPlayhead {
@@ -212,6 +219,10 @@ interface Params {
   artKeys: Readonly<Record<string, string>>;
   itemImages: Readonly<Record<string, SkImage | null>>;
   selectedPlaced: RoomItem | null;
+  /** The dragged item as it stands in `items`, at the cell it would snap to. */
+  dragged: RoomItem | null;
+  /** Where the dragged item is under the finger, unrounded (see useEditDrag). */
+  dragFree: SharedValue<{ x: number; y: number; z: number; active: boolean }>;
   origin: GridOrigin;
   /** Thrown props, drawn over everything else. */
   effects: readonly RoomEffect[];
@@ -230,7 +241,7 @@ interface Params {
  * avatars that happened several times a second.
  */
 export function useWorldPicture({
-  actors, motions, localActorId, items, arts, artKeys, itemImages, selectedPlaced, origin, onActionComplete, effects,
+  actors, motions, localActorId, items, arts, artKeys, itemImages, selectedPlaced, dragged, dragFree, origin, onActionComplete, effects,
   hideActors,
 }: Params): SharedValue<SkPicture> {
   const [picture] = useState(() => makeMutable(createPicture(() => {})));
@@ -275,15 +286,17 @@ export function useWorldPicture({
     return [{
       image,
       front,
-      depth: itemDepth(ri),
+      depth: ri === dragged ? DRAGGED_DEPTH : itemDepth(ri),
       src: [0, 0, image.width(), image.height()],
       frontSrc: front ? [0, 0, front.width(), front.height()] : [],
       dst: containDst(image, rect),
       rect: [rect.x, rect.y, rect.width, rect.height],
       selected: ri === selectedPlaced,
+      dragged: ri === dragged,
+      pos: [ri.position.x, ri.position.y, ri.position.z],
       mirrored: isMirrored(ri.orientation),
     }];
-  }), [items, itemImages, selectedPlaced, origin]);
+  }), [items, itemImages, selectedPlaced, dragged, origin]);
 
   const theme = useTheme();
   const colors = useMemo(() => {
@@ -381,6 +394,15 @@ export function useWorldPicture({
           const it = itemDraws[e.item];
           const [x, y, w, h] = it.rect;
           canvas.save();
+          // A dragged item follows the finger between cells: offset from the cell it is
+          // drawn at by the projected difference (gridToScreen is linear).
+          const free = dragFree.get();
+          if (it.dragged && free.active) {
+            const dx = free.x - it.pos[0];
+            const dy = free.y - it.pos[1];
+            const dz = free.z - it.pos[2];
+            canvas.translate((dx - dy) * (TILE_W / 2), (dx + dy) * (TILE_H / 2) - dz * TILE_H);
+          }
           const paint = Skia.Paint();
           if (it.selected) {
             canvas.translate(x + w / 2, y + h / 2);
@@ -415,7 +437,7 @@ export function useWorldPicture({
       }
       if (effectDraws.length > 0 && !hidden) drawEffects(canvas, effectDraws, ages, feetById, propColors);
     }));
-  }, [actorsInput, itemsInput, originInput, artsInput, hideInput, effectsInput, effectAges, anim, picture, colors, propColors, reportEmoteDone]);
+  }, [dragFree, actorsInput, itemsInput, originInput, artsInput, hideInput, effectsInput, effectAges, anim, picture, colors, propColors, reportEmoteDone]);
 
   useFrameCallback(onFrame);
 

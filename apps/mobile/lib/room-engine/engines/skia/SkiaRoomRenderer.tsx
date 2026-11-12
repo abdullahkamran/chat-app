@@ -74,6 +74,7 @@ function Room({
   onCellTap,
   editLink,
   onLift,
+  onItemMenu,
   onDragOver,
   onDrop,
   onActionComplete: sessionOnActionComplete,
@@ -137,7 +138,7 @@ function Room({
   // Edit mode's drag and drop: a long press lifts a placed item, and a drag from either
   // place is mapped to cells here. Held still, the lift wins the race; moved first, the camera pans.
   const viewRef = useAnimatedRef<View>();
-  const { liftGesture } = useEditDrag({
+  const { liftGesture, dragFree } = useEditDrag({
     enabled: isEditMode,
     link: editLink,
     rig,
@@ -148,6 +149,7 @@ function Room({
     selected: edit.selectedPlaced,
     viewRef,
     onLift,
+    onItemMenu,
     onDragOver,
     onDrop,
   });
@@ -202,6 +204,8 @@ function Room({
     itemImages,
     // A dragged item is drawn lifted where it would land.
     selectedPlaced: isEditMode ? (edit.drag ? edit.drag.shown : edit.selectedPlaced) : null,
+    dragged: isEditMode ? edit.drag?.shown ?? null : null,
+    dragFree,
     origin,
     onActionComplete,
     effects,

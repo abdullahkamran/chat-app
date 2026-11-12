@@ -32,6 +32,7 @@ export function Room({ roomId }: Readonly<{ roomId: string }>) {
           onCellTap={session.intents.editCell}
           editLink={session.editLink}
           onLift={session.intents.liftPlaced}
+          onItemMenu={session.intents.openItemMenu}
           onDragOver={session.intents.dragOver}
           onDrop={session.intents.drop}
           onActionComplete={session.onActionComplete}
