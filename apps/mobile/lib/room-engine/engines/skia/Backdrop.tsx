@@ -27,23 +27,32 @@ import { useTheme, type ThemeColors } from '@/constants/theme';
 import type { Door } from '@chat-app/shared-types';
 import type { RoomScene } from '../../core/contract';
 import { doorWallSpan } from '../../core/doors';
-import { addFloorCell } from './cellPaths';
 import { useSkImage } from './imageCache';
 
 /** Shear that makes a flat wall texture follow an isometric grid axis (tan of the axis angle). */
 const WALL_SLOPE = TILE_H / TILE_W;
 
-const DOOR_MAT_ALPHA = { entry: 0.25, other: 0.15 };
+const DOOR_MAT_ALPHA = { entry: 0.3, other: 0.18 };
 
-/** Door art, in grid units along the wall and rows up it (knob radius in pixels). */
+/** Door art. Lengths are in grid units: `u` across the door from its start along the wall, `v` rows up it. Pixel sizes say so. */
 const DOOR_ART = {
-  frameInset: 0.06,
-  faceInset: 0.14,
-  lintel: 0.1,
-  panelInset: 0.26,
-  panelAlpha: 0.3,
-  knobInset: 0.24,
-  knobRadius: 3.5,
+  /** The casing around the opening. */
+  frameInset: 0.05,
+  /** The door leaf inside the casing. */
+  leafInset: 0.15,
+  leafTopGap: 0.09,
+  /** Plank seams on the leaf, as fractions of its width. */
+  seams: [1 / 3, 2 / 3],
+  knobFromEdge: 0.12,
+  knobHeight: 0.9,
+  knobRadiusPx: 3.5,
+  /** How far the step sticks out onto the floor. */
+  sillDepth: 0.1,
+  sillInset: 0.02,
+  /** The mat, inset from its floor cell. */
+  matInset: 0.12,
+  outlinePx: 2.5,
+  linePx: 1.5,
 };
 
 /** Screen pixels one surface reaches under the next, so no seam shows between them. */
@@ -81,47 +90,79 @@ function paintOf(color: string, { stroke = 0, alpha = 1 }: { stroke?: number; al
 }
 
 /**
- * A door standing on its wall (see doorWallSpan): an ink frame, a wooden face with two inset
- * panels, and a gold knob on its right as seen on screen, all flat on the wall plane so they
- * shear with it.
+ * A door standing on its wall (see doorWallSpan), drawn flat on the wall plane so it shears
+ * with it: a casing outlined in ink, a wooden leaf with plank seams, a gold knob on its right
+ * as seen on screen, and a step out onto the floor.
  */
 function drawWallDoor(canvas: SkCanvas, door: Door, origin: GridOrigin, colors: ThemeColors) {
   const span = doorWallSpan(door);
   if (!span) return;
-  // A point on the wall: `along` the wall's grid axis, `z` rows up.
-  const at = (along: number, z: number) => span.wall === 'right'
-    ? gridToScreen(along, -0.5, z, origin)
-    : gridToScreen(-0.5, along, z, origin);
+  const A = DOOR_ART;
+  const width = span.width;
+  const height = span.rows;
   const start = span.col - 0.5;
-  const end = start + span.width;
-  const top = span.rows;
-  const quad = (inset: number, z0: number, z1: number) =>
-    polygon([at(start + inset, z0), at(end - inset, z0), at(end - inset, z1), at(start + inset, z1)]);
+  // A point on the door: `u` across it from its start along the wall, `v` rows up, `out` onto the floor.
+  const at = (u: number, v: number, out = 0) => span.wall === 'right'
+    ? gridToScreen(start + u, -0.5 + out, v, origin)
+    : gridToScreen(-0.5 + out, start + u, v, origin);
+  /** A rectangle on the wall across u0..u1, from v0 up to v1. */
+  const rect = (u0: number, u1: number, v0: number, v1: number) =>
+    polygon([at(u0, v0), at(u1, v0), at(u1, v1), at(u0, v1)]);
 
   const ink = colors.roomDoorStroke;
-  canvas.drawPath(quad(DOOR_ART.frameInset, 0, top), paintOf(ink));
-  canvas.drawPath(quad(DOOR_ART.faceInset, 0, top - DOOR_ART.lintel), paintOf(colors.roomDoorWood));
 
-  const panels = paintOf(ink, { stroke: 2, alpha: DOOR_ART.panelAlpha });
-  const split = top * 0.5;
-  canvas.drawPath(quad(DOOR_ART.panelInset, split + 0.1, top - DOOR_ART.lintel - 0.2), panels);
-  canvas.drawPath(quad(DOOR_ART.panelInset, 0.2, split - 0.1), panels);
+  // Casing, then the leaf inside it, its top a little below the casing's.
+  const casing = rect(A.frameInset, width - A.frameInset, 0, height);
+  canvas.drawPath(casing, paintOf(colors.roomDoorWoodDeep));
+  const leafTop = height - A.leafTopGap;
+  canvas.drawPath(rect(A.leafInset, width - A.leafInset, 0, leafTop), paintOf(colors.roomDoorWood));
+
+  // Plank seams run the leaf's height.
+  const seam = paintOf(colors.roomDoorWoodDeep, { stroke: A.linePx });
+  for (const f of A.seams) {
+    const u = A.leafInset + f * (width - 2 * A.leafInset);
+    const p0 = at(u, 0.04);
+    const p1 = at(u, leafTop - 0.04);
+    canvas.drawLine(p0.x, p0.y, p1.x, p1.y, seam);
+  }
+  // A lit edge down the leaf's screen-left side (the far end along the left wall).
+  const litU = span.wall === 'left' ? width - A.leafInset - 0.05 : A.leafInset + 0.05;
+  const l0 = at(litU, 0.06);
+  const l1 = at(litU, leafTop - 0.06);
+  canvas.drawLine(l0.x, l0.y, l1.x, l1.y, paintOf(colors.roomDoorWoodLight, { stroke: A.linePx }));
+
+  canvas.drawPath(casing, paintOf(ink, { stroke: A.outlinePx }));
 
   // Screen right is toward the corner on the left wall (its axis runs leftward), away from it on the right wall.
-  const knob = at(span.wall === 'left' ? start + DOOR_ART.knobInset : end - DOOR_ART.knobInset, split);
-  canvas.drawCircle(knob.x, knob.y, DOOR_ART.knobRadius, paintOf(colors.roomDoorKnob));
-  canvas.drawCircle(knob.x, knob.y, DOOR_ART.knobRadius, paintOf(ink, { stroke: 1.5 }));
+  const knobU = span.wall === 'left' ? A.leafInset + A.knobFromEdge : width - A.leafInset - A.knobFromEdge;
+  const knob = at(knobU, A.knobHeight);
+  canvas.drawCircle(knob.x, knob.y, A.knobRadiusPx, paintOf(colors.roomDoorKnob));
+  canvas.drawCircle(knob.x, knob.y, A.knobRadiusPx, paintOf(ink, { stroke: A.linePx }));
+  canvas.drawCircle(knob.x - 1, knob.y - 1, 1, paintOf(colors.roomDoorGlint));
+
+  // The step: a strip of floor in front of the casing.
+  const sill = polygon([
+    at(A.sillInset, 0), at(width - A.sillInset, 0),
+    at(width - A.sillInset, 0, A.sillDepth), at(A.sillInset, 0, A.sillDepth),
+  ]);
+  canvas.drawPath(sill, paintOf(colors.roomDoorWoodDeep));
+  canvas.drawPath(sill, paintOf(ink, { stroke: A.linePx }));
 }
 
 function matColor(door: Door, colors: ThemeColors): string {
   return door.isEntry ? colors.roomDoorEntry : colors.roomDoor;
 }
 
-/** Each door's mat: its floor cell, where people come in, tinted (mint for the entry door). */
+/** Each door's mat: a rug on its floor cell, where people come in (mint for the entry door). */
 function drawDoorMat(canvas: SkCanvas, door: Door, origin: GridOrigin, colors: ThemeColors) {
-  const builder = Skia.PathBuilder.Make();
-  addFloorCell(builder, door.position.x, door.position.y, origin);
-  const path = builder.build();
+  const { x: gx, y: gy } = door.position;
+  const h = 0.5 - DOOR_ART.matInset;
+  const path = polygon([
+    gridToScreen(gx - h, gy - h, 0, origin),
+    gridToScreen(gx + h, gy - h, 0, origin),
+    gridToScreen(gx + h, gy + h, 0, origin),
+    gridToScreen(gx - h, gy + h, 0, origin),
+  ]);
   const mat = matColor(door, colors);
   canvas.drawPath(path, paintOf(mat, { alpha: door.isEntry ? DOOR_MAT_ALPHA.entry : DOOR_MAT_ALPHA.other }));
   canvas.drawPath(path, paintOf(mat, { stroke: 2 }));

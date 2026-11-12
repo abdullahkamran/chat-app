@@ -1,9 +1,6 @@
 import type { WallSide } from '@/constants/grid';
 import type { Door } from '@chat-app/shared-types';
 
-/** No door is drawn shorter than this many wall rows, so an avatar (two rows tall) fits through. */
-export const MIN_DOOR_ROWS = 3;
-
 /**
  * Where a door stands on the walls: a door on floor column x = 0 stands on the left wall, one on
  * row y = 0 on the right (a corner door goes left). `col` is the wall column, as in WallCell,
@@ -12,7 +9,7 @@ export const MIN_DOOR_ROWS = 3;
  */
 export function doorWallSpan(door: Door): { wall: WallSide; col: number; width: number; rows: number } | null {
   const { position: p, dimensions: d } = door;
-  const rows = Math.max(MIN_DOOR_ROWS, d.z);
+  const rows = Math.max(1, d.z);
   if (p.x === 0) return { wall: 'left', col: p.y, width: Math.max(1, d.y), rows };
   if (p.y === 0) return { wall: 'right', col: p.x, width: Math.max(1, d.x), rows };
   return null;

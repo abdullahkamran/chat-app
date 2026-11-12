@@ -111,7 +111,8 @@ Each accent is a set of four. Use the whole set together so a light theme can sw
 
 - **Controls:** `icon`, `tabBar`, `tabIconDefault`, `tabIconSelected`, `switchTrackOff`, `switchThumb`.
 - **Room:** `bubble`, `bubbleText`, `bubbleTyping`, `transcriptBackground`, `roomShadow`,
-  `roomLocalActor`, `roomDoor*` (`roomDoorWood`: a door's face, `roomDoorStroke`: its ink outline and panels, `roomDoorKnob`,
+  `roomLocalActor`, `roomDoor*` (`roomDoorWood` / `…WoodDeep` / `…WoodLight`: a door's leaf / casing, step and seams / lit edge,
+  `roomDoorGlint`: the knob's shine, `roomDoorStroke`: its ink outline, `roomDoorKnob`,
   `roomDoorEntry` / `roomDoor`: the mat in front of the entry door / any other), `roomEditGrid`, `roomItemSelected` (edit mode: tint over the picked-up item's own pixels),
   `roomDropTarget` / `roomDropBlocked` (edit mode: the cells
   under a dragged item, where it can and can't be dropped), `roomDebug*` (dev overlays only).

@@ -64,7 +64,10 @@ export interface ThemeColors {
   roomLocalActor: string;   // the ring under your own avatar
   roomDoorEntry: string;    // the mat on the floor in front of the entry door
   roomDoor: string;         // the mat in front of any other door
-  roomDoorWood: string;     // every door's face
+  roomDoorWood: string;     // every door's leaf
+  roomDoorWoodDeep: string; // its casing, step and plank seams
+  roomDoorWoodLight: string; // the lit edge down the leaf
+  roomDoorGlint: string;    // shine on the knob
   roomDoorStroke: string;   // a door's ink outline, frame and panel lines
   roomDoorKnob: string;
   roomEditGrid: string;
@@ -162,6 +165,9 @@ export const darkTheme: Theme = {
     roomDoorStroke: palette.ink,
     roomDoorKnob: palette.gold400,
     roomDoorWood: palette.wood500,
+    roomDoorWoodDeep: palette.wood700,
+    roomDoorWoodLight: palette.wood300,
+    roomDoorGlint: palette.frost50,
     roomEditGrid: palette.sky400,
     roomItemSelected: palette.sky400,
     roomDropTarget: palette.mint500,

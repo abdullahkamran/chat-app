@@ -64,17 +64,23 @@ export async function backfillRoomDimensions(): Promise<void> {
     if (modifiedCount) console.log(`[room-defaults] gave ${modifiedCount} room(s) the default dimensions`);
 }
 
+/** Default entry doors rooms were given before, as floor row and rows tall: row 4 until 2026-11-12, then 3 rows tall briefly. */
+const OLD_DEFAULT_DOORS = [{ y: 4, z: 2 }, { y: 7, z: 3 }];
+
 /**
- * Moves the default entry door rooms got before 2026-11-12 (left wall, row 4, two rows tall) to
- * where DEFAULT_ENTRY_DOOR stands now. Only that exact door changes, so a door someone placed
- * stays. Idempotent, so it's safe on every boot and on several instances at once.
+ * Moves and resizes an old default entry door (OLD_DEFAULT_DOORS) to DEFAULT_ENTRY_DOOR. Only
+ * those exact doors change, so a door someone placed stays. Idempotent, so it's safe on every
+ * boot and on several instances at once.
  */
 export async function backfillEntryDoor(): Promise<void> {
-    const old = { 'd.isEntry': true, 'd.category': 'default', 'd.position.x': 0, 'd.position.y': 4, 'd.dimensions.z': 2 };
-    const { modifiedCount } = await RoomModel.updateMany(
-        { doors: { $elemMatch: { isEntry: true, category: 'default', 'position.x': 0, 'position.y': 4, 'dimensions.z': 2 } } },
-        { $set: { 'doors.$[d].position': DEFAULT_ENTRY_DOOR.position, 'doors.$[d].dimensions': DEFAULT_ENTRY_DOOR.dimensions } },
-        { arrayFilters: [old] },
-    );
-    if (modifiedCount) console.log(`[room-defaults] moved the entry door in ${modifiedCount} room(s)`);
+    let updated = 0;
+    for (const { y, z } of OLD_DEFAULT_DOORS) {
+        const { modifiedCount } = await RoomModel.updateMany(
+            { doors: { $elemMatch: { isEntry: true, category: 'default', 'position.x': 0, 'position.y': y, 'dimensions.z': z } } },
+            { $set: { 'doors.$[d].position': DEFAULT_ENTRY_DOOR.position, 'doors.$[d].dimensions': DEFAULT_ENTRY_DOOR.dimensions } },
+            { arrayFilters: [{ 'd.isEntry': true, 'd.category': 'default', 'd.position.x': 0, 'd.position.y': y, 'd.dimensions.z': z }] },
+        );
+        updated += modifiedCount;
+    }
+    if (updated) console.log(`[room-defaults] updated the entry door in ${updated} room(s)`);
 }

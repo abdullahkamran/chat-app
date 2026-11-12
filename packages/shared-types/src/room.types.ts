@@ -168,11 +168,11 @@ export interface Door {
 /**
  * The door every room gets: on the left wall (a door at x = 0 stands on the left wall, one at
  * y = 0 on the right), in its third column from the screen's left in a default 10x10 room,
- * three rows tall so an avatar fits through. People come in on its cell.
+ * one cell wide and two rows tall. People come in on its cell.
  */
 export const DEFAULT_ENTRY_DOOR: Door = {
     position: { x: 0, y: 7, z: 0 },
-    dimensions: { x: 1, y: 1, z: 3 },
+    dimensions: { x: 1, y: 1, z: 2 },
     category: 'default',
     isEntry: true,
 };
