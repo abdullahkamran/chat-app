@@ -2,13 +2,16 @@ import {
   TILE_H,
   TILE_W,
   WALL_HEIGHT,
+  WALL_ROWS,
   getEffectiveDimensions,
   gridToScreen,
   roomCorner,
   type GridOrigin,
   type ScreenPoint,
+  type WallCell,
+  type WallSide,
 } from '@/constants/grid';
-import { ItemAction, type RoomItem } from '@chat-app/shared-types';
+import { ItemAction, ItemPlacement, type RoomItem } from '@chat-app/shared-types';
 
 export interface ScreenRect {
   x: number;
@@ -60,9 +63,17 @@ export function itemRect(roomItem: RoomItem, origin: GridOrigin): ScreenRect {
   return { x: left.x, y: front.y - height, width, height };
 }
 
-/** Painter's-algorithm key for an item: its footprint centre, so big items sort in front of what they cover. */
+/** Wall items sort behind everything standing on the floor. */
+const WALL_DEPTH = -1000;
+
+/**
+ * Painter's-algorithm key for an item: its footprint centre, so big items sort in front
+ * of what they cover. Wall items go behind the floor's contents; they never overlap
+ * each other.
+ */
 export function itemDepth(roomItem: RoomItem): number {
   const { position, itemId } = roomItem;
+  if (itemId.placement === ItemPlacement.WALL) return WALL_DEPTH + position.x + position.y + position.z;
   return position.x + position.y + itemId.dimensions.x / 2 + itemId.dimensions.y / 2;
 }
 
@@ -121,4 +132,20 @@ export function cellAt(gx: number, gy: number, dims: { x: number; y: number }) {
   const cy = Math.round(gy);
   if (cx < 0 || cy < 0 || cx >= dims.x || cy >= dims.y) return null;
   return { gx: cx, gy: cy };
+}
+
+/**
+ * The wall cell under a content-pixel point, or null when it misses both walls. Right of
+ * the corner where the walls meet is the right wall, left of it the left one; on either,
+ * every grid unit along the wall drops the wall's base by TILE_H / 2.
+ */
+export function wallCellAt(x: number, y: number, origin: GridOrigin, dims: { x: number; y: number }): WallCell | null {
+  const corner = roomCorner(origin);
+  const wall: WallSide = x >= corner.x ? 'right' : 'left';
+  const along = Math.abs(x - corner.x) / (TILE_W / 2);
+  const up = (corner.y + along * (TILE_H / 2) - y) / TILE_H;
+  const col = Math.floor(along);
+  const row = Math.floor(up);
+  if (row < 0 || row >= WALL_ROWS || col >= (wall === 'right' ? dims.x : dims.y)) return null;
+  return { wall, col, row };
 }

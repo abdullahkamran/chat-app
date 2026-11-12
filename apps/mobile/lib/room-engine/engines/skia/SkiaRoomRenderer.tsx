@@ -5,16 +5,16 @@ import { GestureDetector } from 'react-native-gesture-handler';
 import { useReducedMotion } from 'react-native-reanimated';
 
 import { computeOrigin, screenToGrid } from '@/constants/grid';
-import type { RoomItem } from '@chat-app/shared-types';
+import { ItemPlacement, type RoomItem } from '@chat-app/shared-types';
 import { sendCameraCommand } from '../../core/camera';
-import type { RoomRendererProps } from '../../core/contract';
+import type { EditCell, RoomRendererProps } from '../../core/contract';
 import { ActorOverlay } from './ActorOverlay';
 import { Backdrop } from './Backdrop';
 import { DEBUG_CELL_MAP, DEBUG_OCCUPANCY, DebugOverlay } from './DebugOverlay';
 import { EditGrid } from './EditGrid';
 import { useSteerDriver } from '../../joystick/useSteerDriver';
 import { DEFAULT_MS_PER_CELL, useActorMotions } from './actorMotion';
-import { cellAt, hitTestActors, hitTestItems, roomContentBounds } from './geometry';
+import { cellAt, hitTestActors, hitTestItems, roomContentBounds, wallCellAt } from './geometry';
 import { preloadSkImages, useSkImages } from './imageCache';
 import { AVATAR_HEIGHT } from './skeleton/humanoidV1';
 import { loadZoom, saveZoom } from './cameraPrefs';
@@ -105,10 +105,11 @@ function Room({
     const point = screenToGrid(x, y, origin);
 
     if (isEditMode) {
-      const cell = cellAt(point.gx, point.gy, scene.dimensions);
+      const floor = cellAt(point.gx, point.gy, scene.dimensions);
+      const wall = floor ? null : wallCellAt(x, y, origin, scene.dimensions);
+      const cell: EditCell | null = floor ? { surface: 'floor', ...floor } : wall && { surface: 'wall', ...wall };
       const hit = hitTestItems(scene.items, { x, y }, origin, true);
-      if (cell) onCellTap(cell, hit);
-      else if (hit) onCellTap({ gx: hit.position.x, gy: hit.position.y }, hit);
+      if (cell || hit) onCellTap(cell, hit);
       return;
     }
 
@@ -154,6 +155,10 @@ function Room({
     [cameraLink],
   );
 
+  // The edit grid shows the wall cells while a wall item is chosen or picked up.
+  const editPlacement = edit.selectedPlaced?.itemId.placement ?? edit.selectedItem?.placement;
+  const editSurface = editPlacement === ItemPlacement.WALL ? 'wall' : 'floor';
+
   const itemImages = useSkImages(scene.items.flatMap(itemAssetUrls));
   const { arts, artKeys } = useAvatarArts(actors);
   const world = useWorldPicture({
@@ -180,7 +185,7 @@ function Room({
           <Group transform={transform}>
             <Backdrop scene={scene} origin={origin} />
             <Picture picture={world} />
-            {isEditMode && <EditGrid dimensions={scene.dimensions} origin={origin} />}
+            {isEditMode && <EditGrid dimensions={scene.dimensions} origin={origin} surface={editSurface} />}
             {(DEBUG_OCCUPANCY || DEBUG_CELL_MAP) && (
               <DebugOverlay dimensions={scene.dimensions} items={scene.items} motions={motions} origin={origin} />
             )}

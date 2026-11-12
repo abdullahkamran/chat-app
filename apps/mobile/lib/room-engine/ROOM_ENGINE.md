@@ -125,9 +125,18 @@ spanX = (nx + ny) * TILE_W / 2
 spanY = (nx + ny) * TILE_H / 2
 ```
 
-### Wall-mounted items (`gz > 0`)
+### Wall-mounted items (`placement: WALL`)
 
 Each `gz` unit lifts the item `TILE_H` px upward on screen = **40 px per unit** at zoom 1.0.
+
+A wall item hangs on a grid of wall cells: `WALL_ROWS` (= `WALL_HEIGHT / TILE_H` = 5) rows up each wall, one column per floor cell along it. `dimensions.x` is its width in columns and `dimensions.z` its height in rows; `dimensions.y` is 0, so it covers no floor and never blocks walking.
+
+| Wall  | Orientation | Position         | Column runs along |
+|-------|-------------|------------------|-------------------|
+| Right | `ZERO`      | `(col, 0, row)`  | gx (gy = -0.5)    |
+| Left  | `NINETY`    | `(0, col, row)`  | gy (gx = -0.5)    |
+
+The art is drawn for the right wall; `NINETY` mirrors it onto the left one (`wallSideOf` in `constants/grid.ts`), and `itemRect` then fits it exactly over its wall cells. The position is the item's bottom cell nearest the corner. In edit mode a tap on a wall maps to a wall cell (`wallCellAt` in `geometry.ts`), and the session only puts wall items on wall cells and floor items on floor cells (`placedOn` in `core/editLayout.ts`). Wall items can't overlap each other and must fit under the top of the wall. They always draw behind everything on the floor (`itemDepth`).
 
 ---
 
@@ -265,7 +274,7 @@ Contract rules:
 For performance checks, `EXPO_PUBLIC_ROOM_STRESS_ACTORS=30` (in `apps/mobile/.env.local`) adds 30 wandering avatars to the Skia engine in dev builds. They are engine-local and never reach the session or socket. Restart Metro with a cleared cache (`pnpm expo start -c`) after changing it. The Skia engine runs on iOS and Android; web is not set up.
 
 Two cell overlays (`engines/skia/DebugOverlay.tsx`), also dev-only and set to `1` to turn on:
-- `EXPO_PUBLIC_ROOM_DEBUG_OCCUPANCY`: orange on every cell a placed item's footprint covers (overlappable ones too), blue on the cell under each avatar's animated position (rounded, like taps).
+- `EXPO_PUBLIC_ROOM_DEBUG_OCCUPANCY`: orange on every cell a placed item covers (its floor footprint, or its wall cells for a wall item; overlappable ones too), blue on the cell under each avatar's animated position (rounded, like taps).
 - `EXPO_PUBLIC_ROOM_DEBUG_CELL_MAP`: every floor cell, plus one-tile wall cells on both wall planes, outlined at low opacity.
 
 The overlays use the engine's one cell convention (see Skia engine notes), so the markers line up with the floor, walls, doors and item art.

@@ -1,11 +1,13 @@
-import { Group, Path, Skia, type SkPathBuilder } from '@shopify/react-native-skia';
+import { Group, Path, Skia } from '@shopify/react-native-skia';
 import { useMemo } from 'react';
 import { useDerivedValue } from 'react-native-reanimated';
 
-import { TILE_H, WALL_HEIGHT, getEffectiveDimensions, gridToScreen, type GridOrigin } from '@/constants/grid';
+import { WALL_ROWS, getEffectiveDimensions, type GridOrigin } from '@/constants/grid';
 import { useTheme } from '@/constants/theme';
-import type { Dimensions, RoomItem } from '@chat-app/shared-types';
+import { ItemPlacement, type Dimensions, type RoomItem } from '@chat-app/shared-types';
+import { wallCellsOf } from '../../core/editLayout';
 import type { ActorMotion } from './actorMotion';
+import { addFloorCell, addWallCell, addWallCells } from './cellPaths';
 
 // Inlined by Expo at bundle time; restart Metro with -c after changing them.
 /** Orange on cells placed items occupy, blue on the cell each avatar stands on. */
@@ -15,63 +17,35 @@ export const DEBUG_CELL_MAP = __DEV__ && process.env.EXPO_PUBLIC_ROOM_DEBUG_CELL
 
 const MAP_OPACITY = 0.35;
 const MARKER_FILL_OPACITY = 0.35;
-const WALL_ROWS = WALL_HEIGHT / TILE_H;
 
-/** One floor cell; cells are centred on grid vertices, as in EditGrid and cellAt. */
-function addCell(builder: SkPathBuilder, gx: number, gy: number, origin: GridOrigin) {
-  'worklet';
-  builder.addPoly([
-    gridToScreen(gx - 0.5, gy - 0.5, 0, origin),
-    gridToScreen(gx + 0.5, gy - 0.5, 0, origin),
-    gridToScreen(gx + 0.5, gy + 0.5, 0, origin),
-    gridToScreen(gx - 0.5, gy + 0.5, 0, origin),
-  ], true);
-}
-
-/**
- * Floor cells, plus one-tile wall cells on the floor's back edges (gy = -0.5 for the
- * right wall, gx = -0.5 for the left), in the floor's columns, one row per grid unit of height.
- */
+/** Floor cells, plus the wall cells on the floor's back edges, one row per grid unit of height. */
 function CellMap({ dimensions, origin }: { dimensions: Dimensions; origin: GridOrigin }) {
   const { colors } = useTheme();
   const path = useMemo(() => {
     const builder = Skia.PathBuilder.Make();
     for (let gx = 0; gx < dimensions.x; gx++) {
-      for (let gy = 0; gy < dimensions.y; gy++) addCell(builder, gx, gy, origin);
+      for (let gy = 0; gy < dimensions.y; gy++) addFloorCell(builder, gx, gy, origin);
     }
-    for (let z = 0; z < WALL_ROWS; z++) {
-      for (let gx = 0; gx < dimensions.x; gx++) {
-        builder.addPoly([
-          gridToScreen(gx - 0.5, -0.5, z, origin),
-          gridToScreen(gx + 0.5, -0.5, z, origin),
-          gridToScreen(gx + 0.5, -0.5, z + 1, origin),
-          gridToScreen(gx - 0.5, -0.5, z + 1, origin),
-        ], true);
-      }
-      for (let gy = 0; gy < dimensions.y; gy++) {
-        builder.addPoly([
-          gridToScreen(-0.5, gy - 0.5, z, origin),
-          gridToScreen(-0.5, gy + 0.5, z, origin),
-          gridToScreen(-0.5, gy + 0.5, z + 1, origin),
-          gridToScreen(-0.5, gy - 0.5, z + 1, origin),
-        ], true);
-      }
-    }
+    addWallCells(builder, { x: dimensions.x, y: dimensions.y }, WALL_ROWS, origin);
     return builder.build();
   }, [dimensions.x, dimensions.y, origin]);
 
   return <Path path={path} color={colors.roomDebugGrid} style="stroke" strokeWidth={1} opacity={MAP_OPACITY} />;
 }
 
-/** Every cell covered by a placed item's footprint, overlappable ones included. */
+/** Every cell covered by a placed item: a floor item's footprint or a wall item's wall cells, overlappable ones included. */
 function ItemCells({ items, origin }: { items: readonly RoomItem[]; origin: GridOrigin }) {
   const { colors } = useTheme();
   const path = useMemo(() => {
     const builder = Skia.PathBuilder.Make();
     for (const ri of items) {
+      if (ri.itemId.placement === ItemPlacement.WALL) {
+        for (const cell of wallCellsOf(ri)) addWallCell(builder, cell, origin);
+        continue;
+      }
       const dims = getEffectiveDimensions(ri.itemId.dimensions, ri.orientation);
       for (let dx = 0; dx < dims.x; dx++) {
-        for (let dy = 0; dy < dims.y; dy++) addCell(builder, ri.position.x + dx, ri.position.y + dy, origin);
+        for (let dy = 0; dy < dims.y; dy++) addFloorCell(builder, ri.position.x + dx, ri.position.y + dy, origin);
       }
     }
     return builder.build();
@@ -91,7 +65,7 @@ function ActorCells({ motions, origin }: { motions: ReadonlyMap<string, ActorMot
   const list = useMemo(() => [...motions.values()], [motions]);
   const path = useDerivedValue(() => {
     const builder = Skia.PathBuilder.Make();
-    for (const m of list) addCell(builder, Math.round(m.gx.get()), Math.round(m.gy.get()), origin);
+    for (const m of list) addFloorCell(builder, Math.round(m.gx.get()), Math.round(m.gy.get()), origin);
     return builder.build();
   }, [list, origin]);
 

@@ -35,8 +35,8 @@ import {
   type RoomTheme,
   type User,
 } from '@chat-app/shared-types';
-import type { ActorState, EditState, EngineCapabilities, FloorPoint, RoomEffect, RoomMode, RoomScene } from '../core/contract';
-import { fitsAt, itemCovering } from '../core/editLayout';
+import type { ActorState, EditCell, EditState, EngineCapabilities, FloorPoint, RoomEffect, RoomMode, RoomScene } from '../core/contract';
+import { fitsAt, itemOnCell, placedOn, samePlace } from '../core/editLayout';
 import { facingFromDelta } from '../core/facing';
 import { findSeat, itemSeats, sameSeat, seatApproach, seatPosition, type SitAction } from '../core/seats';
 import { findPath, isLineClear, nearestReachableCell, smoothPath } from '../core/usePathfinding';
@@ -1191,49 +1191,51 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
   }
 
   /**
-   * `hit` is the item whose art was tapped; `onFloor` the one standing on the tapped
-   * cell. Nothing is ever replaced: a tap on taken floor picks that item up instead.
+   * `cell` is the floor or wall cell tapped (null off both), `hit` the item whose art was
+   * tapped, and `onCell` the one on the tapped cell. Floor items go on floor cells, wall
+   * items on wall cells. Nothing is ever replaced: a tap on a taken cell picks that item
+   * up instead.
    */
-  function editCell({ gx, gy }: GridPoint, hit: RoomItem | null) {
-    const onFloor = itemCovering(pendingItems, gx, gy);
+  function editCell(cell: EditCell | null, hit: RoomItem | null) {
+    const onCell = cell ? itemOnCell(pendingItems, cell) : hit;
 
     // A placed item is picked up: move it to the tapped cell
     if (selectedPlacedItem) {
-      const { x, y } = selectedPlacedItem.position;
+      const moved = cell && placedOn(selectedPlacedItem, cell);
       // Tap it again (its art or its own cell) → put it down where it was
-      if (hit === selectedPlacedItem || (x === gx && y === gy)) {
+      if (hit === selectedPlacedItem || (moved && samePlace(moved, selectedPlacedItem))) {
         setSelectedPlacedItem(null);
         return;
       }
-      const moved: RoomItem = { ...selectedPlacedItem, position: { x: gx, y: gy, z: 0 } };
-      if (fitsAt(pendingItems, moved, roomDimensions, selectedPlacedItem)) {
+      if (moved && fitsAt(pendingItems, moved, roomDimensions, selectedPlacedItem)) {
         setPendingItems(current => [...current.filter(ri => ri !== selectedPlacedItem), moved]);
         setSelectedPlacedItem(null);
-      } else if (onFloor && onFloor !== selectedPlacedItem) {
-        setSelectedPlacedItem(onFloor);
+      } else if (onCell && onCell !== selectedPlacedItem) {
+        setSelectedPlacedItem(onCell);
       }
       return;
     }
 
     // An inventory item is selected: place a copy, while there are copies free
     if (selectedItem) {
-      const newItem: RoomItem = {
+      const fresh: RoomItem = {
         itemId: selectedItem,
-        position: { x: gx, y: gy, z: 0 },
+        position: { x: 0, y: 0, z: 0 },
         orientation: Orientiation.ZERO,
         state: ItemState.NONE,
       };
-      if (fitsAt(pendingItems, newItem, roomDimensions)) {
+      const newItem = cell && placedOn(fresh, cell);
+      if (newItem && fitsAt(pendingItems, newItem, roomDimensions)) {
         if ((available[selectedItem._id] ?? 0) > 0) setPendingItems(current => [...current, newItem]);
-      } else if (onFloor) {
+      } else if (onCell) {
         setSelectedItem(null);
-        setSelectedPlacedItem(onFloor);
+        setSelectedPlacedItem(onCell);
       }
       return;
     }
 
     // Nothing selected: pick up the tapped item
-    const target = hit ?? onFloor;
+    const target = hit ?? onCell;
     if (target) setSelectedPlacedItem(target);
   }
 

@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react';
 import type { SharedValue } from 'react-native-reanimated';
 
-import type { GridPoint } from '@/constants/grid';
+import type { GridPoint, WallCell } from '@/constants/grid';
 import type {
   ActorAction,
   ActorActionKind,
@@ -93,6 +93,9 @@ export interface EditState {
 
 export type RoomMode = 'play' | 'edit';
 
+/** The cell an edit-mode tap landed on: a floor cell (integer grid coordinates) or a wall cell. */
+export type EditCell = ({ surface: 'floor' } & GridPoint) | ({ surface: 'wall' } & WallCell);
+
 export interface RoomRendererProps {
   scene: RoomScene;
   actors: Readonly<Record<string, ActorState>>;
@@ -111,11 +114,12 @@ export interface RoomRendererProps {
   /** An interactive item tapped in play mode. */
   onItemTap(item: RoomItem): void;
   /**
-   * A grid cell tapped in edit mode. Integer grid coordinates. `item` is the front-most
-   * placed item whose art is under the tap, interactive or not: tall art covers cells
-   * behind its own, so the floor cell alone can't tell which item was meant.
+   * A tap in edit mode. `cell` is the floor or wall cell under it, null when it missed
+   * both. `item` is the front-most placed item whose art is under the tap, interactive
+   * or not: tall art covers cells behind its own, so the cell alone can't tell which item
+   * was meant. Not called when both are null.
    */
-  onCellTap(cell: GridPoint, item: RoomItem | null): void;
+  onCellTap(cell: EditCell | null, item: RoomItem | null): void;
   /** The engine finished playing a non-looping action (e.g. a walk reached its destination). */
   /** `finished` is the action object that ended, so the session can ignore a report for one it has since replaced. */
   onActionComplete(actorId: string, action: ActorActionKind, finished?: ActorAction): void;

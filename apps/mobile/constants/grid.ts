@@ -6,6 +6,25 @@ export const TILE_W = 80;
 export const TILE_H = 40;
 /** Pixel height reserved for the walls above the floor. */
 export const WALL_HEIGHT = 200;
+/** Rows of wall cells, each one grid unit (TILE_H) of height. */
+export const WALL_ROWS = WALL_HEIGHT / TILE_H;
+
+/**
+ * The two walls. The right wall stands on the floor's back edge along the x axis
+ * (gy = -0.5), the left one along the y axis (gx = -0.5).
+ */
+export type WallSide = 'left' | 'right';
+
+/**
+ * One wall cell: `col` cells along the wall from the corner where the walls meet, `row`
+ * grid units up from the floor. Right-wall column c sits behind floor column gx = c,
+ * left-wall column c behind floor row gy = c.
+ */
+export interface WallCell {
+  wall: WallSide;
+  col: number;
+  row: number;
+}
 
 export interface ScreenPoint {
   x: number;
@@ -115,6 +134,15 @@ export function getEffectiveDimensions(
  */
 export function isMirrored(orientation: Orientiation): boolean {
   return orientation === Orientiation.NINETY || orientation === Orientiation.TWO_SEVENTY;
+}
+
+/**
+ * The wall a wall item hangs on. Its art is drawn for the right wall, and mirroring it
+ * swaps the x and y axes, which puts it on the left one. A right-wall item sits at
+ * (col, 0, row), a left-wall one at (0, col, row), so itemRect fits its art to the wall.
+ */
+export function wallSideOf(orientation: Orientiation): WallSide {
+  return isMirrored(orientation) ? 'left' : 'right';
 }
 
 /**
