@@ -6,7 +6,7 @@ import { TILE_W, gridToScreen, type GridOrigin } from '@/constants/grid';
 import type { CameraLink, CameraMode } from '../../core/contract';
 import type { ActorMotion } from './actorMotion';
 import { AVATAR_HEIGHT } from './skeleton/humanoidV1';
-import { MIN_ZOOM, clampTo, offsetRange, visibleHeight, type CameraRig } from './useCamera';
+import { MIN_ZOOM, clampTo, offsetRange, stepZoom, visibleHeight, type CameraRig } from './useCamera';
 
 /**
  * The box, as fractions of the visible room, that the followed actor may move inside
@@ -52,6 +52,8 @@ interface Options {
   link: CameraLink;
   /** Snap instead of glide (the OS Reduce Motion setting). */
   reduceMotion: boolean;
+  /** A zoom button picked a new zoom, to remember it. */
+  onZoom: (zoom: number) => void;
 }
 
 interface Track {
@@ -68,9 +70,13 @@ interface Track {
   focusId: string;
   /** Where focus goes back to. */
   after: CameraMode;
+  /** A zoom button was pressed in `free`: the zoom eases to the new step around the middle of the view. */
+  zooming: boolean;
   /** Last reported to the shell. */
   reportedMode: CameraMode | '';
   reportedOffscreen: boolean;
+  reportedZoomIn: boolean;
+  reportedZoomOut: boolean;
 }
 
 /**
@@ -78,16 +84,16 @@ interface Track {
  * follow keeps the local actor (plus a look-ahead in the direction it walks) inside the
  * dead zone; overview frames everyone; focus centres one actor for a while, then goes
  * back; intro shows everyone, then glides to the local actor. Waits while a gesture or
- * fling owns the camera, and does nothing in `free`. Handles the shell's commands and
+ * fling owns the camera, and in `free` only finishes a zoom button's step. Handles the shell's commands and
  * reports the mode and whether the local actor is in view.
  */
-export function useCameraDirector({ rig, actors, localActorId, origin, link, reduceMotion }: Options) {
+export function useCameraDirector({ rig, actors, localActorId, origin, link, reduceMotion, onZoom }: Options) {
   const { camera, mode, zoom, recentre, busy, bounds, inset, width, height } = rig;
   const { scale, tx, ty } = camera;
   const { command, onChange } = link;
   const track = useSharedValue<Track>({
     init: false, x: 0, y: 0, vx: 0, vy: 0, seq: 0, until: 0, focusId: '', after: 'follow',
-    reportedMode: '', reportedOffscreen: false,
+    zooming: false, reportedMode: '', reportedOffscreen: false, reportedZoomIn: true, reportedZoomOut: true,
   });
 
   const onFrame = useCallback((frame: FrameInfo) => {
@@ -141,6 +147,15 @@ export function useCameraDirector({ rig, actors, localActorId, origin, link, red
         t.focusId = cmd.actorId;
         t.until = now + FOCUS_HOLD_MS;
         mode.set('focus');
+      } else if (cmd?.kind === 'zoom') {
+        // Like a pinch: the overview's zoom is the director's, so stepping from it takes the
+        // camera over, starting from what is on screen.
+        const framingNow = m === 'overview' || m === 'intro';
+        const next = stepZoom(framingNow ? scale.get() : zoom.get(), cmd.step);
+        if (framingNow) mode.set('free');
+        zoom.set(next);
+        t.zooming = true;
+        scheduleOnRN(onZoom, next);
       }
     }
 
@@ -169,16 +184,39 @@ export function useCameraDirector({ rig, actors, localActorId, origin, link, red
     const headY = (me.feetY - AVATAR_HEIGHT) * s + ty.get();
     const feetY = me.feetY * s + ty.get();
     const offscreen = sx < 0 || sx > width || feetY < 0 || headY > visH;
-    if (m !== t.reportedMode || offscreen !== t.reportedOffscreen) {
+    // The zoom buttons step from what is on screen while framing, else from the chosen zoom.
+    const zoomFrom = m === 'overview' || m === 'intro' ? s : zoom.get();
+    const canZoomIn = stepZoom(zoomFrom, 1) !== zoomFrom;
+    const canZoomOut = stepZoom(zoomFrom, -1) !== zoomFrom;
+    if (m !== t.reportedMode || offscreen !== t.reportedOffscreen
+      || canZoomIn !== t.reportedZoomIn || canZoomOut !== t.reportedZoomOut) {
       t.reportedMode = m;
       t.reportedOffscreen = offscreen;
-      scheduleOnRN(onChange, { mode: m, localOffscreen: offscreen });
+      t.reportedZoomIn = canZoomIn;
+      t.reportedZoomOut = canZoomOut;
+      scheduleOnRN(onChange, { mode: m, localOffscreen: offscreen, canZoomIn, canZoomOut });
     }
+    // A gesture takes over from a zoom step, as does anything that moves the camera itself.
+    if (busy.get() || m !== 'free') t.zooming = false;
     track.set(t);
 
+    const b = bounds.get();
+    if (m === 'free' && t.zooming) {
+      // A zoom button in `free`: zoom around the middle of the view, kept inside the room.
+      const target = zoom.get();
+      const ns = s + (target - s) * (reduceMotion ? 1 : 1 - Math.exp(-ZOOM_RATE * dt));
+      const done = Math.abs(target - ns) < 0.002;
+      const next = done ? target : ns;
+      const cx = width / 2;
+      const cy = visH / 2;
+      scale.set(next);
+      tx.set(clampTo(cx - (cx - tx.get()) * (next / s), offsetRange(b.minX, b.maxX, next, width)));
+      ty.set(clampTo(cy - (cy - ty.get()) * (next / s), offsetRange(b.minY, b.maxY, next, visH)));
+      if (done) track.set({ ...t, zooming: false });
+      return;
+    }
     if (m === 'free' || busy.get()) return;
 
-    const b = bounds.get();
     const cut = first || (jumped && m === 'follow');
     const snap = cut || reduceMotion;
     // A cut puts the actor in the middle, not on the dead zone's edge.
@@ -218,8 +256,15 @@ export function useCameraDirector({ rig, actors, localActorId, origin, link, red
     }
 
     const nextScale = s + (targetScale - s) * ease(ZOOM_RATE);
-    if (Math.abs(nextScale - s) > 0.0005) scale.set(nextScale);
-    const ns = Math.abs(nextScale - s) > 0.0005 ? nextScale : s;
+    const zoomed = Math.abs(nextScale - s) > 0.0005;
+    if (zoomed) scale.set(nextScale);
+    const ns = zoomed ? nextScale : s;
+    if (zoomed && !framing) {
+      // Zoom around whom the camera is on, so they stay put while the zoom changes.
+      const who = m === 'focus' && focused ? focusPoint(focused.motion) : me;
+      tx.set(who.x * s + tx.get() - who.x * ns);
+      ty.set(who.y * s + ty.get() - who.y * ns);
+    }
     const rangeX = offsetRange(b.minX, b.maxX, ns, width);
     const rangeY = offsetRange(b.minY, b.maxY, ns, visH);
 
@@ -267,7 +312,7 @@ export function useCameraDirector({ rig, actors, localActorId, origin, link, red
       && Math.abs(targetScale - ns) < 0.002) {
       recentre.set(false);
     }
-  }, [actors, localActorId, origin, track, command, onChange, mode, zoom, recentre, busy, bounds, inset,
+  }, [actors, localActorId, origin, track, command, onChange, onZoom, mode, zoom, recentre, busy, bounds, inset,
     scale, tx, ty, width, height, reduceMotion]);
 
   useFrameCallback(onFrame);

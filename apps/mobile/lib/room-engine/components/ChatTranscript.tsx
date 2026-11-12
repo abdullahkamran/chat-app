@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FlatList, Text, View } from 'react-native';
+import { FlatList, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 import type { User } from '@chat-app/shared-types';
@@ -110,7 +110,9 @@ function clockTime(at: number): string {
  * The latest few messages over the bottom of the room, just above the toolbar, each fading out PEEK_MS after
  * it was sent. Touches pass through to the room.
  */
-export function TranscriptPeek({ entries, userId, names }: Readonly<{ entries: TranscriptEntry[] } & Omit<LineProps, 'entry'>>) {
+export function TranscriptPeek({ entries, userId, names, style }: Readonly<
+  { entries: TranscriptEntry[]; style?: StyleProp<ViewStyle> } & Omit<LineProps, 'entry'>
+>) {
   const styles = useStyles();
   const [now, setNow] = useState(Date.now);
   const shown = entries.slice(-PEEK_LINES).filter(e => e.sentAt + PEEK_MS > now);
@@ -124,7 +126,7 @@ export function TranscriptPeek({ entries, userId, names }: Readonly<{ entries: T
   }, [nextExpiry]);
 
   return (
-    <View style={styles.peek} pointerEvents="none">
+    <View style={[styles.peek, style]} pointerEvents="none">
       {shown.map(e => (
         <Animated.View key={e.id} style={styles.peekLine} entering={FadeIn} exiting={FadeOut.duration(600)}>
           <Line entry={e} userId={userId} names={names} />

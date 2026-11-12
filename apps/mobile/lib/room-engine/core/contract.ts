@@ -145,13 +145,18 @@ export type CameraMode = 'intro' | 'follow' | 'free' | 'overview' | 'focus';
 export type CameraCommand =
   | { kind: 'toggleOverview' }
   | { kind: 'followMe' }
-  | { kind: 'focus'; actorId: string };
+  | { kind: 'focus'; actorId: string }
+  /** One zoom step in (1) or out (-1), from the zoom buttons. */
+  | { kind: 'zoom'; step: 1 | -1 };
 
 /** What the shell needs to know to draw its camera buttons. */
 export interface CameraViewState {
   mode: CameraMode;
   /** The local actor is out of view. */
   localOffscreen: boolean;
+  /** Another zoom step is left in each direction, for the zoom buttons. */
+  canZoomIn: boolean;
+  canZoomOut: boolean;
 }
 
 /**
@@ -163,7 +168,7 @@ export interface CameraLink {
   command: SharedValue<{ seq: number; cmd: CameraCommand | null }>;
   /** Pixels at the bottom of the room hidden by the keyboard or the open transcript. */
   bottomInset: SharedValue<number>;
-  /** Called on the JS thread when the mode or `localOffscreen` changes. */
+  /** Called on the JS thread when any of the view state changes. */
   onChange(state: CameraViewState): void;
 }
 

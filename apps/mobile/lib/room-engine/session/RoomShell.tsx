@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EmoteType, RoomCategory, type Animation } from '@chat-app/shared-types';
 import { AppText, Button, EmptyState, IconButton, Spinner } from '@/components/ui';
-import { makeStyles } from '@/constants/theme';
+import { makeStyles, useTheme } from '@/constants/theme';
 import { useMailbox } from '@/hooks/useMailbox';
 import { AvatarDrawer } from '../components/AvatarDrawer';
 import { ChatInput } from '../components/ChatInput';
@@ -58,6 +58,16 @@ const useStyles = makeStyles(t => ({
     top: t.space.sm,
     right: t.space.sm,
   },
+  zoom: {
+    position: 'absolute',
+    right: t.space.sm,
+    bottom: t.space.sm,
+    gap: t.space.xs,
+  },
+  // Keeps the peek's lines clear of the zoom buttons.
+  peekBesideZoom: {
+    right: t.space.sm + t.controlHeight.sm + t.space.sm,
+  },
 }));
 
 /** The open transcript panel's share of the room's height (ChatTranscript's panel style). */
@@ -81,6 +91,7 @@ interface Props {
 export function RoomShell({ session, camera, children, controls }: Readonly<Props>) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const t = useTheme();
   const styles = useStyles();
   // One drawer at a time takes the chat input's place.
   const [drawer, setDrawer] = useState<RoomDrawer | null>(null);
@@ -115,7 +126,7 @@ export function RoomShell({ session, camera, children, controls }: Readonly<Prop
     if (uid === userId) camera.followMe();
     else camera.focus(uid);
   };
-  const { mode: cameraMode, localOffscreen } = camera.state;
+  const { mode: cameraMode, localOffscreen, canZoomIn, canZoomOut } = camera.state;
   const showFindMe = !isEditMode && localOffscreen && (cameraMode === 'free' || cameraMode === 'focus');
   // The picked-up item in edit mode, when another owner placed it: the toolbar names them.
   const othersPlacer = edit.selectedPlaced?.placedBy && edit.selectedPlaced.placedBy !== userId
@@ -221,7 +232,28 @@ export function RoomShell({ session, camera, children, controls }: Readonly<Prop
             )}
             {showChat && (transcriptOpen
               ? <TranscriptPanel entries={transcript} userId={userId} names={names} onNamePress={showPerson} />
-              : <TranscriptPeek entries={transcript} userId={userId} names={names} />)}
+              : <TranscriptPeek entries={transcript} userId={userId} names={names} style={styles.peekBesideZoom} />)}
+            {/* Bottom right, over the decorate button. The open transcript covers this corner. */}
+            {!(showChat && transcriptOpen) && (
+              <View style={styles.zoom}>
+                <IconButton
+                  icon="add"
+                  variant="surface"
+                  size={t.controlHeight.sm}
+                  disabled={!canZoomIn}
+                  onPress={camera.zoomIn}
+                  accessibilityLabel="Zoom in"
+                />
+                <IconButton
+                  icon="remove"
+                  variant="surface"
+                  size={t.controlHeight.sm}
+                  disabled={!canZoomOut}
+                  onPress={camera.zoomOut}
+                  accessibilityLabel="Zoom out"
+                />
+              </View>
+            )}
           </View>
 
           {isEditMode && (

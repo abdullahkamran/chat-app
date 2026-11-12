@@ -12,16 +12,23 @@ export interface RoomCamera {
   toggleOverview(): void;
   followMe(): void;
   focus(actorId: string): void;
+  zoomIn(): void;
+  zoomOut(): void;
 }
 
 /** The shell's side of the camera: buttons send commands, the engine reports back. */
 export function useRoomCamera(): RoomCamera {
   const command = useSharedValue<{ seq: number; cmd: CameraCommand | null }>({ seq: 0, cmd: null });
   const bottomInset = useSharedValue(0);
-  const [state, setState] = useState<CameraViewState>({ mode: 'intro', localOffscreen: false });
+  const [state, setState] = useState<CameraViewState>({
+    mode: 'intro', localOffscreen: false, canZoomIn: true, canZoomOut: true,
+  });
 
   const onChange = useCallback((next: CameraViewState) => {
-    setState(prev => (prev.mode === next.mode && prev.localOffscreen === next.localOffscreen ? prev : next));
+    setState(prev => (
+      prev.mode === next.mode && prev.localOffscreen === next.localOffscreen
+        && prev.canZoomIn === next.canZoomIn && prev.canZoomOut === next.canZoomOut ? prev : next
+    ));
   }, []);
   const link = useMemo<CameraLink>(() => ({ command, bottomInset, onChange }), [command, bottomInset, onChange]);
 
@@ -31,5 +38,7 @@ export function useRoomCamera(): RoomCamera {
     toggleOverview: () => sendCameraCommand(link, { kind: 'toggleOverview' }),
     followMe: () => sendCameraCommand(link, { kind: 'followMe' }),
     focus: (actorId: string) => sendCameraCommand(link, { kind: 'focus', actorId }),
+    zoomIn: () => sendCameraCommand(link, { kind: 'zoom', step: 1 }),
+    zoomOut: () => sendCameraCommand(link, { kind: 'zoom', step: -1 }),
   }), [link, state]);
 }

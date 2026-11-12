@@ -128,8 +128,8 @@ function Room({
     width, height, contentBounds: bounds, state: cameraState, inset: cameraLink.bottomInset, onTap: handleTap, onZoom: saveZoom,
   });
   const directed = useMemo(() => [...motions].map(([id, motion]) => ({ id, motion })), [motions]);
-  useCameraDirector({ rig, actors: directed, localActorId, origin, link: cameraLink, reduceMotion });
-  // The zoom the user last pinched to, from an earlier visit.
+  useCameraDirector({ rig, actors: directed, localActorId, origin, link: cameraLink, reduceMotion, onZoom: saveZoom });
+  // The zoom the user last pinched or stepped to, from an earlier visit.
   useEffect(() => {
     let live = true;
     loadZoom().then(z => {

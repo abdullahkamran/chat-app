@@ -15,6 +15,8 @@ import type { ContentBounds } from './geometry';
 
 export const MIN_ZOOM = 0.5;
 export const MAX_ZOOM = 1.5;
+/** The zoom buttons' stops, from MIN_ZOOM to MAX_ZOOM. Pinching can land between them. */
+export const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5] as const;
 /** How far past MIN_ZOOM / MAX_ZOOM a pinch can stretch before it springs back, as a fraction. */
 const ZOOM_STRETCH = 0.15;
 /** Resistance when dragging past an edge (iOS uses 0.55): lower is stiffer. */
@@ -88,6 +90,19 @@ export function clampTo(value: number, [lo, hi]: [number, number]): number {
 export function clampZoom(scale: number): number {
   'worklet';
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, scale));
+}
+
+/** The next zoom stop above (step 1) or below (step -1) `from`, or `from` itself at the end. */
+export function stepZoom(from: number, step: 1 | -1): number {
+  'worklet';
+  // A little slack, so a pinch that ended a hair off a stop doesn't take a tap to reach it.
+  const SLACK = 0.02;
+  if (step > 0) {
+    for (const z of ZOOM_STEPS) if (z > from + SLACK) return z;
+    return Math.max(from, MAX_ZOOM);
+  }
+  for (let i = ZOOM_STEPS.length - 1; i >= 0; i--) if (ZOOM_STEPS[i] < from - SLACK) return ZOOM_STEPS[i];
+  return Math.min(from, MIN_ZOOM);
 }
 
 /** Diminishing overshoot past an edge, like iOS scroll views: never more than `dim`. */
