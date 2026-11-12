@@ -376,10 +376,20 @@ const controller = {
                     { category: RoomCategory.PERSONAL, ownerId: { $in: friendIds } },
                 ],
             };
-            const [rooms, total] = await Promise.all([
-                Room.find(filter).select('-items -doors -theme').sort({ updatedAt: -1, _id: 1 }).skip(skip).limit(limit),
-                Room.countDocuments(filter),
+            // Their own personal room always comes first; the rest follow, most recently active first.
+            const ownRoom = await Room.findOne({ category: RoomCategory.PERSONAL, ownerId: me }).select('-items -doors -theme');
+            const restFilter = ownRoom ? { $and: [filter, { _id: { $ne: ownRoom._id } }] } : filter;
+            const lead = ownRoom ? 1 : 0;
+            const restSkip = Math.max(0, skip - lead);
+            const restLimit = skip === 0 ? limit - lead : limit;
+            const [rest, restTotal] = await Promise.all([
+                restLimit > 0
+                    ? Room.find(restFilter).select('-items -doors -theme').sort({ updatedAt: -1, _id: 1 }).skip(restSkip).limit(restLimit)
+                    : Promise.resolve([]),
+                Room.countDocuments(restFilter),
             ]);
+            const rooms = skip === 0 && ownRoom ? [ownRoom, ...rest] : rest;
+            const total = restTotal + lead;
 
             res.send({
                 rooms,

@@ -22,6 +22,12 @@ function roomKindLabel(room: Room, userId: string | null): string {
   return room.ownerId === userId ? 'Your room' : "Friend's room";
 }
 
+/** A friend's personal room shows only its label, without the owner's "Welcome to my room!" tagline. */
+function roomSubtitle(room: Room, userId: string | null): string {
+  const isFriendsRoom = room.category === RoomCategory.PERSONAL && room.ownerId !== userId;
+  return [roomKindLabel(room, userId), isFriendsRoom ? '' : room.description].filter(Boolean).join(' · ');
+}
+
 const useStyles = makeStyles(t => ({
   container: {
     flex: 1,
@@ -127,7 +133,7 @@ export default function RoomListScreen(): React.JSX.Element {
           renderItem={({ item }) => (
             <RoomListItem
               name={item.name}
-              subtitle={[roomKindLabel(item, userId), item.description].filter(Boolean).join(' · ')}
+              subtitle={roomSubtitle(item, userId)}
               isPersonal={item.category === RoomCategory.PERSONAL}
               onPress={() => handleRoomPress(item._id)}
             />
