@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import * as Haptics from 'expo-haptics';
+import { useSharedValue } from 'react-native-reanimated';
 
 import { showErrorDialog } from '@/components/ui';
 import { useAuth } from '@/context/auth.context';
@@ -36,8 +38,10 @@ import {
   type User,
   DEFAULT_ROOM_DIMENSIONS,
 } from '@chat-app/shared-types';
-import type { ActorState, EditCell, EditState, EngineCapabilities, FloorPoint, RoomEffect, RoomMode, RoomScene } from '../core/contract';
-import { fitsAt, itemOnCell, placedOn, samePlace } from '../core/editLayout';
+import type {
+  ActorState, EditLink, DragTarget, EditCell, EditDrag, EditState, EngineCapabilities, FloorPoint, RoomEffect, RoomMode, RoomScene,
+} from '../core/contract';
+import { cellsOf, fitsAt, itemOnCell, placedOn, planDrop, samePlace } from '../core/editLayout';
 import { facingFromDelta } from '../core/facing';
 import { findSeat, itemSeats, sameSeat, seatPosition, standingSpot as seatStandingSpot, type SitAction } from '../core/seats';
 import { findPath, isLineClear, nearestReachableCell, smoothPath } from '../core/usePathfinding';
@@ -97,6 +101,21 @@ const TYPING_SEND_MS = 1500;
 const TRANSCRIPT_MAX = 50;
 /** A message seen late this close to one already in the transcript is the same message. */
 const TRANSCRIPT_SAME_MS = 3000;
+
+/** An item being dragged in edit mode (see EditDrag), and where it is over. */
+interface DraggingItem {
+  /** A placed item (one in the pending layout) or a new copy from the inventory. */
+  item: RoomItem;
+  source: 'placed' | 'inventory';
+  target: DragTarget;
+}
+
+function sameTarget(a: DragTarget, b: DragTarget): boolean {
+  if (a === b) return true;
+  if (!a || !b || a === 'away' || b === 'away') return false;
+  if (a.surface === 'floor' && b.surface === 'floor') return a.gx === b.gx && a.gy === b.gy;
+  return a.surface === 'wall' && b.surface === 'wall' && a.wall === b.wall && a.col === b.col && a.row === b.row;
+}
 
 /** One line of the room's chat transcript. */
 export interface TranscriptEntry {
@@ -179,6 +198,20 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
   // Wallpapers and floorings applied while editing; saved with the items.
   const [pendingTheme, setPendingTheme] = useState<RoomTheme | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  // An item being dragged, and where it is over. Mirrored in a ref: the drop can arrive
+  // straight after the last target, before React has rendered it.
+  const [drag, setDragState] = useState<DraggingItem | null>(null);
+  const dragRef = useRef<DraggingItem | null>(null);
+  const setDrag = (next: DraggingItem | null) => {
+    dragRef.current = next;
+    setDragState(next);
+  };
+  const dragPointer = useSharedValue({ x: 0, y: 0, active: false });
+  const selectionAnchor = useSharedValue({ x: 0, top: 0, bottom: 0, visible: false });
+  const editLink = useMemo<EditLink>(
+    () => ({ pointer: dragPointer, selection: selectionAnchor }),
+    [dragPointer, selectionAnchor],
+  );
 
   // Any of the room's owners may edit it.
   const isOwner = !!roomDetails && isRoomOwner(roomDetails, userId);
@@ -1098,11 +1131,13 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     setPendingTheme(roomDetails?.theme ?? null);
     setSelectedItem(null);
     setSelectedPlacedItem(null);
+    setDrag(null);
     setMode('edit');
   }
 
   function cancelEdit() {
     setMode('play');
+    setDrag(null);
     setSelectedItem(null);
     setSelectedPlacedItem(null);
     setPendingItems([]);
@@ -1111,6 +1146,7 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
   }
 
   async function saveEdit() {
+    if (dragRef.current) return;
     setIsSaving(true);
     try {
       const update: RoomItemsUpdate = {
@@ -1170,16 +1206,21 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
 
   /**
    * Turn the picked-up item between its two drawn facings (see isMirrored). It stays
-   * picked up. Ignored for wall items, which would flip onto the other wall, and when the
-   * turned footprint wouldn't fit.
+   * picked up, its menu open. Like a drop, anything the turned footprint lands on slides
+   * aside (planDrop). Ignored for wall items, which would flip onto the other wall, and
+   * when the turned footprint runs out of the room or something has nowhere to go.
    */
   function rotateSelectedPlaced() {
     if (selectedPlacedItem?.itemId.placement !== ItemPlacement.FLOOR) return;
     const orientation = isMirrored(selectedPlacedItem.orientation) ? Orientiation.ZERO : Orientiation.NINETY;
     const turned: RoomItem = { ...selectedPlacedItem, orientation };
-    if (!fitsAt(pendingItems, turned, roomDimensions, selectedPlacedItem)) return;
-    setPendingItems(current => current.map(ri => (ri === selectedPlacedItem ? turned : ri)));
-    setSelectedPlacedItem(turned);
+    const plan = planDrop(pendingItems, turned, roomDimensions, selectedPlacedItem);
+    if (!plan) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+      return;
+    }
+    setPendingItems(plan.items);
+    setSelectedPlacedItem(plan.placed);
   }
 
   function removeSelectedPlaced() {
@@ -1197,20 +1238,11 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
   function editCell(cell: EditCell | null, hit: RoomItem | null) {
     const onCell = cell ? itemOnCell(pendingItems, cell) : hit;
 
-    // A placed item is picked up: move it to the tapped cell
+    // An item is picked up, its menu open: like a home-screen widget's, a tap on another
+    // item opens that one's, and any other tap closes it. Items move by dragging.
     if (selectedPlacedItem) {
-      const moved = cell && placedOn(selectedPlacedItem, cell);
-      // Tap it again (its art or its own cell) → put it down where it was
-      if (hit === selectedPlacedItem || (moved && samePlace(moved, selectedPlacedItem))) {
-        setSelectedPlacedItem(null);
-        return;
-      }
-      if (moved && fitsAt(pendingItems, moved, roomDimensions, selectedPlacedItem)) {
-        setPendingItems(current => [...current.filter(ri => ri !== selectedPlacedItem), moved]);
-        setSelectedPlacedItem(null);
-      } else if (onCell && onCell !== selectedPlacedItem) {
-        setSelectedPlacedItem(onCell);
-      }
+      const other = hit ?? onCell;
+      setSelectedPlacedItem(other && other !== selectedPlacedItem ? other : null);
       return;
     }
 
@@ -1237,13 +1269,100 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     if (target) setSelectedPlacedItem(target);
   }
 
+  // ── Drag and drop ─────────────────────────────────────────────────────────
+  // Like home-screen widgets: hold a placed item (or drag one up out of the inventory),
+  // move it over the room with its cells highlighted, and let go. Whatever it lands on
+  // slides to the nearest free spot (planDrop). A placed item let go over the inventory
+  // is put away.
+
+  /** A placed item held down in the room: it comes off the floor and follows the finger. */
+  function liftPlaced(item: RoomItem) {
+    if (!isEditMode || isSaving || dragRef.current || !pendingItems.includes(item)) return;
+    setSelectedItem(null);
+    setSelectedPlacedItem(null);
+    setDrag({ item, source: 'placed', target: null });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+  }
+
+  /**
+   * An inventory card dragged out of the drawer: a new copy follows the finger. Wallpapers
+   * and floorings aren't placed in cells, and an item with no copies left can't be dragged.
+   */
+  function dragFromInventory(item: Item) {
+    if (!isEditMode || isSaving || dragRef.current) return;
+    if (themeSlotsOf(item).length > 0 || (available[item._id] ?? 0) <= 0) return;
+    setSelectedItem(null);
+    setSelectedPlacedItem(null);
+    setDrag({
+      item: { itemId: item, position: { x: 0, y: 0, z: 0 }, orientation: Orientiation.ZERO, state: ItemState.NONE },
+      source: 'inventory',
+      target: null,
+    });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+  }
+
+  function dragOver(target: DragTarget) {
+    const current = dragRef.current;
+    if (!current || sameTarget(current.target, target)) return;
+    setDrag({ ...current, target });
+    if (target && target !== 'away') Haptics.selectionAsync().catch(() => {});
+  }
+
+  /**
+   * Let go of the dragged item: placed where it is over (things in the way moved aside),
+   * put away over the inventory, or back where it came from when it can't go there. A
+   * placed item held and let go without moving opens its menu, like a home-screen widget.
+   */
+  function drop() {
+    const current = dragRef.current;
+    if (!current) return;
+    setDrag(null);
+    const { item, source, target } = current;
+    if (target === 'away') {
+      if (source === 'placed') setPendingItems(items => items.filter(ri => ri !== item));
+      return;
+    }
+    const candidate = target && placedOn(item, target);
+    if (!candidate) return;
+    if (source === 'inventory' && (available[item.itemId._id] ?? 0) <= 0) return;
+    const plan = planDrop(pendingItems, candidate, roomDimensions, source === 'placed' ? item : null);
+    if (!plan) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+      return;
+    }
+    const stayed = source === 'placed' && samePlace(plan.placed, item);
+    setPendingItems(plan.items);
+    setSelectedPlacedItem(stayed ? plan.placed : null);
+    if (!stayed) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  }
+
+  /** The layout to draw while dragging: the drop as it would land, things moved aside. */
+  const dragPreview = useMemo(() => {
+    if (!drag) return null;
+    const lifted = drag.source === 'placed' ? drag.item : null;
+    const base = lifted ? pendingItems.filter(ri => ri !== lifted) : pendingItems;
+    const over: EditDrag['over'] = drag.target === 'away' ? 'away' : drag.target ? 'room' : null;
+    const candidate = drag.target && drag.target !== 'away' ? placedOn(drag.item, drag.target) : null;
+    if (!candidate) {
+      // Off the room it is in the hand: a lifted item leaves a gap, and over the inventory it can be put away.
+      const view: EditDrag = { item: drag.item, source: drag.source, over, cells: [], valid: over === 'away' && !!lifted, shown: null };
+      return { items: base, view };
+    }
+    const plan = planDrop(pendingItems, candidate, roomDimensions, lifted);
+    const cells = cellsOf(candidate);
+    const view: EditDrag = { item: drag.item, source: drag.source, over, cells, valid: !!plan, shown: plan ? plan.placed : candidate };
+    return { items: plan ? plan.items : [...base, candidate], view };
+    // roomDimensions is rebuilt every render; its sizes are what matter.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drag, pendingItems, roomDimensions.x, roomDimensions.y]);
+
   // ── Derived state for engines ─────────────────────────────────────────────
 
   const scene: RoomScene | null = roomDetails
     ? {
       dimensions: roomDimensions,
       theme: (isEditMode && pendingTheme) || roomDetails.theme,
-      items: isEditMode ? pendingItems : (roomDetails.items ?? []),
+      items: isEditMode ? (dragPreview?.items ?? pendingItems) : (roomDetails.items ?? []),
       doors: roomDetails.doors ?? [],
     }
     : null;
@@ -1260,7 +1379,7 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     return result;
   }, [actors, avatars, userId, selectedAvatar, typingUserIds]);
 
-  const edit: EditState = { selectedItem, selectedPlaced: selectedPlacedItem };
+  const edit: EditState = { selectedItem, selectedPlaced: selectedPlacedItem, drag: dragPreview?.view ?? null };
 
   /**
    * Item ID → copies the user can still place while editing: free in their inventory, less the
@@ -1293,6 +1412,8 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     actors: renderedActors,
     localActorId: userId,
     edit,
+    /** The dragging finger, shared by the engine and the inventory drawer. */
+    editLink,
     /** Item ID → copies the user can still place in this edit, for the inventory drawer. */
     available,
     typingUserIds,
@@ -1334,6 +1455,10 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
       rotateSelectedPlaced,
       removeSelectedPlaced,
       editCell,
+      liftPlaced,
+      dragFromInventory,
+      dragOver,
+      drop,
       steerStart,
       steerMove,
       steerStop,

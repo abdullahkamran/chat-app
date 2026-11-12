@@ -111,7 +111,9 @@ Each accent is a set of four. Use the whole set together so a light theme can sw
 
 - **Controls:** `icon`, `tabBar`, `tabIconDefault`, `tabIconSelected`, `switchTrackOff`, `switchThumb`.
 - **Room:** `bubble`, `bubbleText`, `bubbleTyping`, `transcriptBackground`, `roomShadow`,
-  `roomLocalActor`, `roomDoor*`, `roomEditGrid`, `roomDebug*` (dev overlays only).
+  `roomLocalActor`, `roomDoor*`, `roomEditGrid`, `roomItemSelected` (edit mode: tint over the picked-up item's own pixels),
+  `roomDropTarget` / `roomDropBlocked` (edit mode: the cells
+  under a dragged item, where it can and can't be dropped), `roomDebug*` (dev overlays only).
 - **Letter avatars and sender names:** `avatarColor(t, name)` from `components/UserAvatar.tsx`, which picks
   from `t.avatarPalette` by a hash of the name, so a person keeps their color.
 - **Avatar art:** `artPalette` in `palette.ts`. It's programmer art that looks the same in every theme,

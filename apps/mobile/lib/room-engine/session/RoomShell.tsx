@@ -1,10 +1,10 @@
 import { usePreventRemove, useRouter } from 'expo-router';
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ComponentRef, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedKeyboard, useAnimatedReaction, useAnimatedStyle, useDerivedValue } from 'react-native-reanimated';
+import Animated, { useAnimatedKeyboard, useAnimatedReaction, useAnimatedStyle, useDerivedValue, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { EmoteType, RoomCategory, type Animation } from '@chat-app/shared-types';
+import { EmoteType, ItemPlacement, RoomCategory, type Animation } from '@chat-app/shared-types';
 import { AppText, Button, EmptyState, IconButton, Spinner } from '@/components/ui';
 import { makeStyles, useTheme } from '@/constants/theme';
 import { useMailbox } from '@/hooks/useMailbox';
@@ -17,6 +17,8 @@ import { MailboxModal } from '../components/MailboxModal';
 import { RoomToolbar, type RoomDrawer } from '../components/RoomToolbar';
 import { TypingIndicator } from '../components/TypingIndicator';
 import { EditModeToolbar } from '../EditMode/EditModeToolbar';
+import { DragGhost } from '../EditMode/DragGhost';
+import { ItemMenu } from '../EditMode/ItemMenu';
 import { InventoryDrawer } from '../EditMode/InventoryDrawer';
 import { useUsernames } from '../hooks/useUsernames';
 import type { RoomCamera } from './useRoomCamera';
@@ -105,8 +107,14 @@ export function RoomShell({ session, camera, children, controls }: Readonly<Prop
   const roomStyle = useAnimatedStyle(() => ({ transform: [{ translateY: lift.value }] }));
   const {
     roomDetails, isLoading, error, isOwner, isSaving, mode, edit, available, scene, typingNames, intents, canEmote,
-    isAlone, userId, transcript, picking, outgoingRequest, incomingRequest, emoteNotice,
+    isAlone, userId, transcript, picking, outgoingRequest, incomingRequest, emoteNotice, editLink,
   } = session;
+  // Where the screen sits in the window, for the dragged item's ghost.
+  const layerOffset = useSharedValue({ x: 0, y: 0 });
+  const rootRef = useRef<ComponentRef<typeof View>>(null);
+  // Where the room starts under the header or toolbar, so the item menu never covers them.
+  const roomTop = useSharedValue(0);
+  const bodyRef = useRef<ComponentRef<typeof View>>(null);
   const isEditMode = mode === 'edit';
   // The full transcript, in place of the peek. Tapping the room closes it.
   const [transcriptOpen, setTranscriptOpen] = useState(false);
@@ -184,19 +192,20 @@ export function RoomShell({ session, camera, children, controls }: Readonly<Prop
   }
 
   return (
-    <View style={[styles.container, { paddingBottom: insets.bottom }]}>
+    <View
+      style={[styles.container, { paddingBottom: insets.bottom }]}
+      ref={rootRef}
+      onLayout={() => rootRef.current?.measureInWindow((x, y) => layerOffset.set({ x, y }))}
+    >
       {isEditMode ? (
         <EditModeToolbar
           topInset={insets.top}
           isSaving={isSaving}
           onSave={intents.saveEdit}
           onCancel={intents.cancelEdit}
-          selectedPlacedItem={edit.selectedPlaced}
-          onRemovePlacedItem={intents.removeSelectedPlaced}
-          onRotatePlacedItem={intents.rotateSelectedPlaced}
+          hasPickedUp={edit.selectedPlaced !== null}
           isPlacing={edit.selectedItem !== null}
-          isOthersItem={othersPlacer !== null}
-          placedByName={othersPlacer ? names[othersPlacer] : undefined}
+          drag={edit.drag}
         />
       ) : (
         <View style={[styles.roomHeader, { paddingTop: insets.top + 4 }]}>
@@ -214,7 +223,11 @@ export function RoomShell({ session, camera, children, controls }: Readonly<Prop
         </View>
       )}
 
-      <View style={styles.body}>
+      <View
+        ref={bodyRef}
+        style={styles.body}
+        onLayout={() => bodyRef.current?.measureInWindow((_x, y) => roomTop.set(y))}
+      >
         <Animated.View style={[{ flex: 1 }, liftStyle]}>
           <View style={{ flex: 1 }} onLayout={e => setRoomHeight(e.nativeEvent.layout.height)}>
             <Animated.View style={[{ flex: 1 }, roomStyle]}>
@@ -257,7 +270,16 @@ export function RoomShell({ session, camera, children, controls }: Readonly<Prop
           </View>
 
           {isEditMode && (
-            <InventoryDrawer selectedItem={edit.selectedItem} onSelectItem={intents.selectInventoryItem} available={available} theme={scene?.theme} />
+            <InventoryDrawer
+              selectedItem={edit.selectedItem}
+              onSelectItem={intents.selectInventoryItem}
+              available={available}
+              theme={scene?.theme}
+              editLink={editLink}
+              onDragStart={intents.dragFromInventory}
+              onDrop={intents.drop}
+              drag={edit.drag}
+            />
           )}
           {/* Above whichever drawer or chat input is open, so a request is seen either way. */}
           {!isEditMode && (
@@ -308,6 +330,22 @@ export function RoomShell({ session, camera, children, controls }: Readonly<Prop
           </View>
         )}
       </View>
+
+      {isEditMode && edit.selectedPlaced && !edit.drag && (
+        <ItemMenu
+          // A new menu, with its opening animation, for each item.
+          key={`${edit.selectedPlaced.itemId._id}@${edit.selectedPlaced.position.x},${edit.selectedPlaced.position.y},${edit.selectedPlaced.position.z}`}
+          link={editLink}
+          layerOffset={layerOffset}
+          roomTop={roomTop}
+          canRotate={edit.selectedPlaced.itemId.placement === ItemPlacement.FLOOR}
+          placedByName={othersPlacer ? (names[othersPlacer] ?? null) : undefined}
+          disabled={isSaving}
+          onRotate={intents.rotateSelectedPlaced}
+          onRemove={intents.removeSelectedPlaced}
+        />
+      )}
+      {isEditMode && <DragGhost drag={edit.drag} link={editLink} layerOffset={layerOffset} />}
 
       <MailboxModal room={roomDetails} userId={userId} visible={mailboxOpen} onClose={() => setMailboxOpen(false)} />
     </View>

@@ -1,8 +1,8 @@
 import { Canvas, Group, Picture } from '@shopify/react-native-skia';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { type LayoutChangeEvent, StyleSheet, View } from 'react-native';
-import { GestureDetector } from 'react-native-gesture-handler';
-import { useReducedMotion } from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, { useAnimatedRef, useReducedMotion } from 'react-native-reanimated';
 
 import { computeOrigin, screenToGrid } from '@/constants/grid';
 import { ItemPlacement, type RoomItem } from '@chat-app/shared-types';
@@ -21,6 +21,7 @@ import { loadZoom, saveZoom } from './cameraPrefs';
 import { OffscreenPointers } from './OffscreenPointers';
 import { useCamera, useCameraState } from './useCamera';
 import { useCameraDirector } from './useCameraDirector';
+import { useEditDrag } from './useEditDrag';
 import { useStressActors } from './useStressActors';
 import { useWorldPicture } from './useWorldPicture';
 import { useAvatarArts } from './wearables/useAvatarArts';
@@ -71,6 +72,10 @@ function Room({
   onFloorTap,
   onItemTap,
   onCellTap,
+  editLink,
+  onLift,
+  onDragOver,
+  onDrop,
   onActionComplete: sessionOnActionComplete,
   steering,
   camera: cameraLink,
@@ -126,9 +131,30 @@ function Room({
   };
 
   const bounds = useMemo(() => roomContentBounds(origin, scene.dimensions), [origin, scene.dimensions]);
-  const { camera, rig, transform, gesture } = useCamera({
+  const { camera, rig, transform, gesture: cameraGesture } = useCamera({
     width, height, contentBounds: bounds, state: cameraState, inset: cameraLink.bottomInset, onTap: handleTap, onZoom: saveZoom,
   });
+  // Edit mode's drag and drop: a long press lifts a placed item, and a drag from either
+  // place is mapped to cells here. Held still, the lift wins the race; moved first, the camera pans.
+  const viewRef = useAnimatedRef<View>();
+  const { liftGesture } = useEditDrag({
+    enabled: isEditMode,
+    link: editLink,
+    rig,
+    origin,
+    dimensions: scene.dimensions,
+    items: scene.items,
+    drag: edit.drag,
+    selected: edit.selectedPlaced,
+    viewRef,
+    onLift,
+    onDragOver,
+    onDrop,
+  });
+  const gesture = useMemo(
+    () => (isEditMode ? Gesture.Race(liftGesture, cameraGesture) : cameraGesture),
+    [isEditMode, liftGesture, cameraGesture],
+  );
   const directed = useMemo(() => [...motions].map(([id, motion]) => ({ id, motion })), [motions]);
   useCameraDirector({ rig, actors: directed, localActorId, origin, link: cameraLink, reduceMotion, onZoom: saveZoom });
   // The zoom the user last pinched or stepped to, from an earlier visit.
@@ -159,8 +185,9 @@ function Room({
     [cameraLink],
   );
 
-  // The edit grid shows the wall cells while a wall item is chosen or picked up.
-  const editPlacement = edit.selectedPlaced?.itemId.placement ?? edit.selectedItem?.placement;
+  // The edit grid shows the wall cells while a wall item is chosen, picked up or dragged.
+  const editPlacement = edit.drag?.item.itemId.placement
+    ?? edit.selectedPlaced?.itemId.placement ?? edit.selectedItem?.placement;
   const editSurface = editPlacement === ItemPlacement.WALL ? 'wall' : 'floor';
 
   const itemImages = useSkImages(scene.items.flatMap(itemAssetUrls));
@@ -173,7 +200,8 @@ function Room({
     arts,
     artKeys,
     itemImages,
-    selectedPlaced: isEditMode ? edit.selectedPlaced : null,
+    // A dragged item is drawn lifted where it would land.
+    selectedPlaced: isEditMode ? (edit.drag ? edit.drag.shown : edit.selectedPlaced) : null,
     origin,
     onActionComplete,
     effects,
@@ -183,13 +211,20 @@ function Room({
   });
 
   return (
-    <View style={styles.fill}>
+    <Animated.View ref={viewRef} style={styles.fill}>
       <GestureDetector gesture={gesture}>
         <Canvas style={{ width, height }}>
           <Group transform={transform}>
             <Backdrop scene={scene} origin={origin} />
             <Picture picture={world} />
-            {isEditMode && <EditGrid dimensions={scene.dimensions} origin={origin} surface={editSurface} />}
+            {isEditMode && (
+              <EditGrid
+                dimensions={scene.dimensions}
+                origin={origin}
+                surface={editSurface}
+                highlight={edit.drag && { cells: edit.drag.cells, valid: edit.drag.valid }}
+              />
+            )}
             {(DEBUG_OCCUPANCY || DEBUG_CELL_MAP) && (
               <DebugOverlay dimensions={scene.dimensions} items={scene.items} motions={motions} origin={origin} />
             )}
@@ -225,7 +260,7 @@ function Room({
           onFocus={focusActor}
         />
       )}
-    </View>
+    </Animated.View>
   );
 }
 

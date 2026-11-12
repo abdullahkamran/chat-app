@@ -1,4 +1,5 @@
 import {
+  BlendMode,
   PaintStyle,
   Skia,
   createPicture,
@@ -39,8 +40,9 @@ const SHADOW_W = 30;
 const SHADOW_H = 10;
 const SHADOW_ALPHA = 0.35;
 const SELECTED_SCALE = 1.08;
-const SELECTED_ALPHA = 0.7;
-const SELECTED_TINT_ALPHA = 0.25;
+/** A picked-up item is drawn a little see-through, its own pixels tinted (never a box around it). */
+const SELECTED_ALPHA = 0.8;
+const SELECTED_TINT_ALPHA = 0.4;
 /**
  * A seated actor draws just in front of its seat item, and the item's front layer just
  * in front of the actor. Both stay below anything standing in front of the item.
@@ -284,11 +286,16 @@ export function useWorldPicture({
   }), [items, itemImages, selectedPlaced, origin]);
 
   const theme = useTheme();
-  const colors = useMemo(() => ({
-    shadow: Skia.Color(theme.colors.roomShadow),
-    local: Skia.Color(theme.colors.roomLocalActor),
-    tint: Skia.Color(theme.colors.roomLocalActor),
-  }), [theme]);
+  const colors = useMemo(() => {
+    const tint = Skia.Color(theme.colors.roomItemSelected);
+    tint[3] = SELECTED_TINT_ALPHA;
+    return {
+      shadow: Skia.Color(theme.colors.roomShadow),
+      local: Skia.Color(theme.colors.roomLocalActor),
+      // Blends the tint over the item's opaque pixels only (SrcATop keeps their alpha).
+      selected: Skia.ColorFilter.MakeBlend(tint, BlendMode.SrcATop),
+    };
+  }, [theme]);
 
   // Art colours, the same in every theme.
   const propColors = useMemo<PropColors>(() => ({
@@ -380,6 +387,7 @@ export function useWorldPicture({
             canvas.scale(SELECTED_SCALE, SELECTED_SCALE);
             canvas.translate(-(x + w / 2), -(y + h / 2));
             paint.setAlphaf(SELECTED_ALPHA);
+            paint.setColorFilter(colors.selected);
           }
           if (it.mirrored) {
             canvas.translate(x + w / 2, 0);
@@ -394,12 +402,6 @@ export function useWorldPicture({
             Skia.XYWHRect(it.dst[0], it.dst[1], it.dst[2], it.dst[3]),
             paint,
           );
-          if (it.selected && !e.front) {
-            const tint = Skia.Paint();
-            tint.setColor(colors.tint);
-            tint.setAlphaf(SELECTED_TINT_ALPHA * SELECTED_ALPHA);
-            canvas.drawRect(Skia.XYWHRect(x, y, w, h), tint);
-          }
           canvas.restore();
         } else {
           const a = actorDraws[e.actor];

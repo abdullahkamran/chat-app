@@ -114,6 +114,7 @@ export function computeOrigin(
 
 /** Screen position of the floor's back corner, where the two walls meet (grid -0.5, -0.5). */
 export function roomCorner(origin: GridOrigin): ScreenPoint {
+  'worklet';
   return gridToScreen(-0.5, -0.5, 0, origin);
 }
 

@@ -26,6 +26,14 @@ const useStyles = makeStyles(t => ({
   footer: {
     marginTop: t.space.sm,
   },
+  // A drop target: something dragged can be let go over it.
+  target: {
+    borderColor: t.colors.secondary,
+  },
+  targetOver: {
+    borderColor: t.colors.secondary,
+    backgroundColor: t.colors.secondarySoft,
+  },
 }));
 
 interface Props {
@@ -33,14 +41,16 @@ interface Props {
   onClose?: () => void;
   /** Shown under the content, e.g. where to get more. */
   footer?: string;
+  /** Edged as a drop target while something can be dropped on it, filled while it's over it. */
+  dropTarget?: 'ready' | 'over' | null;
   children: ReactNode;
 }
 
 /** The bottom drawers in a room (avatars, emotes, inventory): a rounded sheet with a title row. */
-export function Drawer({ title, onClose, footer, children }: Readonly<Props>) {
+export function Drawer({ title, onClose, footer, dropTarget, children }: Readonly<Props>) {
   const styles = useStyles();
   return (
-    <View style={styles.drawer}>
+    <View style={[styles.drawer, dropTarget === 'ready' && styles.target, dropTarget === 'over' && styles.targetOver]}>
       <View style={styles.titleRow}>
         <AppText variant="heading">{title}</AppText>
         {onClose && (

@@ -66,6 +66,9 @@ export interface ThemeColors {
   roomDoor: string;
   roomDoorStroke: string;
   roomEditGrid: string;
+  roomItemSelected: string;   // edit mode: tint over the picked-up item's art
+  roomDropTarget: string;     // edit mode: cells a dragged item can be dropped on
+  roomDropBlocked: string;    // edit mode: cells it can't
   roomDebugGrid: string;      // dev overlay: every floor and wall cell
   roomDebugItemCell: string;  // dev overlay: cells a placed item occupies
   roomDebugActorCell: string; // dev overlay: the cell an avatar stands on
@@ -156,6 +159,9 @@ export const darkTheme: Theme = {
     roomDoor: palette.frost50,
     roomDoorStroke: palette.navy700,
     roomEditGrid: palette.sky400,
+    roomItemSelected: palette.sky400,
+    roomDropTarget: palette.mint500,
+    roomDropBlocked: palette.red400,
     roomDebugGrid: palette.frost50,
     roomDebugItemCell: palette.debugOrange,
     roomDebugActorCell: palette.debugBlue,

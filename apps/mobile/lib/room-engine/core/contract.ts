@@ -89,6 +89,47 @@ export interface EditState {
   selectedItem: Item | null;
   /** Placed item picked up for moving or removal. */
   selectedPlaced: RoomItem | null;
+  /** An item being dragged, from the room or the inventory. */
+  drag: EditDrag | null;
+}
+
+/**
+ * Where a dragged item is over: the cell it would be anchored on (its back corner, or
+ * bottom corner on a wall), the inventory drawer under the room (`'away'`), or nowhere.
+ */
+export type DragTarget = EditCell | 'away' | null;
+
+/** An item being dragged in edit mode, like a home-screen widget. */
+export interface EditDrag {
+  /** The dragged item: a placed one lifted from the room, or a new copy from the inventory. */
+  item: RoomItem;
+  source: 'placed' | 'inventory';
+  over: 'room' | 'away' | null;
+  /** The cells it would cover where it is over, for the engine to highlight. Empty off the room. */
+  cells: EditCell[];
+  /** Whether letting go now places it (moving aside anything in the way), or puts it away. */
+  valid: boolean;
+  /** The dragged item as drawn in `scene.items` at its target, if it is over the room. */
+  shown: RoomItem | null;
+}
+
+/**
+ * Edit-mode state passed on the UI thread between the shell and the engine, in window
+ * coordinates.
+ */
+export interface EditLink {
+  /**
+   * The dragging finger, written by whoever runs the drag gesture (the engine for a lifted
+   * item, the inventory drawer for a new one); the engine maps it to a target. `active`
+   * while a drag is under way.
+   */
+  pointer: SharedValue<{ x: number; y: number; active: boolean }>;
+  /**
+   * Where the picked-up item's art is on screen, written by the engine every frame, for the
+   * shell's item menu: its horizontal middle, top and bottom. `visible` is false with
+   * nothing picked up, or when the item is out of view.
+   */
+  selection: SharedValue<{ x: number; top: number; bottom: number; visible: boolean }>;
 }
 
 export type RoomMode = 'play' | 'edit';
@@ -120,6 +161,17 @@ export interface RoomRendererProps {
    * was meant. Not called when both are null.
    */
   onCellTap(cell: EditCell | null, item: RoomItem | null): void;
+  /**
+   * Drag and drop in edit mode. The engine maps `editLink.pointer` to a target while it is
+   * active and reports each new one with `onDragOver`. It also runs the drag of a placed
+   * item: a long press on its art calls `onLift`, then it writes the pointer, and calls
+   * `onDrop` when the finger lifts. An inventory drag is the shell's, which drops it itself.
+   * The engine also keeps `editLink.selection` on the picked-up item, for its menu.
+   */
+  editLink: EditLink;
+  onLift(item: RoomItem): void;
+  onDragOver(target: DragTarget): void;
+  onDrop(): void;
   /** The engine finished playing a non-looping action (e.g. a walk reached its destination). */
   /** `finished` is the action object that ended, so the session can ignore a report for one it has since replaced. */
   onActionComplete(actorId: string, action: ActorActionKind, finished?: ActorAction): void;

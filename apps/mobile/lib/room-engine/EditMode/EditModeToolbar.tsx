@@ -1,24 +1,18 @@
 import { View } from 'react-native';
 import { AppText, Button } from '@/components/ui';
 import { makeStyles } from '@/constants/theme';
-import { ItemPlacement, type RoomItem } from '@chat-app/shared-types';
+import type { EditDrag } from '../core/contract';
 
 interface Props {
   isSaving: boolean;
   onSave: () => void;
   onCancel: () => void;
-  selectedPlacedItem?: RoomItem | null;
-  onRemovePlacedItem?: () => void;
-  onRotatePlacedItem?: () => void;
+  /** Whether a placed item is picked up, its menu open over it, for the hint. */
+  hasPickedUp?: boolean;
   /** Whether an inventory item is chosen for placement, for the hint. */
   isPlacing?: boolean;
-  /**
-   * Who placed the picked-up item when it's another owner's: removing it gives it back to them,
-   * not to us. Undefined while their name loads.
-   */
-  placedByName?: string;
-  /** Whether the picked-up item is another owner's. */
-  isOthersItem?: boolean;
+  /** An item being dragged, for the hint. */
+  drag?: EditDrag | null;
   topInset?: number;
 }
 
@@ -26,7 +20,6 @@ const useStyles = makeStyles(t => ({
   toolbar: {
     paddingHorizontal: t.space.md,
     paddingBottom: t.space.sm + 2,
-    gap: t.space.sm,
     backgroundColor: t.colors.surface,
     borderBottomWidth: t.borderWidth.thick,
     borderBottomColor: t.colors.secondary,
@@ -41,59 +34,40 @@ const useStyles = makeStyles(t => ({
     flex: 1,
     alignItems: 'center',
   },
-  actions: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: t.space.sm,
-  },
 }));
 
-/** Save / Cancel bar shown at the top while in edit mode, edged in the edit-mode accent. */
+function dragHint(drag: EditDrag): string {
+  if (drag.over === 'away') return drag.source === 'placed' ? 'Let go to put it away' : 'Drag it onto the room';
+  if (drag.over === 'room') return drag.valid ? 'Let go to place it' : "It doesn't fit here";
+  return drag.source === 'placed' ? 'Let go to put it back' : 'Drag it onto the room';
+}
+
+/**
+ * Save / Cancel bar shown at the top while in edit mode, edged in the edit-mode accent.
+ * Always one row high, so the room under it never moves: a picked-up item's actions are in
+ * its menu in the room (ItemMenu).
+ */
 export function EditModeToolbar({
-  isSaving, onSave, onCancel, selectedPlacedItem, onRemovePlacedItem, onRotatePlacedItem, isPlacing = false,
-  placedByName, isOthersItem = false, topInset = 0,
+  isSaving, onSave, onCancel, hasPickedUp = false, isPlacing = false, drag = null, topInset = 0,
 }: Props) {
   const styles = useStyles();
-  const hint = selectedPlacedItem
-    ? isOthersItem
-      ? `${placedByName ? `${placedByName}'s` : "Another owner's"}. Removing it gives it back to them`
-      : 'Tap the floor to move it'
-    : isPlacing
-      ? 'Tap the floor to place'
-      : 'Tap furniture to move it';
+  const hint = drag
+    ? dragHint(drag)
+    : hasPickedUp
+      ? 'Hold and drag to move it'
+      : isPlacing
+        ? 'Tap to place, or drag it into the room'
+        : 'Tap furniture for options, hold to move';
   return (
     <View style={[styles.toolbar, { paddingTop: topInset + 8 }]}>
       <View style={styles.row}>
         <Button title="Cancel" variant="ghost" size="sm" onPress={onCancel} disabled={isSaving} />
         <View style={styles.center}>
           <AppText variant="heading" color="secondary">Decorating</AppText>
-          <AppText variant="caption" color="textSecondary">{hint}</AppText>
+          <AppText variant="caption" color="textSecondary" numberOfLines={1}>{hint}</AppText>
         </View>
-        <Button title="Save" size="sm" onPress={onSave} loading={isSaving} />
+        <Button title="Save" size="sm" onPress={onSave} loading={isSaving} disabled={!!drag} />
       </View>
-
-      {selectedPlacedItem && (
-        <View style={styles.actions}>
-          {selectedPlacedItem.itemId.placement === ItemPlacement.FLOOR && (
-            <Button
-              title="Rotate"
-              icon="refresh"
-              variant="secondary"
-              size="sm"
-              onPress={onRotatePlacedItem}
-              disabled={isSaving}
-            />
-          )}
-          <Button
-            title="Remove"
-            icon="trash-outline"
-            variant="danger"
-            size="sm"
-            onPress={onRemovePlacedItem}
-            disabled={isSaving}
-          />
-        </View>
-      )}
     </View>
   );
 }
