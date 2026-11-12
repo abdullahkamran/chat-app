@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import {
+    Pressable,
     ScrollView,
+    StyleSheet,
     Switch,
     View,
 } from 'react-native';
@@ -8,15 +10,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Avatar } from '@chat-app/shared-types';
+import { Avatar, MAX_AVATARS } from '@chat-app/shared-types';
 import { useAuth } from '@/context/auth.context';
 import { api } from '@/lib/api';
 import { useMe } from '@/hooks/useMe';
-import { MY_AVATARS_KEY, useMyAvatars, useWearAvatar } from '@/hooks/useMyAvatars';
+import { MY_AVATARS_KEY, avatarLabel, useMyAvatars, useWearAvatar } from '@/hooks/useMyAvatars';
 import { makeStyles, useTheme, type ThemeColors } from '@/constants/theme';
 import AvatarPreview from '@/components/AvatarPreview';
 import UserAvatar from '@/components/UserAvatar';
-import { AppText, Button, Dialog, EmptyState, Spinner, showDialog, showErrorDialog } from '@/components/ui';
+import { AppText, Button, Dialog, EmptyState, IconButton, Spinner, showDialog, showErrorDialog } from '@/components/ui';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -57,52 +59,59 @@ function CurrencyTile({ label, value, icon, tone }: {
     );
 }
 
-// ── Avatar card ───────────────────────────────────────────────────────────────
+// ── Avatar tile ───────────────────────────────────────────────────────────────
 
-function AvatarCard({
-    avatar,
-    index,
-    isDefault,
-    onSetDefault,
-    onEdit,
-    onDelete,
-    canDelete,
-    isSettingDefault,
-    isDeleting,
-}: {
+/** Tap wears it, long press deletes it (not the worn one), the corner icon edits it. */
+function AvatarTile({ avatar, index, isWorn, isWearing, onWear, onEdit, onDelete }: {
     avatar: Avatar;
     index: number;
-    isDefault: boolean;
-    onSetDefault: () => void;
+    isWorn: boolean;
+    isWearing: boolean;
+    onWear: () => void;
     onEdit: () => void;
     onDelete: () => void;
-    canDelete: boolean;
-    isSettingDefault: boolean;
-    isDeleting: boolean;
 }) {
     const styles = useStyles();
+    const label = avatarLabel(avatar, index);
     return (
-        <View style={[styles.avatarCard, isDefault && styles.avatarCardDefault]}>
-            {isDefault && (
-                <View style={styles.defaultBadge}>
-                    <AppText variant="overline" color="onPrimary">Wearing</AppText>
-                </View>
-            )}
-            <View style={styles.avatarPreview}>
-                <AvatarPreview avatar={avatar} size={140} animated={false} />
+        <Pressable
+            onPress={isWorn ? undefined : onWear}
+            onLongPress={isWorn ? undefined : onDelete}
+            style={[styles.avatarTile, isWorn && styles.avatarTileWorn]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: isWorn }}
+            accessibilityLabel={label}
+            accessibilityHint={isWorn ? undefined : 'Tap to wear, hold to delete'}
+        >
+            <View>
+                <AvatarPreview avatar={avatar} size={84} animated={false} />
+                {isWearing && (
+                    <View style={styles.tileSpinner}>
+                        <Spinner size="small" />
+                    </View>
+                )}
             </View>
-            <AppText variant="label" color="textSecondary" style={styles.avatarName}>Avatar {index + 1}</AppText>
+            <AppText variant="label" color={isWorn ? 'primary' : 'textSecondary'} numberOfLines={1} style={styles.tileName}>{label}</AppText>
+            <IconButton
+                icon="brush"
+                variant="surface"
+                size={30}
+                style={styles.editBtn}
+                onPress={onEdit}
+                accessibilityLabel={`Edit ${label}`}
+            />
+        </Pressable>
+    );
+}
 
-            <View style={styles.avatarActions}>
-                {!isDefault && (
-                    <Button title="Wear" size="sm" fullWidth loading={isSettingDefault} onPress={onSetDefault} />
-                )}
-                <Button title="Edit" icon="brush-outline" variant="secondary" size="sm" fullWidth onPress={onEdit} />
-                {canDelete && (
-                    <Button title="Delete" variant="ghost" size="sm" fullWidth loading={isDeleting} onPress={onDelete} style={styles.deleteBtn} />
-                )}
-            </View>
-        </View>
+function NewAvatarTile({ onPress }: { onPress: () => void }) {
+    const t = useTheme();
+    const styles = useStyles();
+    return (
+        <Pressable onPress={onPress} style={[styles.avatarTile, styles.newTile]} accessibilityRole="button" accessibilityLabel="New avatar">
+            <Ionicons name="add-circle" size={36} color={t.colors.primary} />
+            <AppText variant="label" color="textSecondary">New</AppText>
+        </Pressable>
     );
 }
 
@@ -116,7 +125,6 @@ export default function ProfileScreen() {
     const insets = useSafeAreaInsets();
     const queryClient = useQueryClient();
     const [logoutModalVisible, setLogoutModalVisible] = useState(false);
-
     const userQuery = useMe();
 
     const discoverableMutation = useMutation({
@@ -133,6 +141,7 @@ export default function ProfileScreen() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: MY_AVATARS_KEY });
         },
+        onError: (e: Error) => showErrorDialog(e, 'Could not delete'),
     });
 
     const handleDelete = (avatar: Avatar) => {
@@ -154,6 +163,8 @@ export default function ProfileScreen() {
     const avatarData = avatarsQuery.data;
     const avatars = avatarData?.avatars ?? [];
     const defaultAvatarId = selectedAvatar?._id ?? avatarData?.selectedAvatar ?? null;
+    const canCreate = avatars.length < MAX_AVATARS;
+    const createAvatar = () => router.push('/(avatar)/create');
 
     if (userQuery.isLoading) {
         return (
@@ -205,35 +216,46 @@ export default function ProfileScreen() {
             {/* Avatars */}
             <View style={styles.sectionHeader}>
                 <AppText variant="title">Avatars</AppText>
-                <Button title="New" icon="add" size="sm" onPress={() => router.push('/(avatar)/create')} />
+                <AppText variant="label" color="textMuted">{avatars.length}/{MAX_AVATARS}</AppText>
             </View>
 
             {avatarsQuery.isLoading ? (
                 <Spinner style={styles.avatarLoader} />
             ) : avatars.length === 0 ? (
-                <EmptyState icon="happy-outline" title="No avatars yet" body="Create one to start hanging out." />
+                <EmptyState
+                    icon="happy-outline"
+                    title="No avatars yet"
+                    body="Create one to start hanging out."
+                    action={<Button title="Create avatar" icon="add" onPress={createAvatar} />}
+                />
             ) : (
-                <View style={styles.avatarGrid}>
-                    {avatars.map((avatar, index) => (
-                        <AvatarCard
-                            key={avatar._id}
-                            avatar={avatar}
-                            index={index}
-                            isDefault={avatar._id === defaultAvatarId}
-                            onSetDefault={() => setDefaultMutation.mutate(avatar)}
-                            onEdit={() => router.push(`/(avatar)/edit/${avatar._id}`)}
-                            onDelete={() => handleDelete(avatar)}
-                            canDelete={avatars.length > 1}
-                            isSettingDefault={
-                                setDefaultMutation.isPending &&
-                                setDefaultMutation.variables?._id === avatar._id
-                            }
-                            isDeleting={
-                                deleteMutation.isPending &&
-                                deleteMutation.variables === avatar._id
-                            }
-                        />
-                    ))}
+                <View style={styles.avatarSection}>
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.avatarStrip}
+                        style={styles.avatarStripScroll}
+                    >
+                        {avatars.map((avatar, index) => (
+                            <AvatarTile
+                                key={avatar._id}
+                                avatar={avatar}
+                                index={index}
+                                isWorn={avatar._id === defaultAvatarId}
+                                isWearing={setDefaultMutation.isPending && setDefaultMutation.variables?._id === avatar._id}
+                                onWear={() => !setDefaultMutation.isPending && setDefaultMutation.mutate(avatar)}
+                                onEdit={() => router.push(`/(avatar)/edit/${avatar._id}`)}
+                                onDelete={() => !deleteMutation.isPending && handleDelete(avatar)}
+                            />
+                        ))}
+                        {canCreate && <NewAvatarTile onPress={createAvatar} />}
+                    </ScrollView>
+
+                    <AppText variant="caption" color="textMuted" align="center">
+                        {canCreate
+                            ? 'Tap an avatar to wear it, hold to delete.'
+                            : `You've reached ${MAX_AVATARS} avatars. Hold one to delete it.`}
+                    </AppText>
                 </View>
             )}
 
@@ -366,52 +388,57 @@ const useStyles = makeStyles(t => ({
         marginBottom: -t.space.sm,
     },
 
-    // Avatar grid
-    avatarGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: t.space.md,
-    },
+    // Avatars
     avatarLoader: {
         marginTop: 20,
     },
-
-    // Avatar card
-    avatarCard: {
-        width: '47%',
-        flexGrow: 1,
-        backgroundColor: t.colors.surface,
+    avatarSection: {
+        gap: t.space.md,
+    },
+    // Bleed the strip to the screen edges so tiles scroll off-screen instead of clipping at the padding
+    avatarStripScroll: {
+        marginHorizontal: -t.space.lg,
+    },
+    avatarStrip: {
+        paddingHorizontal: t.space.lg,
+        paddingBottom: t.space.xs,
+        gap: t.space.md,
+    },
+    avatarTile: {
+        width: 116,
+        alignItems: 'center',
+        gap: t.space.xs,
+        paddingTop: t.space.md,
+        paddingBottom: t.space.sm,
         borderRadius: t.radius.lg,
-        overflow: 'hidden',
         borderWidth: t.borderWidth.thick,
         borderColor: t.colors.border,
-        alignItems: 'center',
-        paddingBottom: t.space.md,
+        backgroundColor: t.colors.surface,
     },
-    avatarCardDefault: {
+    tileName: {
+        paddingHorizontal: t.space.sm,
+    },
+    avatarTileWorn: {
         borderColor: t.colors.primary,
+        backgroundColor: t.colors.primarySoft,
     },
-    defaultBadge: {
-        backgroundColor: t.colors.primary,
-        width: '100%',
-        paddingVertical: t.space.xs,
+    editBtn: {
+        position: 'absolute',
+        top: t.space.xs,
+        right: t.space.xs,
+    },
+    tileSpinner: {
+        ...StyleSheet.absoluteFill,
         alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: t.colors.overlay,
+        borderRadius: t.radius.sm,
     },
-    avatarPreview: {
-        paddingTop: t.space.md,
-        paddingBottom: t.space.xs,
-        alignItems: 'center',
-    },
-    avatarName: {
-        marginBottom: 10,
-    },
-    avatarActions: {
-        alignSelf: 'stretch',
-        paddingHorizontal: 10,
-        gap: t.space.sm,
-    },
-    deleteBtn: {
-        height: 30,
+    newTile: {
+        justifyContent: 'center',
+        borderStyle: 'dashed',
+        borderColor: t.colors.borderStrong,
+        backgroundColor: 'transparent',
     },
 
     // Logout dialog

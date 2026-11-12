@@ -1,6 +1,12 @@
 import { Amount } from "./currency.types";
 import { WearableAsset } from "./rig.types";
 
+/** Most avatars one user can have saved. The backend refuses to create more. */
+export const MAX_AVATARS = 4;
+
+/** Longest name a user can give an avatar. */
+export const AVATAR_NAME_MAX_LENGTH = 20;
+
 export interface AvatarInventoryEntry {
     item: AvatarItem['_id'];
     variantId: string;
@@ -16,6 +22,8 @@ export interface PaginatedAvatarItems {
 
 export interface Avatar {
     _id: string;
+    /** What the user called it. Absent when they left it blank; show "Avatar N" then. */
+    name?: string;
     eye: AvatarEye;
     face: AvatarFace;
     mouth: AvatarMouth;

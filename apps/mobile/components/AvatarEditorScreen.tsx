@@ -4,13 +4,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Avatar, AvatarInventoryEntry, AvatarItem, AvatarItemVariant, WearableAsset } from '@chat-app/shared-types';
+import { AVATAR_NAME_MAX_LENGTH, Avatar, AvatarInventoryEntry, AvatarItem, AvatarItemVariant, WearableAsset } from '@chat-app/shared-types';
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/auth.context';
-import { MY_AVATARS_KEY } from '@/hooks/useMyAvatars';
+import { MY_AVATARS_KEY, type MyAvatars } from '@/hooks/useMyAvatars';
 import { announceAvatarChanged } from '@/utils/socketUtils';
 import { makeStyles, useTheme } from '@/constants/theme';
-import { AppText, Button, Chip, EmptyState, Spinner } from '@/components/ui';
+import { AppText, Button, Chip, EmptyState, Spinner, TextField } from '@/components/ui';
 import { resolveAvatarSource } from '@/constants/avatarAssets';
 import AvatarPreview from '@/components/AvatarPreview';
 import type { AvatarOutfit } from '@/lib/room-engine/engines/skia/wearables/useAvatarArts';
@@ -37,6 +37,9 @@ const PART_CATEGORIES = [
 type AvatarPartKey = (typeof PART_CATEGORIES)[number]['key'];
 
 type AvatarSelections = Partial<Record<AvatarPartKey, { itemId: string; variantId: string }>>;
+
+/** What create and edit send: the picked parts, plus the name (blank clears it). */
+type AvatarBody = AvatarSelections & { name: string };
 
 /** What the live preview needs of each chosen variant: its rig art and colour. */
 type PreviewVariant = Pick<AvatarItemVariant, 'color' | 'rigAsset'>;
@@ -98,6 +101,7 @@ export default function AvatarEditorScreen({ mode, avatarId, initialSelections, 
 
   const derived = initialAvatar ? deriveFromAvatar(initialAvatar) : null;
 
+  const [name, setName] = useState(initialAvatar?.name ?? '');
   const [activeCategory, setActiveCategory] = useState<AvatarPartKey>('skin');
   const [selections, setSelections] = useState<AvatarSelections>(derived?.selections ?? initialSelections ?? {});
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
@@ -141,32 +145,43 @@ export default function AvatarEditorScreen({ mode, avatarId, initialSelections, 
     queryFn: () => api.get<AvatarInventoryEntry[]>('/api/v1/inventory/avatar'),
   });
 
-  // Profile, the edit screen and the room's avatar drawer list the user's avatars.
-  function refreshAvatarLists() {
+  // Profile, the edit screen and the room's avatar drawer list the user's avatars. The saved
+  // avatar goes into the cached list first, so the screen we go back to shows it at once
+  // instead of after the refetch (which populates every avatar and takes a few seconds).
+  function refreshAvatarLists(saved: Avatar) {
+    queryClient.setQueryData<MyAvatars>(MY_AVATARS_KEY, (old) => {
+      if (!old) return old;
+      const exists = old.avatars.some((a) => a._id === saved._id);
+      return {
+        ...old,
+        avatars: exists ? old.avatars.map((a) => (a._id === saved._id ? saved : a)) : [...old.avatars, saved],
+        selectedAvatar: old.selectedAvatar ?? saved._id,
+      };
+    });
     queryClient.invalidateQueries({ queryKey: MY_AVATARS_KEY });
   }
 
   const createMutation = useMutation({
-    mutationFn: (body: AvatarSelections) => api.post<Avatar>('/api/v1/avatar', body),
+    mutationFn: (body: AvatarBody) => api.post<Avatar>('/api/v1/avatar', body),
     onSuccess: (avatar) => {
       // The backend only selects a new avatar when it is the user's first.
       if (!selectedAvatar) {
         setSelectedAvatar(avatar);
         announceAvatarChanged();
       }
-      refreshAvatarLists();
+      refreshAvatarLists(avatar);
       onSaved(avatar);
     },
   });
 
   const editMutation = useMutation({
-    mutationFn: (body: AvatarSelections) => api.put<Avatar>(`/api/v1/avatar/${avatarId}`, body),
+    mutationFn: (body: AvatarBody) => api.put<Avatar>(`/api/v1/avatar/${avatarId}`, body),
     onSuccess: (avatar) => {
       if (selectedAvatar?._id === avatar._id) {
         setSelectedAvatar(avatar);
         announceAvatarChanged();
       }
-      refreshAvatarLists();
+      refreshAvatarLists(avatar);
       onSaved(avatar);
     },
   });
@@ -195,10 +210,11 @@ export default function AvatarEditorScreen({ mode, avatarId, initialSelections, 
     for (const [key, val] of Object.entries(selections)) {
       if (val) payload[key] = val;
     }
+    const body: AvatarBody = { ...(payload as AvatarSelections), name: name.trim() };
     if (mode === 'create') {
-      createMutation.mutate(payload as AvatarSelections);
+      createMutation.mutate(body);
     } else {
-      editMutation.mutate(payload as AvatarSelections);
+      editMutation.mutate(body);
     }
   }
 
@@ -241,6 +257,19 @@ export default function AvatarEditorScreen({ mode, avatarId, initialSelections, 
         <View style={styles.spotlight} />
         <AvatarPreview avatar={previewOutfit} size={220} rotatable />
       </View>
+
+      {/* ── Name ── */}
+      <TextField
+        value={name}
+        onChangeText={setName}
+        placeholder="Name your avatar (optional)"
+        maxLength={AVATAR_NAME_MAX_LENGTH}
+        leftIcon="pricetag-outline"
+        returnKeyType="done"
+        autoCapitalize="words"
+        accessibilityLabel="Avatar name"
+        containerStyle={styles.nameField}
+      />
 
       {/* ── Category tabs ── */}
       <ScrollView
@@ -389,6 +418,10 @@ const useStyles = makeStyles(t => ({
     height: 34,
     borderRadius: t.radius.pill,
     backgroundColor: t.colors.primarySoft,
+  },
+  nameField: {
+    marginHorizontal: t.space.lg,
+    marginTop: t.space.md,
   },
   tabBar: {
     flexGrow: 0,

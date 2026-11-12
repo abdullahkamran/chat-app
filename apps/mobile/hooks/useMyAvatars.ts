@@ -11,6 +11,9 @@ export interface MyAvatars {
   selectedAvatar: string | null;
 }
 
+/** What to call an avatar in lists: its name, or "Avatar N" by its place when it has none. */
+export const avatarLabel = (avatar: Avatar, index: number) => avatar.name ?? `Avatar ${index + 1}`;
+
 /** The logged-in user's saved avatars. */
 export const useMyAvatars = () =>
   useQuery({

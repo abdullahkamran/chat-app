@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { Avatar, AvatarItem, WearableAsset } from '@chat-app/shared-types';
+import { AVATAR_NAME_MAX_LENGTH, Avatar, AvatarItem, MAX_AVATARS, WearableAsset } from '@chat-app/shared-types';
 import AvatarModel, { IAvatar } from '../models/avatar.model';
 import AvatarItemModel from '../models/avatar-item.model';
 import User from '../models/user.model';
@@ -11,6 +11,23 @@ const ALL_PARTS = [...REQUIRED_PARTS, ...OPTIONAL_PARTS] as const;
 
 type AvatarPartKey = (typeof ALL_PARTS)[number];
 
+const avatarLimitMessage = `You can have up to ${MAX_AVATARS} avatars. Delete one to make a new one.`;
+
+type AvatarBody = Record<string, unknown> & { name?: unknown };
+
+/**
+ * The `name` in a create or edit body: `undefined` when the body has none (leave it as is),
+ * `null` when it's blank (clear it), the trimmed name otherwise. Throws a user-facing message
+ * when it isn't a string or is too long.
+ */
+function parseAvatarName(body: AvatarBody): string | null | undefined {
+    if (body.name === undefined) return undefined;
+    if (body.name !== null && typeof body.name !== 'string') throw new Error('Name must be text');
+    const name = (body.name ?? '').trim();
+    if (name.length > AVATAR_NAME_MAX_LENGTH) throw new Error(`Name can be at most ${AVATAR_NAME_MAX_LENGTH} characters`);
+    return name || null;
+}
+
 // Populate all body-part item refs and transform to the shared Avatar type.
 // Each body-part's variants array is filtered down to the single selected variant
 // so the client sees `avatar.eye.variants[0]` as the active variant.
@@ -19,6 +36,7 @@ export async function populateAvatar(avatar: IAvatar): Promise<Avatar> {
     const populated = await avatar.populate(populatePaths);
 
     const result: Record<string, unknown> = { _id: avatar._id.toString() };
+    if (avatar.name) result.name = avatar.name;
 
     for (const part of ALL_PARTS) {
         const partData = (populated as unknown as Record<string, { item: AvatarItem & { toObject(): AvatarItem }; variantId: string } | undefined>)[part];
@@ -97,6 +115,12 @@ const avatarController = {
             const userId = req.user!.userId;
             const parts = req.body as Record<string, { itemId: string; variantId: string }>;
 
+            let name: string | null | undefined;
+            try { name = parseAvatarName(req.body as AvatarBody); } catch (e) {
+                res.status(400).send({ error: (e as Error).message });
+                return;
+            }
+
             for (const p of REQUIRED_PARTS) {
                 if (!parts[p]?.itemId || !parts[p]?.variantId) {
                     res.status(400).send({ error: `${p} is required` });
@@ -104,22 +128,38 @@ const avatarController = {
                 }
             }
 
-            const avatarData: Record<AvatarPartKey, { item: string; variantId: string }> = {} as never;
+            const avatarData: Partial<Record<AvatarPartKey, { item: string; variantId: string }>> & { name?: string } = {};
             for (const p of ALL_PARTS) {
                 if (parts[p]) {
                     avatarData[p] = { item: parts[p].itemId, variantId: parts[p].variantId };
                 }
             }
+            if (name) avatarData.name = name;
+
+            const user = await User.findById(userId).select('avatars selectedAvatar');
+            if (!user) { res.sendStatus(404); return; }
+            if (user.avatars.length >= MAX_AVATARS) {
+                res.status(400).send({ error: avatarLimitMessage });
+                return;
+            }
+            const isFirstAvatar = !user.selectedAvatar;
 
             const avatar = await AvatarModel.create(avatarData);
 
-            const user = await User.findById(userId).select('selectedAvatar');
-            const isFirstAvatar = !user?.selectedAvatar;
-
-            await User.findByIdAndUpdate(userId, {
-                $addToSet: { avatars: avatar._id },
-                ...(isFirstAvatar ? { selectedAvatar: avatar._id } : {}),
-            });
+            // The limit is part of the filter so two creates racing past the check above
+            // can't both land: only one matches while the array still has room.
+            const added = await User.findOneAndUpdate(
+                { _id: userId, [`avatars.${MAX_AVATARS - 1}`]: { $exists: false } },
+                {
+                    $push: { avatars: avatar._id },
+                    ...(isFirstAvatar ? { selectedAvatar: avatar._id } : {}),
+                },
+            );
+            if (!added) {
+                await AvatarModel.findByIdAndDelete(avatar._id);
+                res.status(400).send({ error: avatarLimitMessage });
+                return;
+            }
 
             const populated = await populateAvatar(avatar);
             res.status(201).send(populated);
@@ -136,6 +176,12 @@ const avatarController = {
             const { id } = req.params;
             const parts = req.body as Record<string, { itemId: string; variantId: string }>;
 
+            let name: string | null | undefined;
+            try { name = parseAvatarName(req.body as AvatarBody); } catch (e) {
+                res.status(400).send({ error: (e as Error).message });
+                return;
+            }
+
             const user = await User.findById(userId).select('avatars');
             const ownsAvatar = user?.avatars.some((a) => a.toString() === id);
             if (!ownsAvatar) {
@@ -150,7 +196,10 @@ const avatarController = {
                 }
             }
 
-            const avatar = await AvatarModel.findByIdAndUpdate(id, { $set: updateData }, { new: true });
+            const update: Record<string, unknown> = { $set: { ...updateData, ...(name ? { name } : {}) } };
+            if (name === null) update.$unset = { name: 1 };
+
+            const avatar = await AvatarModel.findByIdAndUpdate(id, update, { new: true, runValidators: true });
             if (!avatar) { res.sendStatus(404); return; }
 
             const populated = await populateAvatar(avatar);

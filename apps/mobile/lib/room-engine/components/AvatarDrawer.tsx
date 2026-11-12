@@ -5,8 +5,8 @@ import AvatarPreview from '@/components/AvatarPreview';
 import { AppText, Spinner } from '@/components/ui';
 import { makeStyles, useTheme } from '@/constants/theme';
 import { useAuth } from '@/context/auth.context';
-import { useMyAvatars, useWearAvatar } from '@/hooks/useMyAvatars';
-import { type Avatar } from '@chat-app/shared-types';
+import { avatarLabel, useMyAvatars, useWearAvatar } from '@/hooks/useMyAvatars';
+import { MAX_AVATARS, type Avatar } from '@chat-app/shared-types';
 import { Drawer } from './Drawer';
 
 const NEW_AVATAR = 'new';
@@ -69,7 +69,8 @@ export function AvatarDrawer({ onClose }: Readonly<Props>) {
   const wear = useWearAvatar();
 
   const wornId = selectedAvatar?._id ?? data?.selectedAvatar ?? null;
-  const cards: (Avatar | typeof NEW_AVATAR)[] = [...(data?.avatars ?? []), NEW_AVATAR];
+  const avatars = data?.avatars ?? [];
+  const cards: (Avatar | typeof NEW_AVATAR)[] = avatars.length < MAX_AVATARS ? [...avatars, NEW_AVATAR] : avatars;
 
   return (
     <Drawer title="Avatars" onClose={onClose}>
@@ -81,7 +82,7 @@ export function AvatarDrawer({ onClose }: Readonly<Props>) {
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.list}
-        renderItem={({ item: card }) => {
+        renderItem={({ item: card, index }) => {
           if (card === NEW_AVATAR) {
             return (
               <TouchableOpacity style={[styles.card, styles.newCard]} onPress={() => router.push('/(avatar)/create')}>
@@ -101,6 +102,9 @@ export function AvatarDrawer({ onClose }: Readonly<Props>) {
                 accessibilityLabel={isWorn ? 'Current avatar' : 'Wear this avatar'}
               >
                 <AvatarPreview avatar={card} size={60} animated={false} />
+                <AppText variant="caption" color={isWorn ? 'primary' : 'textSecondary'} numberOfLines={1} align="center">
+                  {avatarLabel(card, index)}
+                </AppText>
                 {isWearing && (
                   <View style={styles.wearing}>
                     <Spinner size="small" />

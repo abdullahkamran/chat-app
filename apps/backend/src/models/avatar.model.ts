@@ -1,4 +1,5 @@
 import mongoose, { Document, Schema } from 'mongoose';
+import { AVATAR_NAME_MAX_LENGTH } from '@chat-app/shared-types';
 
 // DB-level representation of a single avatar body-part selection.
 // item   → ref to an AvatarItem catalog document
@@ -9,6 +10,7 @@ export interface IAvatarPart {
 }
 
 export interface IAvatar extends Document {
+    name?: string;
     eye: IAvatarPart;
     face: IAvatarPart;
     mouth: IAvatarPart;
@@ -35,6 +37,7 @@ const AvatarPartSchema = new Schema<IAvatarPart>(
 
 const AvatarSchema = new Schema<IAvatar>(
     {
+        name:       { type: String, trim: true, maxlength: AVATAR_NAME_MAX_LENGTH },
         eye:        { type: AvatarPartSchema, required: true },
         face:       { type: AvatarPartSchema, required: true },
         mouth:      { type: AvatarPartSchema, required: true },
