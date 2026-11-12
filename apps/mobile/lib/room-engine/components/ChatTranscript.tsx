@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { FlatList, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
@@ -7,10 +6,8 @@ import { AppText, IconButton } from '@/components/ui';
 import { makeStyles, useTheme, type Theme } from '@/constants/theme';
 import type { TranscriptEntry } from '../session/useRoomSession';
 
-/** The peek shows at most this many of the latest messages... */
+/** The peek always shows this many of the latest messages; they stay until newer ones push them out. */
 const PEEK_LINES = 3;
-/** ...each for this long after it was sent. */
-const PEEK_MS = 15000;
 
 interface LineProps {
   entry: TranscriptEntry;
@@ -107,23 +104,14 @@ function clockTime(at: number): string {
 }
 
 /**
- * The latest few messages over the bottom of the room, just above the toolbar, each fading out PEEK_MS after
- * it was sent. Touches pass through to the room.
+ * The latest few messages over the bottom of the room, just above the toolbar. They don't time out: the oldest
+ * fades out only when a new message pushes it past PEEK_LINES. Touches pass through to the room.
  */
 export function TranscriptPeek({ entries, userId, names, style }: Readonly<
   { entries: TranscriptEntry[]; style?: StyleProp<ViewStyle> } & Omit<LineProps, 'entry'>
 >) {
   const styles = useStyles();
-  const [now, setNow] = useState(Date.now);
-  const shown = entries.slice(-PEEK_LINES).filter(e => e.sentAt + PEEK_MS > now);
-
-  // Re-render when the oldest shown line is due to go.
-  const nextExpiry = shown.length ? shown[0].sentAt + PEEK_MS : null;
-  useEffect(() => {
-    if (nextExpiry === null) return;
-    const timer = setTimeout(() => setNow(Date.now()), Math.max(0, nextExpiry - Date.now()));
-    return () => clearTimeout(timer);
-  }, [nextExpiry]);
+  const shown = entries.slice(-PEEK_LINES);
 
   return (
     <View style={[styles.peek, style]} pointerEvents="none">
