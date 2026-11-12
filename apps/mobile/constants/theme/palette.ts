@@ -39,6 +39,9 @@ export const palette = {
   // Lime: success
   lime400: '#A5E86B',
 
+  // Wood: room doors
+  wood500: '#A0663A',
+
   // Debug overlays: loud on purpose, never in shipped UI
   debugOrange: '#FF8C1A',
   debugBlue: '#2F6BFF',

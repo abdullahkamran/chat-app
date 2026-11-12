@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import ItemModel from '../models/item.model';
 import RoomModel from '../models/room.model';
+import { DEFAULT_ENTRY_DOOR } from '@chat-app/shared-types';
 import { ROOM_DEFAULTS_CATALOG } from '../catalog/room-defaults.catalog';
 
 export interface ResolvedRoomDefaults {
@@ -61,4 +62,19 @@ export async function backfillRoomDimensions(): Promise<void> {
         { $set: { dimensions: ROOM_DEFAULTS_CATALOG.dimensions } },
     );
     if (modifiedCount) console.log(`[room-defaults] gave ${modifiedCount} room(s) the default dimensions`);
+}
+
+/**
+ * Moves the default entry door rooms got before 2026-11-12 (left wall, row 4, two rows tall) to
+ * where DEFAULT_ENTRY_DOOR stands now. Only that exact door changes, so a door someone placed
+ * stays. Idempotent, so it's safe on every boot and on several instances at once.
+ */
+export async function backfillEntryDoor(): Promise<void> {
+    const old = { 'd.isEntry': true, 'd.category': 'default', 'd.position.x': 0, 'd.position.y': 4, 'd.dimensions.z': 2 };
+    const { modifiedCount } = await RoomModel.updateMany(
+        { doors: { $elemMatch: { isEntry: true, category: 'default', 'position.x': 0, 'position.y': 4, 'dimensions.z': 2 } } },
+        { $set: { 'doors.$[d].position': DEFAULT_ENTRY_DOOR.position, 'doors.$[d].dimensions': DEFAULT_ENTRY_DOOR.dimensions } },
+        { arrayFilters: [old] },
+    );
+    if (modifiedCount) console.log(`[room-defaults] moved the entry door in ${modifiedCount} room(s)`);
 }

@@ -62,9 +62,11 @@ export interface ThemeColors {
   transcriptBackground: string; // see-through, so the room stays visible behind it
   roomShadow: string;
   roomLocalActor: string;   // the ring under your own avatar
-  roomDoorEntry: string;
-  roomDoor: string;
-  roomDoorStroke: string;
+  roomDoorEntry: string;    // the mat on the floor in front of the entry door
+  roomDoor: string;         // the mat in front of any other door
+  roomDoorWood: string;     // every door's face
+  roomDoorStroke: string;   // a door's ink outline, frame and panel lines
+  roomDoorKnob: string;
   roomEditGrid: string;
   roomItemSelected: string;   // edit mode: tint over the picked-up item's art
   roomDropTarget: string;     // edit mode: cells a dragged item can be dropped on
@@ -157,7 +159,9 @@ export const darkTheme: Theme = {
     roomLocalActor: palette.mint500,
     roomDoorEntry: palette.mint500,
     roomDoor: palette.frost50,
-    roomDoorStroke: palette.navy700,
+    roomDoorStroke: palette.ink,
+    roomDoorKnob: palette.gold400,
+    roomDoorWood: palette.wood500,
     roomEditGrid: palette.sky400,
     roomItemSelected: palette.sky400,
     roomDropTarget: palette.mint500,

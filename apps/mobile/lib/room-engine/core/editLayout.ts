@@ -1,6 +1,10 @@
 import { WALL_ROWS, getEffectiveDimensions, wallSideOf, type WallCell, type WallSide } from '@/constants/grid';
-import { ItemPlacement, Orientiation, type Dimensions, type RoomItem } from '@chat-app/shared-types';
+import { ItemPlacement, Orientiation, type Dimensions, type Door, type RoomItem } from '@chat-app/shared-types';
 import type { EditCell } from './contract';
+import { isDoorCell, overlapsDoor } from './doors';
+
+/** The room an edit lays items out in: its floor size, and its doors, which items must keep clear of. */
+export type EditRoom = Pick<Dimensions, 'x' | 'y'> & { doors: readonly Door[] };
 
 const isWallItem = (ri: RoomItem) => ri.itemId.placement === ItemPlacement.WALL;
 
@@ -77,11 +81,12 @@ export function samePlace(a: RoomItem, b: RoomItem): boolean {
     && (!isWallItem(a) || wallSideOf(a.orientation) === wallSideOf(b.orientation));
 }
 
-/** Whether a wall item fits: on its wall, under the ceiling, and clear of other wall items there. */
-function fitsOnWall(items: readonly RoomItem[], candidate: RoomItem, room: Dimensions, ignore: RoomItem | null): boolean {
+/** Whether a wall item fits: on its wall, under the ceiling, off any door, and clear of other wall items there. */
+function fitsOnWall(items: readonly RoomItem[], candidate: RoomItem, room: EditRoom, ignore: RoomItem | null): boolean {
   const s = wallSpan(candidate);
   const length = s.wall === 'right' ? room.x : room.y;
   if (s.col < 0 || s.row < 0 || s.col + s.width > length || s.row + s.height > WALL_ROWS) return false;
+  if (overlapsDoor(room.doors, s.wall, s.col, s.width, s.row, s.height)) return false;
   if (candidate.itemId.isOverlappable) return true;
   return !items.some(ri => {
     if (ri === ignore || ri.itemId.isOverlappable || !isWallItem(ri)) return false;
@@ -94,14 +99,15 @@ function fitsOnWall(items: readonly RoomItem[], candidate: RoomItem, room: Dimen
 
 /**
  * Whether `candidate` fits: a floor item's footprint is inside the room and doesn't
- * overlap a solid floor item; a wall item is on its wall clear of other wall items.
- * Overlappable items (rugs) neither block nor are blocked. `ignore` is the item being
+ * overlap a solid floor item or a door's cell, so people can always come in; a wall item
+ * is on its wall clear of doors and other wall items. Overlappable floor items (rugs)
+ * neither block nor are blocked, and may lie in a doorway. `ignore` is the item being
  * moved, which mustn't block itself.
  */
 export function fitsAt(
   items: readonly RoomItem[],
   candidate: RoomItem,
-  room: Dimensions,
+  room: EditRoom,
   ignore: RoomItem | null = null,
 ): boolean {
   if (isWallItem(candidate)) return fitsOnWall(items, candidate, room, ignore);
@@ -109,6 +115,11 @@ export function fitsAt(
   const { x, y } = candidate.position;
   if (x < 0 || y < 0 || x + dims.x > room.x || y + dims.y > room.y) return false;
   if (candidate.itemId.isOverlappable) return true;
+  for (let dx = 0; dx < dims.x; dx++) {
+    for (let dy = 0; dy < dims.y; dy++) {
+      if (isDoorCell(room.doors, x + dx, y + dy)) return false;
+    }
+  }
   return !items.some(ri => {
     if (ri === ignore || ri.itemId.isOverlappable) return false;
     for (let dx = 0; dx < dims.x; dx++) {
@@ -151,7 +162,7 @@ export function cellsOf(ri: RoomItem): EditCell[] {
  * The closest spot to where `ri` stands that it fits in `layout` (which must not hold it),
  * keeping its facing and, for a wall item, its wall. Null when there's none.
  */
-function nearestFit(layout: readonly RoomItem[], ri: RoomItem, room: Dimensions): RoomItem | null {
+function nearestFit(layout: readonly RoomItem[], ri: RoomItem, room: EditRoom): RoomItem | null {
   const spots: { item: RoomItem; distance: number }[] = [];
   if (isWallItem(ri)) {
     const s = wallSpan(ri);
@@ -198,7 +209,7 @@ export interface DropPlan {
 export function planDrop(
   items: readonly RoomItem[],
   candidate: RoomItem,
-  room: Dimensions,
+  room: EditRoom,
   lifted: RoomItem | null,
 ): DropPlan | null {
   const base = lifted ? items.filter(ri => ri !== lifted) : [...items];

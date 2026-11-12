@@ -37,11 +37,13 @@ import {
   type RoomTheme,
   type User,
   DEFAULT_ROOM_DIMENSIONS,
+  entryDoorOf,
+  withEntryDoor,
 } from '@chat-app/shared-types';
 import type {
   ActorState, EditLink, DragTarget, EditCell, EditDrag, EditState, EngineCapabilities, FloorPoint, RoomEffect, RoomMode, RoomScene,
 } from '../core/contract';
-import { cellsOf, fitsAt, itemOnCell, placedOn, planDrop, samePlace } from '../core/editLayout';
+import { cellsOf, fitsAt, itemOnCell, placedOn, planDrop, samePlace, type EditRoom } from '../core/editLayout';
 import { facingFromDelta } from '../core/facing';
 import { findSeat, itemSeats, sameSeat, seatPosition, standingSpot as seatStandingSpot, type SitAction } from '../core/seats';
 import { findPath, isLineClear, nearestReachableCell, smoothPath } from '../core/usePathfinding';
@@ -227,6 +229,10 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     y: roomDetails?.dimensions?.y || DEFAULT_ROOM_DIMENSIONS.y,
     z: 0,
   };
+  // Every room has an entry door; rooms saved before doors were get the default one.
+  const doors = useMemo(() => withEntryDoor(roomDetails?.doors), [roomDetails?.doors]);
+  // Where edits lay items out: furniture keeps clear of the doors.
+  const editRoom: EditRoom = { x: roomDimensions.x, y: roomDimensions.y, doors };
 
   const { isWalkable } = useWalkabilityGrid(
     roomDimensions,
@@ -642,10 +648,8 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
 
   /** Where people come in: the entry door. */
   function doorPosition(): Position {
-    const spawnDoor = roomDetails?.doors?.find(d => d.isEntry);
-    return spawnDoor
-      ? { x: spawnDoor.position.x, y: spawnDoor.position.y, z: 0 }
-      : { x: 0, y: 0, z: 0 };
+    const { x, y } = entryDoorOf(doors).position;
+    return { x, y, z: 0 };
   }
 
   function newActor(uid: string, position: Position): ActorState {
@@ -1214,7 +1218,7 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     if (selectedPlacedItem?.itemId.placement !== ItemPlacement.FLOOR) return;
     const orientation = isMirrored(selectedPlacedItem.orientation) ? Orientiation.ZERO : Orientiation.NINETY;
     const turned: RoomItem = { ...selectedPlacedItem, orientation };
-    const plan = planDrop(pendingItems, turned, roomDimensions, selectedPlacedItem);
+    const plan = planDrop(pendingItems, turned, editRoom, selectedPlacedItem);
     if (!plan) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
       return;
@@ -1255,7 +1259,7 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
         state: ItemState.NONE,
       };
       const newItem = cell && placedOn(fresh, cell);
-      if (newItem && fitsAt(pendingItems, newItem, roomDimensions)) {
+      if (newItem && fitsAt(pendingItems, newItem, editRoom)) {
         if ((available[selectedItem._id] ?? 0) > 0) setPendingItems(current => [...current, newItem]);
       } else if (onCell) {
         setSelectedItem(null);
@@ -1325,7 +1329,7 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     const candidate = target && placedOn(item, target);
     if (!candidate) return;
     if (source === 'inventory' && (available[item.itemId._id] ?? 0) <= 0) return;
-    const plan = planDrop(pendingItems, candidate, roomDimensions, source === 'placed' ? item : null);
+    const plan = planDrop(pendingItems, candidate, editRoom, source === 'placed' ? item : null);
     if (!plan) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
       return;
@@ -1348,13 +1352,13 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
       const view: EditDrag = { item: drag.item, source: drag.source, over, cells: [], valid: over === 'away' && !!lifted, shown: null };
       return { items: base, view };
     }
-    const plan = planDrop(pendingItems, candidate, roomDimensions, lifted);
+    const plan = planDrop(pendingItems, candidate, editRoom, lifted);
     const cells = cellsOf(candidate);
     const view: EditDrag = { item: drag.item, source: drag.source, over, cells, valid: !!plan, shown: plan ? plan.placed : candidate };
     return { items: plan ? plan.items : [...base, candidate], view };
-    // roomDimensions is rebuilt every render; its sizes are what matter.
+    // editRoom is rebuilt every render; its sizes and doors are what matter.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [drag, pendingItems, roomDimensions.x, roomDimensions.y]);
+  }, [drag, pendingItems, roomDimensions.x, roomDimensions.y, doors]);
 
   // ── Derived state for engines ─────────────────────────────────────────────
 
@@ -1363,7 +1367,7 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
       dimensions: roomDimensions,
       theme: (isEditMode && pendingTheme) || roomDetails.theme,
       items: isEditMode ? (dragPreview?.items ?? pendingItems) : (roomDetails.items ?? []),
-      doors: roomDetails.doors ?? [],
+      doors,
     }
     : null;
 

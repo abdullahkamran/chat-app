@@ -1,4 +1,4 @@
-import { DEFAULT_ROOM_DIMENSIONS } from '@chat-app/shared-types';
+import { DEFAULT_ENTRY_DOOR, DEFAULT_ROOM_DIMENSIONS } from '@chat-app/shared-types';
 
 /**
  * Source of truth for mandatory room defaults.
@@ -26,17 +26,10 @@ export const ROOM_DEFAULTS_CATALOG = {
     },
 
     /**
-     * Default doors placed in every new room.
-     * The entry door (isEntry: true) is the default spawn point.
+     * Default doors placed in every new room: the entry door on the left wall
+     * (DEFAULT_ENTRY_DOOR in shared-types). People come in on its cell.
      */
-    doors: [
-        {
-            position: { x: 0, y: 4, z: 0 },
-            dimensions: { x: 1, y: 1, z: 2 },
-            category: 'default',
-            isEntry: true,
-        },
-    ] as Array<{
+    doors: [DEFAULT_ENTRY_DOOR] as Array<{
         position: { x: number; y: number; z: number };
         dimensions: { x: number; y: number; z: number };
         category: string;

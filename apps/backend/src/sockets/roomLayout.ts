@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { MUTUAL_EMOTE_GAP, Orientiation } from '@chat-app/shared-types';
+import { MUTUAL_EMOTE_GAP, Orientiation, entryDoorOf } from '@chat-app/shared-types';
 import Item from '../models/item.model';
 import Room, { type IRoom } from '../models/room.model';
 
@@ -69,7 +69,7 @@ export function nearestFreeCell(from: Cell, layout: RoomLayout, blocked: Set<str
 export async function roomLayoutOf(room: Pick<IRoom, 'dimensions' | 'doors' | 'items'>): Promise<RoomLayout> {
     const defs = await Item.find({ _id: { $in: room.items.map(i => i.itemId) } }).select('dimensions isOverlappable');
     const byId = new Map(defs.map(d => [d._id.toString(), d]));
-    const door = room.doors.find(d => d.isEntry)?.position ?? { x: 0, y: 0 };
+    const door = entryDoorOf(room.doors).position;
     return {
         dimensions: room.dimensions,
         door: { x: door.x, y: door.y },

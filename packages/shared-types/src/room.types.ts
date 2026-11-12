@@ -162,7 +162,30 @@ export interface Door {
     dimensions: Dimensions;
     category: string;
     isEntry: boolean;
-    // TODO: target room    
+    // TODO: target room
+}
+
+/**
+ * The door every room gets: on the left wall (a door at x = 0 stands on the left wall, one at
+ * y = 0 on the right), in its third column from the screen's left in a default 10x10 room,
+ * three rows tall so an avatar fits through. People come in on its cell.
+ */
+export const DEFAULT_ENTRY_DOOR: Door = {
+    position: { x: 0, y: 7, z: 0 },
+    dimensions: { x: 1, y: 1, z: 3 },
+    category: 'default',
+    isEntry: true,
+};
+
+/** The room's entry door, or the default one when it has none (rooms made before doors were saved). */
+export function entryDoorOf(doors: readonly Door[] | null | undefined): Door {
+    return doors?.find(d => d.isEntry) ?? DEFAULT_ENTRY_DOOR;
+}
+
+/** The room's doors, with the default entry door added when none of them is an entry. */
+export function withEntryDoor(doors: readonly Door[] | null | undefined): Door[] {
+    const list = doors ?? [];
+    return list.some(d => d.isEntry) ? [...list] : [...list, DEFAULT_ENTRY_DOOR];
 }
 
 export interface RoomTheme {

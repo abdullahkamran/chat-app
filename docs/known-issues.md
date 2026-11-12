@@ -165,7 +165,8 @@ Found on 2026-11-11 while making room items counted copies that owners place fro
 **Seen:**
 - Two owners who place something on the same free cell at the same moment both save, and the two items
   overlap until someone moves one.
-- A client calling the API directly can place items off the floor or on top of each other.
+- A client calling the API directly can place items off the floor or on top of each other, or block the
+  entry door, so newcomers appear inside furniture.
 
 **Why:** `updateItems` in `apps/backend/src/controllers/room.controller.ts` checks ownership, counts and
 item types, but trusts positions: footprint, bounds and overlap checks live only in the client
@@ -174,7 +175,7 @@ meanwhile, so neither client saw the other's new item when it checked.
 
 **Fix:** port `fitsAt` to the backend (next to `blockedCells` in `apps/backend/src/sockets/roomLayout.ts`) and
 check the merged layout inside the transaction. Refuse a save that adds or moves an item onto taken or
-off-room floor with 409, naming the item, so the client can reload and redo it.
+off-room floor, onto a door's cell or over a door on the wall (`core/doors.ts`) with 409, naming the item, so the client can reload and redo it.
 
 ---
 
