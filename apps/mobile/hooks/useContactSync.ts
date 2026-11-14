@@ -41,15 +41,22 @@ export type ContactAccess = 'unknown' | 'granted' | 'ask' | 'blocked';
 export function useContactSync() {
   const queryClient = useQueryClient();
   const [access, setAccess] = useState<ContactAccess>('unknown');
+  const [syncing, setSyncing] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   const sync = useCallback(async () => {
     syncedThisLaunch = true;
+    setSyncing(true);
+    setFailed(false);
     try {
       await api.post('/api/v1/friends/contacts/sync', { phoneNumbers: await readContactNumbers() });
-      queryClient.invalidateQueries({ queryKey: SUGGESTIONS_KEY });
+      await queryClient.invalidateQueries({ queryKey: SUGGESTIONS_KEY });
     } catch (e) {
       // Refused (e.g. today's cap) or offline: Quick Add keeps the last matches.
       console.warn('Contact sync failed', e);
+      setFailed(true);
+    } finally {
+      setSyncing(false);
     }
   }, [queryClient]);
 
@@ -71,5 +78,6 @@ export function useContactSync() {
     if (p.granted) sync();
   }, [access, sync]);
 
-  return { access, allow };
+  /** `syncing` while contacts are being checked; `failed` if the last check didn't go through. `retry` checks again. */
+  return { access, allow, syncing, failed, retry: sync };
 }

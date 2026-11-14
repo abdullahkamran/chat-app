@@ -4,8 +4,8 @@ import React, { useState } from 'react';
 import { FlatList, ScrollView, View } from 'react-native';
 
 import type { PublicUser } from '@chat-app/shared-types';
-import UserRow from '@/components/UserRow';
-import { AppText, Button, Chip, EmptyState, Spinner, TextField } from '@/components/ui';
+import UserRow, { UserRowsSkeleton } from '@/components/UserRow';
+import { AppText, Button, Chip, EmptyState, ErrorState, TextField } from '@/components/ui';
 import { makeStyles, useTheme } from '@/constants/theme';
 import { useFriends } from '@/hooks/useFriends';
 
@@ -36,9 +36,6 @@ const useStyles = makeStyles(t => ({
     flex: 1,
     marginTop: t.space.sm,
   },
-  loader: {
-    marginTop: t.space.xxl,
-  },
   noFriends: {
     flex: 1,
   },
@@ -53,7 +50,8 @@ export default function UserPicker({ selected, onChange, excludeIds = [], maxSel
   const styles = useStyles();
   const router = useRouter();
   const [input, setInput] = useState('');
-  const { data: friends = [], isLoading } = useFriends();
+  const { data, isLoading, isError, isRefetching, refetch } = useFriends();
+  const friends = data ?? [];
 
   const query = input.trim().toLowerCase();
   const shown = query ? friends.filter((f) => f.username.toLowerCase().includes(query)) : friends;
@@ -65,6 +63,14 @@ export default function UserPicker({ selected, onChange, excludeIds = [], maxSel
     if (isSelected(user._id)) onChange(selected.filter((u) => u._id !== user._id));
     else if (!isFull) onChange([...selected, user]);
   };
+
+  if (isError && !data) {
+    return (
+      <View style={styles.noFriends}>
+        <ErrorState title="Couldn't load your friends" onRetry={() => refetch()} retrying={isRefetching} />
+      </View>
+    );
+  }
 
   if (!isLoading && friends.length === 0) {
     return (
@@ -135,7 +141,7 @@ export default function UserPicker({ selected, onChange, excludeIds = [], maxSel
         }}
         ListEmptyComponent={
           isLoading ? (
-            <Spinner style={styles.loader} />
+            <UserRowsSkeleton />
           ) : (
             <EmptyState icon="search-outline" title="No match" body={`No friends match "${input.trim()}".`} />
           )

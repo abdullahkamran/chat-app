@@ -5,13 +5,13 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import { ALL_CATEGORY, CategoryChips } from '@/components/CategoryChips';
-import { AppText, Badge, Spinner } from '@/components/ui';
+import { AppText, Badge } from '@/components/ui';
 import { makeStyles, useTheme } from '@/constants/theme';
 import { resolveItemSource } from '@/constants/avatarAssets';
 import { useInventory } from '@/hooks/useInventory';
 import { themeSlotsOf, type InventoryEntry, type Item, type RoomTheme } from '@chat-app/shared-types';
 import type { EditLink, EditDrag } from '../core/contract';
-import { Drawer } from '../components/Drawer';
+import { Drawer, DrawerCardsSkeleton, DrawerError } from '../components/Drawer';
 
 /** How long a card is held before it lifts out of the drawer. */
 const HOLD_MS = 250;
@@ -91,7 +91,8 @@ export function InventoryDrawer({
 }: Props) {
   const styles = useStyles();
   // Everything the user owns, placed copies included, so an item all in rooms still shows (at 0).
-  const { data: groupedItems = [], isLoading } = useInventory();
+  const { data, isLoading, isError, isRefetching, refetch } = useInventory();
+  const groupedItems = data ?? [];
 
   // Only the categories the user owns something in, so no tab is ever empty.
   const categories = [...new Set(groupedItems.map(e => e.item.category))].sort();
@@ -116,8 +117,11 @@ export function InventoryDrawer({
         <CategoryChips categories={categories} selected={category} onSelect={setCategory} contentStyle={styles.categories} />
       )}
 
-      {isLoading && <Spinner color="secondary" />}
-      {!isLoading && shown.length === 0 && (
+      {isLoading && <DrawerCardsSkeleton cardHeight={84} />}
+      {isError && !data && (
+        <DrawerError text="Couldn't load your inventory." onRetry={() => refetch()} retrying={isRefetching} />
+      )}
+      {!isLoading && !!data && shown.length === 0 && (
         <AppText variant="caption" color="textMuted" align="center" style={styles.empty}>
           Nothing here yet. Get items in the shop.
         </AppText>
@@ -227,6 +231,7 @@ function InventoryCard({
             source={resolveItemSource(item.assetUrl) ?? undefined}
             style={[styles.itemImage, exhausted && styles.itemImageExhausted]}
             contentFit="contain"
+            transition={t.motion.fast}
           />
           {!isThemeItem && (
             <Badge

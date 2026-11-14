@@ -7,7 +7,7 @@ import { makeStyles, useTheme } from '@/constants/theme';
 import { useAuth } from '@/context/auth.context';
 import { avatarLabel, useMyAvatars, useWearAvatar } from '@/hooks/useMyAvatars';
 import { MAX_AVATARS, type Avatar } from '@chat-app/shared-types';
-import { Drawer } from './Drawer';
+import { Drawer, DrawerCardsSkeleton, DrawerError } from './Drawer';
 
 const NEW_AVATAR = 'new';
 
@@ -65,7 +65,7 @@ export function AvatarDrawer({ onClose }: Readonly<Props>) {
   const styles = useStyles();
   const router = useRouter();
   const { selectedAvatar } = useAuth();
-  const { data, isLoading } = useMyAvatars();
+  const { data, isLoading, isError, isRefetching, refetch } = useMyAvatars();
   const wear = useWearAvatar();
 
   const wornId = selectedAvatar?._id ?? data?.selectedAvatar ?? null;
@@ -74,8 +74,11 @@ export function AvatarDrawer({ onClose }: Readonly<Props>) {
 
   return (
     <Drawer title="Avatars" onClose={onClose}>
-      {isLoading && <Spinner />}
-
+      {isLoading ? (
+        <DrawerCardsSkeleton cardHeight={112} count={3} />
+      ) : isError && !data ? (
+        <DrawerError text="Couldn't load your avatars." onRetry={() => refetch()} retrying={isRefetching} />
+      ) : (
       <FlatList
         data={cards}
         keyExtractor={card => (card === NEW_AVATAR ? NEW_AVATAR : card._id)}
@@ -118,6 +121,7 @@ export function AvatarDrawer({ onClose }: Readonly<Props>) {
           );
         }}
       />
+      )}
     </Drawer>
   );
 }

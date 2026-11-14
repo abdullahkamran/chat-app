@@ -18,7 +18,7 @@ import { MY_AVATARS_KEY, avatarLabel, useMyAvatars, useWearAvatar } from '@/hook
 import { makeStyles, useTheme, type ThemeColors } from '@/constants/theme';
 import AvatarPreview from '@/components/AvatarPreview';
 import UserAvatar from '@/components/UserAvatar';
-import { AppText, Button, Dialog, EmptyState, IconButton, Spinner, showDialog, showErrorDialog } from '@/components/ui';
+import { AppText, Button, Dialog, EmptyState, ErrorState, IconButton, Skeleton, SkeletonGroup, Spinner, showDialog, showErrorDialog } from '@/components/ui';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -62,11 +62,12 @@ function CurrencyTile({ label, value, icon, tone }: {
 // ── Avatar tile ───────────────────────────────────────────────────────────────
 
 /** Tap wears it, long press deletes it (not the worn one), the corner icon edits it. */
-function AvatarTile({ avatar, index, isWorn, isWearing, onWear, onEdit, onDelete }: {
+function AvatarTile({ avatar, index, isWorn, busy, onWear, onEdit, onDelete }: {
     avatar: Avatar;
     index: number;
     isWorn: boolean;
-    isWearing: boolean;
+    /** Being worn or deleted: shows a spinner over the preview and ignores taps. */
+    busy: boolean;
     onWear: () => void;
     onEdit: () => void;
     onDelete: () => void;
@@ -75,17 +76,17 @@ function AvatarTile({ avatar, index, isWorn, isWearing, onWear, onEdit, onDelete
     const label = avatarLabel(avatar, index);
     return (
         <Pressable
-            onPress={isWorn ? undefined : onWear}
-            onLongPress={isWorn ? undefined : onDelete}
+            onPress={isWorn || busy ? undefined : onWear}
+            onLongPress={isWorn || busy ? undefined : onDelete}
             style={[styles.avatarTile, isWorn && styles.avatarTileWorn]}
             accessibilityRole="button"
-            accessibilityState={{ selected: isWorn }}
+            accessibilityState={{ selected: isWorn, busy }}
             accessibilityLabel={label}
             accessibilityHint={isWorn ? undefined : 'Tap to wear, hold to delete'}
         >
             <View>
                 <AvatarPreview avatar={avatar} size={84} animated={false} />
-                {isWearing && (
+                {busy && (
                     <View style={styles.tileSpinner}>
                         <Spinner size="small" />
                     </View>
@@ -101,6 +102,38 @@ function AvatarTile({ avatar, index, isWorn, isWearing, onWear, onEdit, onDelete
                 accessibilityLabel={`Edit ${label}`}
             />
         </Pressable>
+    );
+}
+
+/** Avatar tile placeholders while the avatars load. */
+function AvatarTilesSkeleton() {
+    const styles = useStyles();
+    return (
+        <SkeletonGroup style={[styles.avatarStripScroll, styles.avatarStrip, styles.skeletonStrip]} label="Loading avatars">
+            {[0, 1, 2].map(i => <Skeleton key={i} width={116} height={150} radius="lg" />)}
+        </SkeletonGroup>
+    );
+}
+
+/** The profile's layout in placeholders: header, stats, currency and avatars. */
+function ProfileSkeleton({ topInset }: Readonly<{ topInset: number }>) {
+    const styles = useStyles();
+    return (
+        <SkeletonGroup style={[styles.container, styles.content, { paddingTop: topInset + 24 }]} label="Loading profile">
+            <View style={styles.header}>
+                <Skeleton width={84} height={84} radius="circle" />
+                <Skeleton width={160} height={28} radius="sm" />
+                <Skeleton width={110} height={12} radius="xs" />
+            </View>
+            <View style={styles.statsRow}>
+                {[0, 1, 2, 3].map(i => <Skeleton key={i} height={76} radius="lg" style={styles.skeletonFlex} />)}
+            </View>
+            <View style={styles.currencyRow}>
+                {[0, 1].map(i => <Skeleton key={i} height={60} radius="lg" style={styles.skeletonFlex} />)}
+            </View>
+            <Skeleton width={90} height={20} radius="xs" />
+            <AvatarTilesSkeleton />
+        </SkeletonGroup>
     );
 }
 
@@ -125,6 +158,7 @@ export default function ProfileScreen() {
     const insets = useSafeAreaInsets();
     const queryClient = useQueryClient();
     const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+    const [loggingOut, setLoggingOut] = useState(false);
     const userQuery = useMe();
 
     const discoverableMutation = useMutation({
@@ -138,9 +172,8 @@ export default function ProfileScreen() {
 
     const deleteMutation = useMutation({
         mutationFn: (avatarId: string) => api.delete(`/api/v1/avatar/${avatarId}`),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: MY_AVATARS_KEY });
-        },
+        // Returned, so the tile keeps its spinner until it's gone from the list.
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: MY_AVATARS_KEY }),
         onError: (e: Error) => showErrorDialog(e, 'Could not delete'),
     });
 
@@ -158,6 +191,20 @@ export default function ProfileScreen() {
     };
 
     const handleLogout = () => setLogoutModalVisible(true);
+    // The dialog stays up with a spinner until the server has been told: it can take a moment,
+    // or longer when the server is down. Signing out then swaps to the login screen.
+    const confirmLogout = async () => {
+        setLoggingOut(true);
+        try {
+            await logout();
+        } catch (e) {
+            showErrorDialog(e, 'Could not log out');
+        } finally {
+            setLoggingOut(false);
+            setLogoutModalVisible(false);
+        }
+    };
+    const closeLogoutModal = () => { if (!loggingOut) setLogoutModalVisible(false); };
 
     const user = userQuery.data;
     const avatarData = avatarsQuery.data;
@@ -166,13 +213,7 @@ export default function ProfileScreen() {
     const canCreate = avatars.length < MAX_AVATARS;
     const createAvatar = () => router.push('/(avatar)/create');
 
-    if (userQuery.isLoading) {
-        return (
-            <View style={styles.centered}>
-                <Spinner size="large" />
-            </View>
-        );
-    }
+    if (userQuery.isLoading) return <ProfileSkeleton topInset={insets.top} />;
 
     const location = user ? [user.city, user.state, user.country].filter(Boolean).join(', ') : '';
 
@@ -183,10 +224,19 @@ export default function ProfileScreen() {
             contentContainerStyle={[styles.content, { paddingTop: insets.top + 24 }]}
             showsVerticalScrollIndicator={false}
         >
+            {!user && (
+                <ErrorState
+                    title="Couldn't load your profile"
+                    onRetry={() => userQuery.refetch()}
+                    retrying={userQuery.isRefetching}
+                />
+            )}
+
             {/* Header */}
+            {user && (
             <View style={styles.header}>
-                <UserAvatar username={user?.username ?? '?'} size={84} />
-                <AppText variant="display" align="center">{user?.username ?? '—'}</AppText>
+                <UserAvatar username={user.username} size={84} />
+                <AppText variant="display" align="center">{user.username}</AppText>
                 {location ? (
                     <View style={styles.location}>
                         <Ionicons name="location-outline" size={14} color={t.colors.textSecondary} />
@@ -194,6 +244,7 @@ export default function ProfileScreen() {
                     </View>
                 ) : null}
             </View>
+            )}
 
             {/* Stats */}
             {user && (
@@ -220,7 +271,13 @@ export default function ProfileScreen() {
             </View>
 
             {avatarsQuery.isLoading ? (
-                <Spinner style={styles.avatarLoader} />
+                <AvatarTilesSkeleton />
+            ) : avatarsQuery.isError && !avatarData ? (
+                <ErrorState
+                    title="Couldn't load your avatars"
+                    onRetry={() => avatarsQuery.refetch()}
+                    retrying={avatarsQuery.isRefetching}
+                />
             ) : avatars.length === 0 ? (
                 <EmptyState
                     icon="happy-outline"
@@ -242,7 +299,10 @@ export default function ProfileScreen() {
                                 avatar={avatar}
                                 index={index}
                                 isWorn={avatar._id === defaultAvatarId}
-                                isWearing={setDefaultMutation.isPending && setDefaultMutation.variables?._id === avatar._id}
+                                busy={
+                                    (setDefaultMutation.isPending && setDefaultMutation.variables?._id === avatar._id) ||
+                                    (deleteMutation.isPending && deleteMutation.variables === avatar._id)
+                                }
                                 onWear={() => !setDefaultMutation.isPending && setDefaultMutation.mutate(avatar)}
                                 onEdit={() => router.push(`/(avatar)/edit/${avatar._id}`)}
                                 onDelete={() => !deleteMutation.isPending && handleDelete(avatar)}
@@ -284,7 +344,7 @@ export default function ProfileScreen() {
         {/* Logout confirmation modal */}
         <Dialog
             visible={logoutModalVisible}
-            onClose={() => setLogoutModalVisible(false)}
+            onClose={closeLogoutModal}
             icon="log-out-outline"
             tone="error"
             title="Log out?"
@@ -295,13 +355,15 @@ export default function ProfileScreen() {
                         title="Cancel"
                         variant="secondary"
                         style={styles.modalBtn}
-                        onPress={() => setLogoutModalVisible(false)}
+                        disabled={loggingOut}
+                        onPress={closeLogoutModal}
                     />
                     <Button
                         title="Log out"
                         variant="danger"
                         style={styles.modalBtn}
-                        onPress={() => { setLogoutModalVisible(false); logout(); }}
+                        loading={loggingOut}
+                        onPress={confirmLogout}
                     />
                 </View>
             }
@@ -321,12 +383,6 @@ const useStyles = makeStyles(t => ({
         paddingHorizontal: t.space.lg,
         paddingBottom: 40,
         gap: t.space.xl,
-    },
-    centered: {
-        flex: 1,
-        backgroundColor: t.colors.background,
-        alignItems: 'center',
-        justifyContent: 'center',
     },
 
     // Header
@@ -389,8 +445,11 @@ const useStyles = makeStyles(t => ({
     },
 
     // Avatars
-    avatarLoader: {
-        marginTop: 20,
+    skeletonStrip: {
+        flexDirection: 'row',
+    },
+    skeletonFlex: {
+        flex: 1,
     },
     avatarSection: {
         gap: t.space.md,

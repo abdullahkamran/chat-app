@@ -3,7 +3,7 @@ import React from 'react';
 import { Pressable, View } from 'react-native';
 
 import UserAvatar from '@/components/UserAvatar';
-import { AppText } from '@/components/ui';
+import { AppText, Skeleton } from '@/components/ui';
 import { makeStyles, useTheme } from '@/constants/theme';
 
 const useStyles = makeStyles(t => ({
@@ -31,6 +31,9 @@ const useStyles = makeStyles(t => ({
   },
   name: {
     flexShrink: 1,
+  },
+  skeletonCard: {
+    borderColor: t.colors.surface,
   },
 }));
 
@@ -70,5 +73,19 @@ const RoomListItem = ({
     </Pressable>
   );
 };
+
+/** A RoomListItem-shaped placeholder while rooms load. */
+export function RoomListItemSkeleton() {
+  const styles = useStyles();
+  return (
+    <View style={[styles.card, styles.skeletonCard]}>
+      <Skeleton width={48} height={48} radius="md" />
+      <View style={styles.text}>
+        <Skeleton width="60%" height={16} radius="xs" />
+        <Skeleton width="35%" height={10} radius="xs" />
+      </View>
+    </View>
+  );
+}
 
 export default RoomListItem;

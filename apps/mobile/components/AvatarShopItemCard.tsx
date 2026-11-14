@@ -3,7 +3,7 @@ import { Pressable, ScrollView, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { AvatarItem, AvatarItemVariant } from '@chat-app/shared-types';
-import { AppText, Button } from '@/components/ui';
+import { AppText, Button, Skeleton } from '@/components/ui';
 import { makeStyles, useTheme } from '@/constants/theme';
 import { resolveAvatarSource } from '@/constants/avatarAssets';
 import { formatPrice } from '@/utils/formatPrice';
@@ -71,6 +71,8 @@ const useStyles = makeStyles(t => ({
     variantText: {
         maxWidth: 60,
     },
+    skeletonCard: { borderColor: t.colors.surface },
+    skeletonInfo: { flex: 1, marginRight: t.space.md, gap: t.space.sm },
 }));
 
 export default function AvatarShopItemCard({
@@ -126,7 +128,7 @@ export default function AvatarShopItemCard({
                             onPress={() => setSelectedVariant(variant)}
                         >
                             {source
-                                ? <Image source={source} style={styles.variantSwatch} contentFit="contain" />
+                                ? <Image source={source} style={styles.variantSwatch} contentFit="contain" transition={t.motion.fast} />
                                 : <View style={[styles.variantSwatch, styles.variantSwatchColor, { backgroundColor: variant.color ?? t.colors.border }]} />
                             }
                             <AppText variant="caption" color="textSecondary" align="center" style={styles.variantText} numberOfLines={1}>
@@ -143,6 +145,26 @@ export default function AvatarShopItemCard({
                     );
                 })}
             </ScrollView>
+        </View>
+    );
+}
+
+/** An AvatarShopItemCard-shaped placeholder while outfits load. */
+export function AvatarShopItemCardSkeleton() {
+    const t = useTheme();
+    const styles = useStyles();
+    return (
+        <View style={[styles.card, styles.skeletonCard]}>
+            <View style={styles.header}>
+                <View style={styles.skeletonInfo}>
+                    <Skeleton width="50%" height={16} radius="xs" />
+                    <Skeleton width="80%" height={10} radius="xs" />
+                </View>
+                <Skeleton width={64} height={t.controlHeight.sm} radius="pill" />
+            </View>
+            <View style={[styles.variantScroll, styles.variantContent]}>
+                {[0, 1, 2, 3].map(i => <Skeleton key={i} width={68} height={76} radius="md" />)}
+            </View>
         </View>
     );
 }

@@ -3,6 +3,7 @@ import { View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { makeStyles, useTheme } from '@/constants/theme';
 import { AppText } from './AppText';
+import { Skeleton } from './Skeleton';
 
 const useStyles = makeStyles(t => ({
   pill: {
@@ -27,10 +28,13 @@ const useStyles = makeStyles(t => ({
   },
 }));
 
-/** A coin balance, e.g. in the Shop header. */
-export function CoinPill({ coins, style }: Readonly<{ coins: number; style?: StyleProp<ViewStyle> }>) {
+/** A coin balance, e.g. in the Shop header. Pass `undefined` while it loads to show a placeholder. */
+export function CoinPill({ coins, style }: Readonly<{ coins: number | undefined; style?: StyleProp<ViewStyle> }>) {
   const t = useTheme();
   const styles = useStyles();
+  if (coins === undefined) {
+    return <Skeleton width={84} height={t.controlHeight.sm} radius="pill" style={style} />;
+  }
   return (
     <View style={[styles.pill, style]} accessibilityLabel={`${coins} coins`}>
       <View style={styles.coin}>

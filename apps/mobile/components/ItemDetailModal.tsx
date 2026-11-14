@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import { Image } from 'expo-image';
 import { Item } from '@chat-app/shared-types';
 import { AppText, Button, Dialog, IconButton } from '@/components/ui';
-import { makeStyles } from '@/constants/theme';
+import { makeStyles, useTheme } from '@/constants/theme';
 import { resolveItemSource } from '@/constants/avatarAssets';
 import { formatPrice } from '@/utils/formatPrice';
 
@@ -84,6 +84,7 @@ function Meta({ label, value }: Readonly<{ label: string; value: string }>) {
 }
 
 export default function ItemDetailModal({ item, visible, onClose, onBuy, isBuying, ownedCount = 0, placedCount = 0 }: ItemDetailModalProps) {
+    const t = useTheme();
     const styles = useStyles();
     const source = item ? resolveItemSource(item.assetUrl) : null;
     // Most items can be bought again; the rest only once.
@@ -92,7 +93,7 @@ export default function ItemDetailModal({ item, visible, onClose, onBuy, isBuyin
     return (
         <Dialog visible={visible} onClose={onClose} bare popKey={item?._id}>
             <View style={styles.imageStage}>
-                {source && <Image source={source} style={styles.itemImage} contentFit="contain" />}
+                {source && <Image source={source} style={styles.itemImage} contentFit="contain" transition={t.motion.fast} />}
             </View>
 
             <IconButton icon="close" variant="surface" size={36} style={styles.closeBtn} onPress={onClose} accessibilityLabel="Close" />

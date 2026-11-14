@@ -1,8 +1,8 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { View } from 'react-native';
 import { Avatar } from '@chat-app/shared-types';
-import AvatarEditorScreen from '@/components/AvatarEditorScreen';
-import { Spinner } from '@/components/ui';
+import AvatarEditorScreen, { AvatarEditorSkeleton } from '@/components/AvatarEditorScreen';
+import { Button, EmptyState, ErrorState } from '@/components/ui';
 import { makeStyles } from '@/constants/theme';
 import { useMyAvatars } from '@/hooks/useMyAvatars';
 
@@ -11,7 +11,7 @@ export default function EditAvatarScreen() {
   const router = useRouter();
   const styles = useStyles();
 
-  const { data, isLoading } = useMyAvatars();
+  const { data, isLoading, isRefetching, refetch } = useMyAvatars();
 
   const avatar = data?.avatars.find((a) => a._id === id);
 
@@ -19,10 +19,22 @@ export default function EditAvatarScreen() {
     router.back();
   }
 
-  if (isLoading || !avatar) {
+  if (isLoading) return <AvatarEditorSkeleton />;
+
+  // Couldn't load the list, or the avatar was deleted elsewhere: say so instead of waiting forever.
+  if (!avatar) {
     return (
-      <View style={styles.loader}>
-        <Spinner size="large" />
+      <View style={styles.centered}>
+        {data ? (
+          <EmptyState
+            icon="help-circle-outline"
+            title="Avatar not found"
+            body="It may have been deleted."
+            action={<Button title="Go back" variant="secondary" icon="chevron-back" onPress={() => router.back()} />}
+          />
+        ) : (
+          <ErrorState title="Couldn't load your avatar" onRetry={() => refetch()} retrying={isRefetching} />
+        )}
       </View>
     );
   }
@@ -41,7 +53,7 @@ export default function EditAvatarScreen() {
 }
 
 const useStyles = makeStyles(t => ({
-  loader: {
+  centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',

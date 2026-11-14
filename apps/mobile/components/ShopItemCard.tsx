@@ -3,7 +3,7 @@ import { Pressable, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Item } from '@chat-app/shared-types';
-import { AppText } from '@/components/ui';
+import { AppText, Skeleton } from '@/components/ui';
 import { makeStyles, useTheme } from '@/constants/theme';
 import { resolveItemSource } from '@/constants/avatarAssets';
 import { formatPrice } from '@/utils/formatPrice';
@@ -41,6 +41,8 @@ const useStyles = makeStyles(t => ({
     },
     info: { flex: 1, gap: 2 },
     priceRow: { flexDirection: 'row', alignItems: 'center', gap: t.space.sm, marginTop: t.space.xs },
+    skeletonCard: { borderColor: t.colors.surface },
+    skeletonInfo: { flex: 1, gap: t.space.sm },
 }));
 
 export default function ShopItemCard({ item, ownedCount = 0, onPress }: ShopItemCardProps) {
@@ -54,7 +56,7 @@ export default function ShopItemCard({ item, ownedCount = 0, onPress }: ShopItem
             onPress={onPress}
         >
             <View style={styles.thumbnailTile}>
-                {source && <Image source={source} style={styles.thumbnail} contentFit="contain" />}
+                {source && <Image source={source} style={styles.thumbnail} contentFit="contain" transition={t.motion.fast} />}
             </View>
             <View style={styles.info}>
                 <AppText variant="heading" numberOfLines={1}>{item.name}</AppText>
@@ -66,5 +68,20 @@ export default function ShopItemCard({ item, ownedCount = 0, onPress }: ShopItem
             </View>
             <Ionicons name="chevron-forward" size={20} color={t.colors.textMuted} />
         </Pressable>
+    );
+}
+
+/** A ShopItemCard-shaped placeholder while the shop loads. */
+export function ShopItemCardSkeleton() {
+    const styles = useStyles();
+    return (
+        <View style={[styles.card, styles.skeletonCard]}>
+            <Skeleton width={60} height={60} radius="md" />
+            <View style={styles.skeletonInfo}>
+                <Skeleton width="55%" height={16} radius="xs" />
+                <Skeleton width="85%" height={10} radius="xs" />
+                <Skeleton width="25%" height={12} radius="xs" />
+            </View>
+        </View>
     );
 }

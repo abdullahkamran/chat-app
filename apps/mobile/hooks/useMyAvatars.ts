@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { showErrorDialog } from '@/components/ui';
 import { type Avatar } from '@chat-app/shared-types';
 import { useAuth } from '@/context/auth.context';
 import { api } from '@/lib/api';
@@ -34,7 +35,8 @@ export function useWearAvatar() {
     onSuccess: (_, avatar) => {
       setSelectedAvatar(avatar);
       announceAvatarChanged();
-      queryClient.invalidateQueries({ queryKey: MY_AVATARS_KEY });
+      return queryClient.invalidateQueries({ queryKey: MY_AVATARS_KEY });
     },
+    onError: (e: Error) => showErrorDialog(e, "Couldn't change avatar"),
   });
 }

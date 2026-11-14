@@ -1,5 +1,5 @@
 import { ScrollView, type StyleProp, type ViewStyle } from 'react-native';
-import { Chip } from '@/components/ui';
+import { Chip, Skeleton } from '@/components/ui';
 import { makeStyles } from '@/constants/theme';
 
 /** The "All" entry, listed before the categories. */
@@ -11,7 +11,12 @@ interface Props {
   onSelect: (category: string) => void;
   /** Padding around the row; defaults to the screen gutter. */
   contentStyle?: StyleProp<ViewStyle>;
+  /** The categories are still loading: show placeholders after "All". */
+  loading?: boolean;
 }
+
+/** Chip widths while categories load, so the row doesn't look uniform. */
+const SKELETON_WIDTHS = [76, 92, 64, 84];
 
 const useStyles = makeStyles(t => ({
   bar: { flexGrow: 0, flexShrink: 0 },
@@ -24,7 +29,7 @@ const useStyles = makeStyles(t => ({
 }));
 
 /** A horizontal row of category filters, "All" first. */
-export function CategoryChips({ categories, selected, onSelect, contentStyle }: Readonly<Props>) {
+export function CategoryChips({ categories, selected, onSelect, contentStyle, loading = false }: Readonly<Props>) {
   const styles = useStyles();
   return (
     <ScrollView
@@ -41,6 +46,8 @@ export function CategoryChips({ categories, selected, onSelect, contentStyle }: 
           onPress={() => onSelect(cat)}
         />
       ))}
+      {loading && categories.length === 0 &&
+        SKELETON_WIDTHS.map((w, i) => <Skeleton key={i} width={w} height={34} radius="pill" />)}
     </ScrollView>
   );
 }

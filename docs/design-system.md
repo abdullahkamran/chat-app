@@ -78,6 +78,7 @@ The raw hex values in `palette.ts` are only read by `themes.ts`.
 | `surface` | Cards, drawers, bottom sheets, tab bar | navy900 `#152238` |
 | `surfaceElevated` | Dialogs, chips and tiles on a surface | navy800 `#1D2E4A` |
 | `surfaceSunken` | Text inputs | ink `#040810` |
+| `skeleton` | Loading placeholders (`Skeleton`) on background or surface | navy800 `#1D2E4A` |
 | `border` | Dividers, card edges | navy700 `#28395A` |
 | `borderStrong` | Input edges, unselected outlines | navy600 `#364C74` |
 | `outline` | The ink edge and drop of sticker elements | ink `#040810` |
@@ -206,7 +207,10 @@ Import from `@/components/ui`. Reach for these before writing any styled `View`.
 | `ScreenHeader` | Top bar of a screen | `title`, `onBack`, `backIcon` `chevron-back`/`close`, `right`, `large` (tab roots). You add the safe-area inset |
 | `Badge` | A count on a corner | `count`, `max`, `tone`, `showZero`, `ringColor` |
 | `EmptyState` | An empty list | `icon`, `title`, `body`, `action` |
-| `Spinner` | Loading | `color` (a `ThemeColors` key), `size` |
+| `Spinner` | Waiting on an action (in a button, row or tile) | `color` (a `ThemeColors` key), `size` |
+| `Skeleton` | A placeholder shape while data loads | `width`, `height`, `radius` (a token or `circle`), `color` (`skeleton`, or `border` on `surfaceElevated`) |
+| `SkeletonGroup` | Wraps a loading layout so screen readers hear "Loading" once | `label`, `style` |
+| `ErrorState` | A screen or list that couldn't load | `title`, `body`, `onRetry`, `retrying` |
 | `CoinPill` | A coin balance | `coins` |
 | `Dialog` | Modal dialogs, see below | `visible`, `onClose`, `icon`, `tone`, `title`, `message`, `actions`, `bare` |
 
@@ -217,9 +221,74 @@ Elsewhere:
 | `showToast` / `ToastHost` | `components/Toast.tsx` | Short notices at the top of the screen |
 | `UserAvatar`, `UserRow`, `UserPicker` | `components/` | People in lists and pickers |
 | `Drawer` | `lib/room-engine/components/Drawer.tsx` | The room's bottom drawers (avatars, emotes, inventory) |
+| `DrawerCardsSkeleton`, `DrawerError` | `lib/room-engine/components/Drawer.tsx` | A drawer's loading row and its compact error with retry |
+| `UserRowSkeleton`, `UserRowsSkeleton` | `components/UserRow.tsx` | People lists while they load |
+| `RoomListItemSkeleton`, `ShopItemCardSkeleton`, `AvatarShopItemCardSkeleton` | next to each component | Those lists while they load |
+| `AvatarEditorSkeleton` | `components/AvatarEditorScreen.tsx` | The editor while the avatar to edit loads |
+| `usePullToRefresh(refetch)` | `hooks/usePullToRefresh.tsx` | A themed `RefreshControl` that spins only for the user's own pull |
 
 **Button choice in one line:** one `primary` per screen or dialog; `secondary` for the alternative;
 `danger` for anything that deletes or removes; `reward` only when coins are spent.
+
+---
+
+## Loading states
+
+**The rule:** anything the user waits on shows that it's happening, from the moment they act until it's done.
+No tap goes silent, and no screen sits blank or shows "empty" or "—" while data is still on its way. If a
+user could wonder "did that work?" or "is there nothing here?", the state is missing.
+
+### Pick the indicator
+
+| Waiting on | Show | How |
+|---|---|---|
+| **Loading data** (a screen, list, grid, section, drawer: most GETs) | **Skeleton** shaped like what's coming | The component's `…Skeleton` (or `Skeleton`s laid out like it) inside a `SkeletonGroup`, about a screenful |
+| **A button's action** (save, buy, send, accept, log out) | **Spinner in the button** | `Button`'s `loading` prop. It disables the button too |
+| **An action from an icon, menu or dialog** (remove member, delete, hide) | **Spinner where the result will show** | Swap the row's trailing control for `<Spinner />`, or overlay the tile (see Profile's avatar tile). Disable the row's other controls meanwhile |
+| **The next page** of an infinite list | Small `Spinner` in the list footer | `ListFooterComponent={isFetchingNextPage ? <Spinner /> : undefined}` |
+| **Search as you type** | Small `Spinner` in the field | `TextField`'s `right` |
+| **Refreshing data already on screen** | Keep the data, show a quiet cue | `refreshControl={usePullToRefresh(refetch)}` on tab lists. Never swap live data back to a skeleton |
+| **Launch, or a whole-screen hand-off** (boot, entering a room) | Branded full-screen state | `BootScreen`; the room shows its own loading state |
+| **Images** | A tinted box the size of the image | `expo-image` on its tinted tile (`surfaceElevated`) with `transition={t.motion.fast}`, so it doesn't pop in |
+
+Use a full-screen centred `Spinner` only when the layout can't be known in advance. Otherwise it's a skeleton.
+
+### Rules
+
+- **Check `isLoading` before `length === 0`.** An empty list shows `EmptyState` only after loading
+  finished. Use `isLoading` (first load) for skeletons, `isFetchingNextPage` for the footer, and
+  `isFetching` only for small inline cues.
+- **Every mutation shows its `isPending`** somewhere the user is looking: the button they tapped, the row it
+  affects, or the tile. A mutation started from a `showDialog` button shows its pending state on the row or
+  screen behind, since the dialog closes at once.
+- **No double submits.** While pending, disable the control that started it (`Button` does this when
+  `loading`).
+- **Optimistic updates count** as a loading state only if they roll back and show an error when the call
+  fails.
+- **Data that changes what a screen shows** (owned items, balances, permissions) must load before the screen
+  claims anything. Don't show "Buy" on something the user owns because inventory hasn't arrived; skeleton
+  that part or hold it back until it has.
+- **Failures end the wait:** a load that failed with nothing cached shows `ErrorState` with `onRetry` (or
+  `DrawerError` in a drawer); a failed action shows `showErrorDialog`. Check `isError && !data`, so a
+  failed background refetch keeps showing the data. A spinner or skeleton must never be the final state, and
+  "not found" (e.g. a deleted avatar) needs its own `EmptyState`, not an endless loader.
+- **Keep the pending state until the screen shows the result.** If a mutation's `onSuccess` refetches,
+  *return* the `invalidateQueries` promise, so `isPending` lasts until the new data is on screen. Otherwise
+  the row flashes back to its old state between the call finishing and the refetch landing.
+- **One row, one spinner.** For mutations shared by a list, show the spinner only on the row whose
+  `variables` match (`m.isPending && m.variables?._id === user._id`).
+- **Fast calls still get a state.** Don't skip the indicator because it's quick on wifi. If a flash bothers
+  you, delay the indicator briefly; don't remove it.
+- **Accessibility:** a loading `Button` sets `accessibilityState.busy`; give skeleton containers
+  `accessibilityLabel="Loading"` and hide the placeholder shapes from screen readers.
+
+### Building a skeleton
+
+`Skeleton` (`components/ui/Skeleton.tsx`) is a box in `t.colors.skeleton` that pulses (it holds still when the
+OS asks for reduced motion). For a new list, add a `…Skeleton` export next to the real component that reuses
+its styles (same padding, radius and height) with the text swapped for bars, so nothing jumps when data lands.
+Give the skeleton card `borderColor: t.colors.surface` so its edge doesn't draw attention. On
+`surfaceElevated` (dialog cards, mail), pass `color="border"` so the shapes still show.
 
 ---
 
@@ -332,3 +401,5 @@ light theme can soften the ink drop.
 - **TypeScript** catches missing theme keys and unknown `color`/`variant` names.
 - **Review:** hex codes, raw numbers for padding/radius/font size, or `fontWeight` in a component are bugs.
   Search for them before calling a screen done.
+- **Review:** every `useQuery` / `useInfiniteQuery` needs a loading state, and every `useMutation` needs its
+  `isPending` shown (see [Loading states](#loading-states)). Grep a screen for both before calling it done.

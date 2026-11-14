@@ -10,7 +10,7 @@ import { useAuth } from '@/context/auth.context';
 import { MY_AVATARS_KEY, type MyAvatars } from '@/hooks/useMyAvatars';
 import { announceAvatarChanged } from '@/utils/socketUtils';
 import { makeStyles, useTheme } from '@/constants/theme';
-import { AppText, Button, Chip, EmptyState, Spinner, TextField } from '@/components/ui';
+import { AppText, Button, Chip, EmptyState, ErrorState, Skeleton, SkeletonGroup, TextField } from '@/components/ui';
 import { resolveAvatarSource } from '@/constants/avatarAssets';
 import AvatarPreview from '@/components/AvatarPreview';
 import type { AvatarOutfit } from '@/lib/room-engine/engines/skia/wearables/useAvatarArts';
@@ -134,16 +134,22 @@ export default function AvatarEditorScreen({ mode, avatarId, initialSelections, 
   }, [mode]);
 
   // Fetch catalog items for the active category tab
-  const { data: catalogItems = [], isLoading: loadingItems } = useQuery({
+  const catalogQuery = useQuery({
     queryKey: ['avatar-items', activeCategory],
     queryFn: () => api.get<AvatarItem[]>(`/api/v1/avatar/items?category=${activeCategory}`),
   });
+  const catalogItems = catalogQuery.data ?? [];
 
   // Fetch owned avatar item variants to gate the editor
-  const { data: avatarInventory = [] } = useQuery<AvatarInventoryEntry[]>({
+  const inventoryQuery = useQuery<AvatarInventoryEntry[]>({
     queryKey: ['avatar-inventory'],
     queryFn: () => api.get<AvatarInventoryEntry[]>('/api/v1/inventory/avatar'),
   });
+  const avatarInventory = inventoryQuery.data ?? [];
+  // The grid shows only what the user owns, so it waits for both.
+  const loadingItems = catalogQuery.isLoading || inventoryQuery.isLoading;
+  const itemsFailed = (catalogQuery.isError && !catalogQuery.data) || (inventoryQuery.isError && !inventoryQuery.data);
+  const retryItems = () => { catalogQuery.refetch(); inventoryQuery.refetch(); };
 
   // Profile, the edit screen and the room's avatar drawer list the user's avatars. The saved
   // avatar goes into the cached list first, so the screen we go back to shows it at once
@@ -297,7 +303,13 @@ export default function AvatarEditorScreen({ mode, avatarId, initialSelections, 
 
       {/* ── Items grid ── */}
       {loadingItems ? (
-        <Spinner style={styles.gridLoader} />
+        <ItemGridSkeleton />
+      ) : itemsFailed ? (
+        <ErrorState
+          title="Couldn't load your items"
+          onRetry={retryItems}
+          retrying={catalogQuery.isRefetching || inventoryQuery.isRefetching}
+        />
       ) : (
         <FlatList
           key={activeCategory}
@@ -328,7 +340,7 @@ export default function AvatarEditorScreen({ mode, avatarId, initialSelections, 
                 onPress={() => handleSelectItem(item)}
               >
                 {source
-                  ? <Image source={source} style={styles.gridItemSwatch} contentFit="contain" />
+                  ? <Image source={source} style={styles.gridItemSwatch} contentFit="contain" transition={t.motion.fast} />
                   : <View style={[styles.gridItemSwatch, styles.colorSwatch, { backgroundColor: fallbackColor }]} />
                 }
                 <AppText variant="caption" color="textSubtle" align="center" numberOfLines={1}>
@@ -431,8 +443,17 @@ const useStyles = makeStyles(t => ({
     paddingVertical: t.space.md,
     gap: t.space.sm,
   },
-  gridLoader: {
-    flex: 1,
+  gridSkeleton: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: t.space.md,
+  },
+  chipsSkeleton: {
+    flexDirection: 'row',
+  },
+  gridSkeletonCell: {
+    width: '33.33%',
+    padding: t.space.xs,
   },
   grid: {
     paddingHorizontal: t.space.md,
@@ -520,3 +541,37 @@ const useStyles = makeStyles(t => ({
     marginTop: t.space.sm,
   },
 }));
+
+/** Item tiles in the editor's three-column grid, while they load. */
+function ItemGridSkeleton() {
+  const styles = useStyles();
+  return (
+    <SkeletonGroup style={styles.gridSkeleton} label="Loading items">
+      {[0, 1, 2, 3, 4, 5].map(i => (
+        <View key={i} style={styles.gridSkeletonCell}>
+          <Skeleton height={104} radius="lg" />
+        </View>
+      ))}
+    </SkeletonGroup>
+  );
+}
+
+/** The editor's layout in placeholders, for a screen still loading the avatar to edit. */
+export function AvatarEditorSkeleton() {
+  const t = useTheme();
+  const styles = useStyles();
+  return (
+    <SkeletonGroup style={styles.container} label="Loading avatar">
+      <View style={styles.preview}>
+        <Skeleton width={120} height={180} radius="xl" />
+      </View>
+      <View style={styles.nameField}>
+        <Skeleton height={t.controlHeight.md} radius="pill" />
+      </View>
+      <View style={[styles.tabBarContent, styles.chipsSkeleton]}>
+        {[72, 64, 80, 68].map((w, i) => <Skeleton key={i} width={w} height={34} radius="pill" />)}
+      </View>
+      <ItemGridSkeleton />
+    </SkeletonGroup>
+  );
+}

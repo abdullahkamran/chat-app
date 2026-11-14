@@ -72,7 +72,7 @@ Use `t.type.*` (`display`, `title`, `heading`, `button`, `body`, `bodyStrong`, `
 
 ### UI primitives: use these before hand-rolling
 
-`apps/mobile/components/ui/` (import from `@/components/ui`): `AppText`, `Button` (primary / secondary / reward / ghost / danger), `IconButton` (plain / surface / primary / secondary, with `active` and `badge`), `TextField`, `SegmentedControl`, `Chip`, `ScreenHeader`, `Badge`, `EmptyState`, `Spinner`, `CoinPill`, `Dialog`. The room's bottom drawers use `lib/room-engine/components/Drawer.tsx`.
+`apps/mobile/components/ui/` (import from `@/components/ui`): `AppText`, `Button` (primary / secondary / reward / ghost / danger), `IconButton` (plain / surface / primary / secondary, with `active` and `badge`), `TextField`, `SegmentedControl`, `Chip`, `ScreenHeader`, `Badge`, `EmptyState`, `ErrorState`, `Skeleton` / `SkeletonGroup`, `Spinner`, `CoinPill`, `Dialog`. The room's bottom drawers use `lib/room-engine/components/Drawer.tsx`.
 
 ### Dialogs: never `Alert.alert` or a hand-rolled `Modal`
 
@@ -80,6 +80,18 @@ Use `t.type.*` (`display`, `title`, `heading`, `button`, `body`, `bodyStrong`, `
 - Custom content: `<Dialog visible onClose icon tone title message actions>`, or `bare` to lay out the card yourself.
 - Success notices that need no answer ("Purchased!"): `showToast` from `components/Toast.tsx`, not a dialog.
 - `showDialog` goes to the newest mounted `<DialogHost />`. On iOS a Modal can only present from the screen it's mounted in, so a screen shown with `presentation: 'modal'`, or a `Modal` that shows dialogs, must mount its own `<DialogHost />` (see `app/room-members.tsx`, `app/add-friends.tsx`, `MailboxModal.tsx`). The root one is in `app/_layout.tsx`.
+
+### Loading states: never leave the user guessing
+
+Every wait shows that something is happening, from the tap until it's done. Full rules in [docs/design-system.md#loading-states](docs/design-system.md#loading-states).
+
+- **Loading data (most GETs: screens, lists, grids, drawers): use a skeleton** shaped like the content, not a centred spinner. Use a full-screen `Spinner` only when the layout can't be known.
+- **Button actions: `Button`'s `loading` prop** (spinner in the button, disables it).
+- **Actions from icons, menus or `showDialog` buttons:** show the mutation's `isPending` on the row or tile it affects (swap the control for a `Spinner`), and disable it meanwhile.
+- Check `isLoading` before showing `EmptyState`; never show "empty", "—", or a wrong "Buy"/"owned" state while data is still loading.
+- Every `useQuery` needs a loading state and every `useMutation` needs its `isPending` shown. A failed load (`isError && !data`) shows `ErrorState` with retry, never an endless spinner. If `onSuccess` refetches, return the promise so the pending state lasts until the screen updates.
+- Tab lists get pull-to-refresh: `refreshControl={usePullToRefresh(refetch)}`.
+- Use the `loading-states` skill (`.claude/skills/loading-states/`) to audit or fix a screen.
 
 ### Adding a color
 

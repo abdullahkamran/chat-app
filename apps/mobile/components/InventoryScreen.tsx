@@ -6,9 +6,10 @@ import { useQuery } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Animation, AvatarItem, Item } from '@chat-app/shared-types';
 import { useInventory } from '@/hooks/useInventory';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { useAuth } from '@/context/auth.context';
 import { api } from '@/lib/api';
-import { AppText, Badge, EmptyState, ScreenHeader, SegmentedControl, Spinner } from '@/components/ui';
+import { AppText, Badge, EmptyState, ErrorState, ScreenHeader, SegmentedControl, Skeleton, SkeletonGroup } from '@/components/ui';
 import { makeStyles, useTheme } from '@/constants/theme';
 import { resolveAvatarSource, resolveItemSource } from '@/constants/avatarAssets';
 import ItemDetailModal from './ItemDetailModal';
@@ -36,7 +37,8 @@ const ANIMATION_CATEGORY_LABEL: Record<string, string> = {
 const useStyles = makeStyles(t => ({
     container: { flex: 1, backgroundColor: t.colors.background },
     tabSwitcher: { marginHorizontal: t.space.lg, marginBottom: t.space.md },
-    loader: { flex: 1 },
+    skeletonRow: { borderColor: t.colors.surface },
+    skeletonInfo: { flex: 1, gap: t.space.sm },
     list: { paddingBottom: t.space.xl, gap: t.space.sm + 2 },
     row: {
         flexDirection: 'row',
@@ -76,6 +78,24 @@ const useStyles = makeStyles(t => ({
     },
 }));
 
+/** Placeholder rows shaped like the inventory list, while a tab loads. */
+function InventoryRowsSkeleton({ round = false }: Readonly<{ round?: boolean }>) {
+    const styles = useStyles();
+    return (
+        <SkeletonGroup style={styles.list} label="Loading inventory">
+            {[0, 1, 2, 3, 4, 5].map(i => (
+                <View key={i} style={[styles.row, styles.skeletonRow]}>
+                    {round ? <Skeleton width={40} height={40} radius="circle" /> : <Skeleton width={52} height={52} radius="md" />}
+                    <View style={styles.skeletonInfo}>
+                        <Skeleton width="50%" height={16} radius="xs" />
+                        <Skeleton width="30%" height={10} radius="xs" />
+                    </View>
+                </View>
+            ))}
+        </SkeletonGroup>
+    );
+}
+
 export default function InventoryScreen(): React.JSX.Element {
     const t = useTheme();
     const styles = useStyles();
@@ -83,19 +103,26 @@ export default function InventoryScreen(): React.JSX.Element {
     const insets = useSafeAreaInsets();
     const [inventoryTab, setInventoryTab] = useState<InventoryTab>('items');
 
-    const { data: entries = [], isLoading: isLoadingItems } = useInventory({ enabled: !!userId && inventoryTab === 'items' });
+    const itemsQuery = useInventory({ enabled: !!userId && inventoryTab === 'items' });
+    const entries = itemsQuery.data ?? [];
 
-    const { data: avatarInventory = [], isLoading: isLoadingOutfits } = useQuery<PopulatedAvatarInventoryEntry[]>({
+    const outfitsQuery = useQuery<PopulatedAvatarInventoryEntry[]>({
         queryKey: ['avatar-inventory'],
         queryFn: () => api.get<PopulatedAvatarInventoryEntry[]>('/api/v1/inventory/avatar'),
         enabled: !!userId && inventoryTab === 'outfits',
     });
+    const avatarInventory = outfitsQuery.data ?? [];
 
-    const { data: animations = [], isLoading: isLoadingAnimations } = useQuery<Animation[]>({
+    const animationsQuery = useQuery<Animation[]>({
         queryKey: ['animation-inventory'],
         queryFn: () => api.get<Animation[]>('/api/v1/inventory/animations'),
         enabled: !!userId && inventoryTab === 'animations',
     });
+    const animations = animationsQuery.data ?? [];
+
+    const refreshItems = usePullToRefresh(itemsQuery.refetch);
+    const refreshOutfits = usePullToRefresh(outfitsQuery.refetch);
+    const refreshAnimations = usePullToRefresh(animationsQuery.refetch);
 
     const [selectedItem, setSelectedItem] = useState<Item | null>(null);
     const [modalVisible, setModalVisible] = useState(false);
@@ -112,13 +139,16 @@ export default function InventoryScreen(): React.JSX.Element {
             <SegmentedControl options={TABS} value={inventoryTab} onChange={setInventoryTab} style={styles.tabSwitcher} />
 
             {inventoryTab === 'animations' ? (
-                isLoadingAnimations ? (
-                    <Spinner style={styles.loader} size="large" />
+                animationsQuery.isLoading ? (
+                    <InventoryRowsSkeleton />
+                ) : animationsQuery.isError && !animationsQuery.data ? (
+                    <ErrorState title="Couldn't load your animations" onRetry={() => animationsQuery.refetch()} retrying={animationsQuery.isRefetching} />
                 ) : (
                     <FlatList
                         data={animations}
                         keyExtractor={(a) => a._id}
                         contentContainerStyle={styles.list}
+                        refreshControl={refreshAnimations}
                         renderItem={({ item: anim }) => (
                             <View style={styles.row}>
                                 <View style={styles.thumbTile}>
@@ -134,13 +164,16 @@ export default function InventoryScreen(): React.JSX.Element {
                     />
                 )
             ) : inventoryTab === 'items' ? (
-                isLoadingItems ? (
-                    <Spinner style={styles.loader} size="large" />
+                itemsQuery.isLoading ? (
+                    <InventoryRowsSkeleton />
+                ) : itemsQuery.isError && !itemsQuery.data ? (
+                    <ErrorState title="Couldn't load your items" onRetry={() => itemsQuery.refetch()} retrying={itemsQuery.isRefetching} />
                 ) : (
                     <FlatList
                         data={entries}
                         keyExtractor={({ item }) => item._id}
                         contentContainerStyle={styles.list}
+                        refreshControl={refreshItems}
                         renderItem={({ item: { item, count, placed } }) => {
                             const source = resolveItemSource(item.assetUrl);
                             return (
@@ -149,7 +182,7 @@ export default function InventoryScreen(): React.JSX.Element {
                                     onPress={() => { setSelectedItem(item); setModalVisible(true); }}
                                 >
                                     <View style={styles.thumbTile}>
-                                        {source && <Image source={source} style={styles.itemThumb} contentFit="contain" />}
+                                        {source && <Image source={source} style={styles.itemThumb} contentFit="contain" transition={t.motion.fast} />}
                                         {/* Copies free to place; ones standing in rooms are counted below. */}
                                         <Badge count={count} showZero tone={count > 0 ? 'primary' : 'muted'} ringColor={t.colors.surface} />
                                     </View>
@@ -169,20 +202,23 @@ export default function InventoryScreen(): React.JSX.Element {
                     />
                 )
             ) : (
-                isLoadingOutfits ? (
-                    <Spinner style={styles.loader} size="large" />
+                outfitsQuery.isLoading ? (
+                    <InventoryRowsSkeleton round />
+                ) : outfitsQuery.isError && !outfitsQuery.data ? (
+                    <ErrorState title="Couldn't load your outfits" onRetry={() => outfitsQuery.refetch()} retrying={outfitsQuery.isRefetching} />
                 ) : (
                     <FlatList
                         data={avatarInventory}
                         keyExtractor={(entry, index) => `${entry.item?._id ?? index}-${entry.variantId}`}
                         contentContainerStyle={styles.list}
+                        refreshControl={refreshOutfits}
                         renderItem={({ item: entry }) => {
                             const variant = entry.item?.variants?.find((v) => v._id === entry.variantId);
                             const source = resolveAvatarSource(variant?.sourceUrl ?? '');
                             return (
                                 <View style={styles.row}>
                                     {source
-                                        ? <Image source={source} style={styles.swatch} contentFit="contain" />
+                                        ? <Image source={source} style={styles.swatch} contentFit="contain" transition={t.motion.fast} />
                                         : <View style={[styles.swatch, styles.swatchColor, { backgroundColor: variant?.color ?? t.colors.border }]} />
                                     }
                                     <View style={styles.info}>

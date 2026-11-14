@@ -13,7 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { isRoomOwner, ROOM_MAIL_MAX_LENGTH, RoomCategory, type RoomDetails, type RoomMail } from '@chat-app/shared-types';
-import { AppText, DialogHost, EmptyState, IconButton, Spinner, showDialog } from '@/components/ui';
+import { AppText, DialogHost, EmptyState, ErrorState, IconButton, Skeleton, SkeletonGroup, Spinner, showDialog } from '@/components/ui';
 import { makeStyles, useTheme } from '@/constants/theme';
 import { useMailbox, useMailboxMutations } from '@/hooks/useMailbox';
 
@@ -77,9 +77,6 @@ const useStyles = makeStyles(t => ({
   headerText: {
     flex: 1,
   },
-  state: {
-    marginVertical: t.space.xxl,
-  },
   list: {
     flexGrow: 0,
   },
@@ -93,6 +90,9 @@ const useStyles = makeStyles(t => ({
     borderWidth: t.borderWidth.thick,
     borderColor: t.colors.border,
     padding: t.space.md,
+  },
+  skeletonMail: {
+    gap: t.space.sm,
   },
   mailHeader: {
     flexDirection: 'row',
@@ -144,7 +144,7 @@ export function MailboxModal({ room, userId, visible, onClose }: Readonly<Props>
   const t = useTheme();
   const styles = useStyles();
   const insets = useSafeAreaInsets();
-  const { data, isLoading, error } = useMailbox(room._id);
+  const { data, isLoading, error, isRefetching, refetch } = useMailbox(room._id);
   const { post, remove, markRead } = useMailboxMutations(room._id);
   const [text, setText] = useState('');
   const [focused, setFocused] = useState(false);
@@ -184,6 +184,7 @@ export function MailboxModal({ room, userId, visible, onClose }: Readonly<Props>
 
   const renderMail = ({ item }: { item: RoomMail }) => {
     const mine = item.author._id === userId;
+    const deleting = remove.isPending && remove.variables === item._id;
     return (
       <View style={styles.mail}>
         <View style={styles.mailHeader}>
@@ -191,11 +192,13 @@ export function MailboxModal({ room, userId, visible, onClose }: Readonly<Props>
             {mine ? 'You' : item.author.username}
           </AppText>
           <AppText variant="caption" color="textMuted" style={styles.time}>{timeAgo(item.createdAt)}</AppText>
-          {(mine || isOwner) && (
+          {(mine || isOwner) && (deleting ? (
+            <Spinner size="small" color="error" accessibilityLabel="Deleting mail" />
+          ) : (
             <Pressable onPress={() => confirmDelete(item)} hitSlop={8} accessibilityLabel="Delete mail">
               <Ionicons name="trash-outline" size={16} color={t.colors.textSecondary} />
             </Pressable>
-          )}
+          ))}
         </View>
         <AppText>{item.text}</AppText>
       </View>
@@ -222,9 +225,17 @@ export function MailboxModal({ room, userId, visible, onClose }: Readonly<Props>
           </View>
 
           {isLoading ? (
-            <Spinner style={styles.state} />
-          ) : error ? (
-            <AppText color="error" align="center" style={styles.state}>{(error as Error).message}</AppText>
+            <SkeletonGroup style={styles.listContent} label="Loading mail">
+              {[0, 1, 2].map(i => (
+                <View key={i} style={[styles.mail, styles.skeletonMail]}>
+                  <Skeleton width="30%" height={12} radius="xs" color="border" />
+                  <Skeleton width="90%" height={12} radius="xs" color="border" />
+                  <Skeleton width="60%" height={12} radius="xs" color="border" />
+                </View>
+              ))}
+            </SkeletonGroup>
+          ) : error && !data ? (
+            <ErrorState title="Couldn't open the postbox" onRetry={() => refetch()} retrying={isRefetching} />
           ) : (
             <FlatList
               data={data?.mails ?? []}

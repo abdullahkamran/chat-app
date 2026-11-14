@@ -5,8 +5,8 @@ import { FlatList, KeyboardAvoidingView, Platform, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import UserPicker from '@/components/UserPicker';
-import UserRow from '@/components/UserRow';
-import { AppText, Button, DialogHost, IconButton, ScreenHeader, Spinner, showDialog, showErrorDialog } from '@/components/ui';
+import UserRow, { UserRowsSkeleton } from '@/components/UserRow';
+import { AppText, Button, DialogHost, ErrorState, IconButton, ScreenHeader, Spinner, showDialog, showErrorDialog } from '@/components/ui';
 import { makeStyles } from '@/constants/theme';
 import { useAuth } from '@/context/auth.context';
 import { api } from '@/lib/api';
@@ -45,13 +45,15 @@ function MembersList() {
   usePreventRemove(isAdding, closeAdding);
 
   const membersKey = ['roomMembers', roomId];
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, isRefetching, refetch } = useQuery({
     queryKey: membersKey,
     queryFn: () => api.get<RoomMembers>(`/api/v1/rooms/${roomId}/members`),
     enabled: !!roomId,
   });
 
   const showError = (e: Error) => showErrorDialog(e);
+  // Returned from onSuccess, so a mutation stays pending (its row keeps its spinner) until the
+  // new list has arrived, instead of flashing back to the old state in between.
   const refetchMembers = () => queryClient.invalidateQueries({ queryKey: membersKey });
   // Out of the room: back to the room list, which no longer has it.
   const exitRoom = () => {
@@ -62,9 +64,9 @@ function MembersList() {
   const add = useMutation({
     mutationFn: (users: PublicUser[]) =>
       api.post(`/api/v1/rooms/${roomId}/members`, { userIds: users.map((u) => u._id) }),
-    onSuccess: () => {
+    onSuccess: async () => {
+      await refetchMembers();
       closeAdding();
-      refetchMembers();
     },
     onError: showError,
   });
@@ -77,10 +79,10 @@ function MembersList() {
 
   const makeOwner = useMutation({
     mutationFn: (user: PublicUser) => api.post(`/api/v1/rooms/${roomId}/owners`, { userId: user._id }),
-    onSuccess: () => {
-      refetchMembers();
-      queryClient.invalidateQueries({ queryKey: ['roomDetails', roomId] });
-    },
+    onSuccess: () => Promise.all([
+      refetchMembers(),
+      queryClient.invalidateQueries({ queryKey: ['roomDetails', roomId] }),
+    ]),
     onError: showError,
   });
 
@@ -104,12 +106,15 @@ function MembersList() {
 
   if (isLoading || !data) {
     return (
-      <View style={[styles.root, styles.centered, { paddingTop: insets.top }]}>
-        {error ? (
-          <AppText color="error" align="center">{(error as Error).message}</AppText>
-        ) : (
-          <Spinner size="large" />
-        )}
+      <View style={[styles.root, { paddingTop: insets.top }]}>
+        <ScreenHeader title="Members" onBack={() => router.back()} backIcon="close" />
+        <View style={styles.body}>
+          {isLoading ? (
+            <UserRowsSkeleton count={6} />
+          ) : (
+            <ErrorState title="Couldn't load the members" onRetry={() => refetch()} retrying={isRefetching} />
+          )}
+        </View>
       </View>
     );
   }
@@ -231,8 +236,13 @@ function MembersList() {
     );
   }
 
+  // Someone being removed, made owner or dismissed: their row shows a spinner until it's done.
+  const pendingFor = (user: PublicUser) =>
+    [remove, makeOwner, dismissOwner].some((m) => m.isPending && m.variables?._id === user._id);
+
   const memberRow = ({ item: user }: { item: PublicUser }) => {
     const isRowOwner = ownerIds.includes(user._id);
+    const rowBusy = pendingFor(user);
     // Owners manage everyone but themselves and the creator.
     const canManageRow = canManageMembers && user._id !== userId && user._id !== creatorId;
     return (
@@ -246,7 +256,12 @@ function MembersList() {
                 <AppText variant="overline" color="onReward">Owner</AppText>
               </View>
             )}
-            {canManageRow && (
+            {canManageRow && rowBusy && (
+              <View style={styles.rowSpinner}>
+                <Spinner />
+              </View>
+            )}
+            {canManageRow && !rowBusy && (
               <IconButton
                 icon="ellipsis-horizontal"
                 size={36}
@@ -282,6 +297,7 @@ function MembersList() {
           keyExtractor={(m) => m._id}
           style={styles.list}
           renderItem={memberRow}
+          extraData={[remove.variables, makeOwner.variables, dismissOwner.variables, remove.isPending, makeOwner.isPending, dismissOwner.isPending]}
         />
 
         {canManageMembers ? (
@@ -312,6 +328,7 @@ function MembersList() {
             variant="danger"
             fullWidth
             loading={leave.isPending}
+            disabled={busy}
             onPress={confirmLeave}
             style={styles.bottomBtn}
           />
@@ -326,9 +343,11 @@ const useStyles = makeStyles(t => ({
     flex: 1,
     backgroundColor: t.colors.background,
   },
-  centered: {
-    justifyContent: 'center',
+  rowSpinner: {
+    width: 36,
+    height: 36,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   body: {
     flex: 1,

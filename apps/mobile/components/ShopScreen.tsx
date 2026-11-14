@@ -5,17 +5,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Animation, AvatarInventoryEntry, AvatarItem, Item, PaginatedAnimations, PaginatedAvatarItems, PaginatedItems } from '@chat-app/shared-types';
 import { useAuth } from '@/context/auth.context';
 import { api } from '@/lib/api';
-import { AppText, Button, CoinPill, EmptyState, ScreenHeader, SegmentedControl, Spinner, showErrorDialog } from '@/components/ui';
+import { AppText, Button, CoinPill, EmptyState, ErrorState, ScreenHeader, SegmentedControl, Skeleton, SkeletonGroup, Spinner, showErrorDialog } from '@/components/ui';
 import { showToast } from '@/components/Toast';
 import { makeStyles } from '@/constants/theme';
 import { useMe } from '@/hooks/useMe';
 import { ownedCounts, useInventory } from '@/hooks/useInventory';
-import ShopItemCard from './ShopItemCard';
-import AvatarShopItemCard from './AvatarShopItemCard';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import ShopItemCard, { ShopItemCardSkeleton } from './ShopItemCard';
+import AvatarShopItemCard, { AvatarShopItemCardSkeleton } from './AvatarShopItemCard';
 import ItemDetailModal from './ItemDetailModal';
 import { ALL_CATEGORY, CategoryChips } from './CategoryChips';
 
 const LIMIT = 20;
+/** How many placeholder cards a loading tab shows: about a screenful. */
+const SKELETON_ROWS = [0, 1, 2, 3, 4, 5];
 
 type ShopTab = 'items' | 'outfits' | 'animations';
 
@@ -49,18 +52,19 @@ export default function ShopScreen(): React.JSX.Element {
     const [buyingAnimationId, setBuyingAnimationId] = useState<string | null>(null);
 
     // ── Items tab: how many of each the user owns, free and placed ───────────
-    const { data: inventory = [] } = useInventory({ enabled: !!userId && shopTab === 'items' });
+    const inventoryQuery = useInventory({ enabled: !!userId && shopTab === 'items' });
+    const inventory = inventoryQuery.data ?? [];
     const owned = ownedCounts(inventory);
 
     // ── Items tab queries ────────────────────────────────────────────────────
-    const { data: categories = [] } = useQuery<string[]>({
+    const { data: categories = [], isLoading: isLoadingCategories } = useQuery<string[]>({
         queryKey: ['shop', 'categories'],
         queryFn: () => api.get<string[]>('/api/v1/shop/categories'),
         enabled: !!userId && shopTab === 'items',
     });
 
     const categoryParam = selectedCategory === ALL_CATEGORY ? '' : selectedCategory;
-    const { data: itemsData, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading: isLoadingItems } =
+    const itemsQuery =
         useInfiniteQuery<PaginatedItems>({
             queryKey: ['shop', 'items', selectedCategory],
             queryFn: ({ pageParam = 1 }) =>
@@ -72,7 +76,10 @@ export default function ShopScreen(): React.JSX.Element {
             enabled: !!userId && shopTab === 'items',
         });
 
+    const { data: itemsData, fetchNextPage, hasNextPage, isFetchingNextPage } = itemsQuery;
     const items: Item[] = itemsData?.pages.flatMap((p) => p.items) ?? [];
+    // What the user owns changes what each card says, so it's part of the first load.
+    const isLoadingItems = itemsQuery.isLoading || inventoryQuery.isLoading;
 
     const { mutate: buyItem } = useMutation({
         mutationFn: (itemId: string) => api.post<unknown>('/api/v1/shop/buy', { itemId }),
@@ -88,14 +95,14 @@ export default function ShopScreen(): React.JSX.Element {
     });
 
     // ── Outfits tab queries ──────────────────────────────────────────────────
-    const { data: outfitCategories = [] } = useQuery<string[]>({
+    const { data: outfitCategories = [], isLoading: isLoadingOutfitCategories } = useQuery<string[]>({
         queryKey: ['avatar-shop', 'categories'],
         queryFn: () => api.get<string[]>('/api/v1/shop/avatar-items/categories'),
         enabled: !!userId && shopTab === 'outfits',
     });
 
     const outfitCategoryParam = selectedOutfitCategory === ALL_CATEGORY ? '' : selectedOutfitCategory;
-    const { data: outfitsData, fetchNextPage: fetchNextOutfitsPage, hasNextPage: hasNextOutfitsPage, isFetchingNextPage: isFetchingNextOutfitsPage, isLoading: isLoadingOutfits } =
+    const outfitsQuery =
         useInfiniteQuery<PaginatedAvatarItems>({
             queryKey: ['avatar-shop', 'items', selectedOutfitCategory],
             queryFn: ({ pageParam = 1 }) =>
@@ -107,25 +114,27 @@ export default function ShopScreen(): React.JSX.Element {
             enabled: !!userId && shopTab === 'outfits',
         });
 
+    const { data: outfitsData, fetchNextPage: fetchNextOutfitsPage, hasNextPage: hasNextOutfitsPage, isFetchingNextPage: isFetchingNextOutfitsPage } = outfitsQuery;
     const outfitItems: AvatarItem[] = outfitsData?.pages.flatMap((p) => p.items) ?? [];
 
-    const { data: avatarInventory = [] } = useQuery<AvatarInventoryEntry[]>({
+    const avatarInventoryQuery = useQuery<AvatarInventoryEntry[]>({
         queryKey: ['avatar-inventory'],
         queryFn: () => api.get<AvatarInventoryEntry[]>('/api/v1/inventory/avatar'),
         enabled: !!userId && shopTab === 'outfits',
     });
 
-    const ownedVariantIds = avatarInventory.map((e) => e.variantId);
+    const ownedVariantIds = (avatarInventoryQuery.data ?? []).map((e) => e.variantId);
+    const isLoadingOutfits = outfitsQuery.isLoading || avatarInventoryQuery.isLoading;
 
     // ── Animations tab queries ───────────────────────────────────────────────
-    const { data: animationCategories = [] } = useQuery<string[]>({
+    const { data: animationCategories = [], isLoading: isLoadingAnimationCategories } = useQuery<string[]>({
         queryKey: ['animation-shop', 'categories'],
         queryFn: () => api.get<string[]>('/api/v1/shop/animations/categories'),
         enabled: !!userId && shopTab === 'animations',
     });
 
     const animationCategoryParam = selectedAnimationCategory === ALL_CATEGORY ? '' : selectedAnimationCategory;
-    const { data: animationsData, fetchNextPage: fetchNextAnimationsPage, hasNextPage: hasNextAnimationsPage, isFetchingNextPage: isFetchingNextAnimationsPage, isLoading: isLoadingAnimations } =
+    const animationsQuery =
         useInfiniteQuery<PaginatedAnimations>({
             queryKey: ['animation-shop', 'items', selectedAnimationCategory],
             queryFn: ({ pageParam = 1 }) =>
@@ -137,15 +146,22 @@ export default function ShopScreen(): React.JSX.Element {
             enabled: !!userId && shopTab === 'animations',
         });
 
+    const { data: animationsData, fetchNextPage: fetchNextAnimationsPage, hasNextPage: hasNextAnimationsPage, isFetchingNextPage: isFetchingNextAnimationsPage } = animationsQuery;
     const animationItems: Animation[] = animationsData?.pages.flatMap((p) => p.animations) ?? [];
 
-    const { data: ownedAnimations = [] } = useQuery<Animation[]>({
+    const ownedAnimationsQuery = useQuery<Animation[]>({
         queryKey: ['animation-inventory'],
         queryFn: () => api.get<Animation[]>('/api/v1/inventory/animations'),
         enabled: !!userId && shopTab === 'animations',
     });
 
-    const ownedAnimationIds = new Set(ownedAnimations.map((a) => a._id));
+    const ownedAnimationIds = new Set((ownedAnimationsQuery.data ?? []).map((a) => a._id));
+    const isLoadingAnimations = animationsQuery.isLoading || ownedAnimationsQuery.isLoading;
+
+    // Pull to refresh reloads the open tab: its list and what the user owns.
+    const refreshItems = usePullToRefresh(() => Promise.all([itemsQuery.refetch(), inventoryQuery.refetch()]));
+    const refreshOutfits = usePullToRefresh(() => Promise.all([outfitsQuery.refetch(), avatarInventoryQuery.refetch()]));
+    const refreshAnimations = usePullToRefresh(() => Promise.all([animationsQuery.refetch(), ownedAnimationsQuery.refetch()]));
 
     const { mutate: buyAnimation } = useMutation({
         mutationFn: (animationId: string) => api.post<unknown>('/api/v1/shop/animations/buy', { animationId }),
@@ -174,19 +190,28 @@ export default function ShopScreen(): React.JSX.Element {
 
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
-            <ScreenHeader large title="Shop" right={coins !== undefined ? <CoinPill coins={coins} /> : undefined} />
+            <ScreenHeader large title="Shop" right={<CoinPill coins={coins} />} />
             <SegmentedControl options={TABS} value={shopTab} onChange={setShopTab} style={styles.tabSwitcher} />
 
             {shopTab === 'items' && (
                 <>
-                    <CategoryChips categories={categories} selected={selectedCategory} onSelect={setSelectedCategory} />
+                    <CategoryChips categories={categories} selected={selectedCategory} onSelect={setSelectedCategory} loading={isLoadingCategories} />
                     {isLoadingItems ? (
-                        <Spinner style={styles.loader} size="large" />
+                        <SkeletonGroup style={styles.list} label="Loading items">
+                            {SKELETON_ROWS.map(i => <ShopItemCardSkeleton key={i} />)}
+                        </SkeletonGroup>
+                    ) : (itemsQuery.isError && !itemsData) || (inventoryQuery.isError && !inventoryQuery.data) ? (
+                        <ErrorState
+                            title="Couldn't load the shop"
+                            onRetry={() => { itemsQuery.refetch(); inventoryQuery.refetch(); }}
+                            retrying={itemsQuery.isRefetching || inventoryQuery.isRefetching}
+                        />
                     ) : (
                         <FlatList
                             data={items}
                             keyExtractor={(item) => item._id}
                             contentContainerStyle={styles.list}
+                            refreshControl={refreshItems}
                             renderItem={({ item }) => (
                                 <ShopItemCard
                                     item={item}
@@ -205,9 +230,17 @@ export default function ShopScreen(): React.JSX.Element {
 
             {shopTab === 'outfits' && (
                 <>
-                    <CategoryChips categories={outfitCategories} selected={selectedOutfitCategory} onSelect={setSelectedOutfitCategory} />
+                    <CategoryChips categories={outfitCategories} selected={selectedOutfitCategory} onSelect={setSelectedOutfitCategory} loading={isLoadingOutfitCategories} />
                     {isLoadingOutfits ? (
-                        <Spinner style={styles.loader} size="large" />
+                        <SkeletonGroup style={styles.list} label="Loading outfits">
+                            {SKELETON_ROWS.slice(0, 3).map(i => <AvatarShopItemCardSkeleton key={i} />)}
+                        </SkeletonGroup>
+                    ) : (outfitsQuery.isError && !outfitsData) || (avatarInventoryQuery.isError && !avatarInventoryQuery.data) ? (
+                        <ErrorState
+                            title="Couldn't load outfits"
+                            onRetry={() => { outfitsQuery.refetch(); avatarInventoryQuery.refetch(); }}
+                            retrying={outfitsQuery.isRefetching || avatarInventoryQuery.isRefetching}
+                        />
                     ) : (
                         <FlatList
                             data={outfitItems}
@@ -223,6 +256,7 @@ export default function ShopScreen(): React.JSX.Element {
                             onEndReached={() => { if (hasNextOutfitsPage && !isFetchingNextOutfitsPage) fetchNextOutfitsPage(); }}
                             onEndReachedThreshold={0.4}
                             contentContainerStyle={styles.list}
+                            refreshControl={refreshOutfits}
                             ListFooterComponent={isFetchingNextOutfitsPage ? <Spinner style={styles.footer} /> : undefined}
                             ListEmptyComponent={<EmptyState icon="shirt-outline" title="No outfits yet" body="New styles are on the way." />}
                         />
@@ -232,14 +266,31 @@ export default function ShopScreen(): React.JSX.Element {
 
             {shopTab === 'animations' && (
                 <>
-                    <CategoryChips categories={animationCategories} selected={selectedAnimationCategory} onSelect={setSelectedAnimationCategory} />
+                    <CategoryChips categories={animationCategories} selected={selectedAnimationCategory} onSelect={setSelectedAnimationCategory} loading={isLoadingAnimationCategories} />
                     {isLoadingAnimations ? (
-                        <Spinner style={styles.loader} size="large" />
+                        <SkeletonGroup style={styles.list} label="Loading animations">
+                            {SKELETON_ROWS.map(i => (
+                                <View key={i} style={[styles.animationRow, styles.skeletonRow]}>
+                                    <View style={styles.skeletonInfo}>
+                                        <Skeleton width="45%" height={16} radius="xs" />
+                                        <Skeleton width="25%" height={10} radius="xs" />
+                                    </View>
+                                    <Skeleton width={96} height={36} radius="pill" />
+                                </View>
+                            ))}
+                        </SkeletonGroup>
+                    ) : (animationsQuery.isError && !animationsData) || (ownedAnimationsQuery.isError && !ownedAnimationsQuery.data) ? (
+                        <ErrorState
+                            title="Couldn't load animations"
+                            onRetry={() => { animationsQuery.refetch(); ownedAnimationsQuery.refetch(); }}
+                            retrying={animationsQuery.isRefetching || ownedAnimationsQuery.isRefetching}
+                        />
                     ) : (
                         <FlatList
                             data={animationItems}
                             keyExtractor={(item) => item._id}
                             contentContainerStyle={styles.list}
+                            refreshControl={refreshAnimations}
                             renderItem={({ item }) => {
                                 const owned = ownedAnimationIds.has(item._id);
                                 const isBuying = buyingAnimationId === item._id;
@@ -285,7 +336,6 @@ export default function ShopScreen(): React.JSX.Element {
 const useStyles = makeStyles(t => ({
     container: { flex: 1, backgroundColor: t.colors.background },
     tabSwitcher: { marginHorizontal: t.space.lg, marginBottom: t.space.xs },
-    loader: { flex: 1 },
     footer: { paddingVertical: t.space.lg },
     list: { paddingTop: t.space.xs, paddingBottom: t.space.xl, gap: t.space.md },
     animationRow: {
@@ -302,4 +352,6 @@ const useStyles = makeStyles(t => ({
         ...t.shadows.sticker,
     },
     animationInfo: { flex: 1, gap: 2 },
+    skeletonRow: { borderColor: t.colors.surface },
+    skeletonInfo: { flex: 1, gap: t.space.sm },
 }));

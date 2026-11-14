@@ -13,6 +13,7 @@ export interface ThemeColors {
   surface: string;          // cards, drawers, bottom sheets, tab bar
   surfaceElevated: string;  // dialogs, chips and tiles on a surface
   surfaceSunken: string;    // text inputs
+  skeleton: string;         // loading placeholders (Skeleton), on background or surface
   border: string;           // dividers, card edges
   borderStrong: string;     // input edges, unselected outlines
   outline: string;          // the ink edge and drop of sticker-style elements
@@ -116,6 +117,7 @@ export const darkTheme: Theme = {
     surface: palette.navy900,
     surfaceElevated: palette.navy800,
     surfaceSunken: palette.ink,
+    skeleton: palette.navy800,
     border: palette.navy700,
     borderStrong: palette.navy600,
     outline: palette.ink,

@@ -5,14 +5,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { io } from 'socket.io-client';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { PaginatedRooms, Room, RoomCategory } from '@chat-app/shared-types';
-import { Button, Dialog, EmptyState, IconButton, ScreenHeader, Spinner } from '@/components/ui';
+import { Button, Dialog, EmptyState, ErrorState, IconButton, ScreenHeader, SkeletonGroup, Spinner } from '@/components/ui';
 import { useAuth } from '@/context/auth.context';
 import { useIncomingRequests } from '@/hooks/useFriends';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { api } from '@/lib/api';
 import { makeStyles } from '@/constants/theme';
 import { SERVER_ORIGIN } from '../utils/config';
 import { listenForAccountEvents, socketUtils } from '../utils/socketUtils';
-import RoomListItem from './RoomListItem';
+import RoomListItem, { RoomListItemSkeleton } from './RoomListItem';
 
 const LIMIT = 20;
 
@@ -33,8 +34,9 @@ const useStyles = makeStyles(t => ({
     flex: 1,
     backgroundColor: t.colors.background,
   },
-  loader: {
-    flex: 1,
+  skeletons: {
+    paddingTop: t.space.sm,
+    gap: t.space.md,
   },
   list: {
     paddingTop: t.space.sm,
@@ -69,6 +71,9 @@ export default function RoomListScreen(): React.JSX.Element {
     hasNextPage,
     isFetchingNextPage,
     isLoading,
+    isError,
+    isRefetching,
+    refetch,
   } = useInfiniteQuery({
     queryKey: ['rooms'],
     queryFn: ({ pageParam = 1 }) =>
@@ -80,6 +85,7 @@ export default function RoomListScreen(): React.JSX.Element {
   });
 
   const rooms = data?.pages.flatMap((p) => p.rooms) ?? [];
+  const refreshControl = usePullToRefresh(refetch);
   const requestCount = useIncomingRequests().data?.length ?? 0;
 
   function handleRoomPress(roomId: string) {
@@ -124,12 +130,17 @@ export default function RoomListScreen(): React.JSX.Element {
         }
       />
       {isLoading ? (
-        <Spinner style={styles.loader} size="large" />
+        <SkeletonGroup style={styles.skeletons} label="Loading rooms">
+          {Array.from({ length: 6 }, (_, i) => <RoomListItemSkeleton key={i} />)}
+        </SkeletonGroup>
+      ) : isError && !data ? (
+        <ErrorState title="Couldn't load your rooms" onRetry={refetch} retrying={isRefetching} />
       ) : (
         <FlatList
           data={rooms}
           keyExtractor={(room) => room._id}
           contentContainerStyle={styles.list}
+          refreshControl={refreshControl}
           renderItem={({ item }) => (
             <RoomListItem
               name={item.name}

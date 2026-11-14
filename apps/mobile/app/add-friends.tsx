@@ -14,15 +14,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { FriendSuggestion, IncomingFriendRequest, PublicUser, RelatedUser } from '@chat-app/shared-types';
 import FriendButton from '@/components/FriendButton';
-import UserRow from '@/components/UserRow';
+import UserRow, { UserRowsSkeleton } from '@/components/UserRow';
 import {
-  AppText, Button, DialogHost, EmptyState, IconButton, ScreenHeader, SegmentedControl, Spinner, TextField, showDialog,
+  AppText, Button, DialogHost, EmptyState, ErrorState, IconButton, ScreenHeader, SegmentedControl, Spinner, TextField, showDialog,
 } from '@/components/ui';
 import { makeStyles, useTheme } from '@/constants/theme';
 import { useContactSync } from '@/hooks/useContactSync';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useFriendActions, useFriends, useIncomingRequests, useSuggestions } from '@/hooks/useFriends';
 import { useMe } from '@/hooks/useMe';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { api } from '@/lib/api';
 import { shareInvite } from '@/utils/invite';
 
@@ -82,13 +83,18 @@ function SuggestionRow({ suggestion }: Readonly<{ suggestion: FriendSuggestion }
       right={
         <View style={styles.rowActions}>
           <FriendButton userId={suggestion._id} relation={suggestion.relation} />
-          <IconButton
-            icon="close"
-            size={32}
-            onPress={() => dismiss.mutate(suggestion._id)}
-            disabled={dismiss.isPending}
-            accessibilityLabel={`Hide ${suggestion.username}`}
-          />
+          {dismiss.isPending ? (
+            <View style={styles.rowSpinner}>
+              <Spinner size="small" />
+            </View>
+          ) : (
+            <IconButton
+              icon="close"
+              size={32}
+              onPress={() => dismiss.mutate(suggestion._id)}
+              accessibilityLabel={`Hide ${suggestion.username}`}
+            />
+          )}
         </View>
       }
     />
@@ -150,6 +156,8 @@ export default function AddFriendsScreen() {
   });
 
   const friendCount = friends.data?.length ?? 0;
+  const refreshHome = usePullToRefresh(() => Promise.all([requests.refetch(), suggestions.refetch()]));
+  const refreshFriends = usePullToRefresh(friends.refetch);
 
   const tabs = [
     { value: 'add', label: 'Add Friends' },
@@ -169,7 +177,13 @@ export default function AddFriendsScreen() {
         />
       )}
       ListEmptyComponent={
-        search.isFetching ? undefined : <EmptyState icon="search-outline" title="No one found" body={`Nobody goes by "${query}".`} />
+        search.isLoading ? (
+          <UserRowsSkeleton count={3} />
+        ) : search.isError ? (
+          <ErrorState title="Search didn't go through" onRetry={() => search.refetch()} retrying={search.isRefetching} />
+        ) : (
+          <EmptyState icon="search-outline" title="No one found" body={`Nobody goes by "${query}".`} />
+        )
       }
     />
   );
@@ -179,6 +193,9 @@ export default function AddFriendsScreen() {
     { title: 'Quick Add', data: (suggestions.data ?? []).map((suggestion) => ({ kind: 'suggestion', suggestion })) },
   ];
   const isEmpty = sections.every((s) => s.data.length === 0);
+  const homeLoading = requests.isLoading || suggestions.isLoading;
+  const homeFailed = isEmpty && !requests.data && !suggestions.data && (requests.isError || suggestions.isError);
+  const retryHome = () => { requests.refetch(); suggestions.refetch(); };
 
   const home = (
     <SectionList
@@ -186,6 +203,7 @@ export default function AddFriendsScreen() {
       keyExtractor={(item) => (item.kind === 'request' ? `r${item.request.user._id}` : `s${item.suggestion._id}`)}
       keyboardShouldPersistTaps="handled"
       stickySectionHeadersEnabled={false}
+      refreshControl={refreshHome}
       renderSectionHeader={({ section }) =>
         section.data.length ? <AppText variant="overline" color="textMuted" style={styles.sectionTitle}>{section.title}</AppText> : null
       }
@@ -193,7 +211,19 @@ export default function AddFriendsScreen() {
         item.kind === 'request' ? <RequestRow request={item.request} /> : <SuggestionRow suggestion={item.suggestion} />
       }
       ListHeaderComponent={
-        contacts.access === 'ask' || contacts.access === 'blocked' ? (
+        contacts.syncing ? (
+          <View style={styles.contactsStatus} accessibilityLiveRegion="polite">
+            <Spinner size="small" />
+            <AppText variant="caption" color="textSecondary">Checking your contacts for friends…</AppText>
+          </View>
+        ) : contacts.failed && contacts.access === 'granted' ? (
+          <Pressable style={styles.contactsStatus} onPress={contacts.retry} accessibilityRole="button">
+            <Ionicons name="alert-circle-outline" size={18} color={t.colors.error} />
+            <AppText variant="caption" color="textSecondary" style={styles.contactsText}>
+              {"Couldn't check your contacts. Tap to try again."}
+            </AppText>
+          </Pressable>
+        ) : contacts.access === 'ask' || contacts.access === 'blocked' ? (
           <Pressable style={styles.contactsCard} onPress={contacts.allow}>
             <View style={styles.contactsIcon}>
               <Ionicons name="people" size={22} color={t.colors.onSecondary} />
@@ -212,12 +242,13 @@ export default function AddFriendsScreen() {
       }
       ListFooterComponent={
         <>
-          {isEmpty &&
-            (requests.isLoading || suggestions.isLoading ? (
-              <Spinner style={styles.loader} />
-            ) : (
-              <EmptyState icon="people-outline" title="Find your people" body="Search for friends by their username." />
-            ))}
+          {homeLoading ? (
+            <UserRowsSkeleton count={4} />
+          ) : homeFailed ? (
+            <ErrorState title="Couldn't load friend requests" onRetry={retryHome} retrying={requests.isRefetching || suggestions.isRefetching} />
+          ) : isEmpty ? (
+            <EmptyState icon="people-outline" title="Find your people" body="Search for friends by their username." />
+          ) : null}
           {me.data && (
             <Button
               title="Invite friends to the app"
@@ -252,7 +283,7 @@ export default function AddFriendsScreen() {
               autoCapitalize="none"
               autoCorrect={false}
               returnKeyType="search"
-              right={search.isFetching ? <Spinner size="small" /> : undefined}
+              right={search.isFetching && !search.isLoading ? <Spinner size="small" /> : undefined}
               containerStyle={styles.searchRow}
             />
             {query ? searchResults : home}
@@ -262,9 +293,12 @@ export default function AddFriendsScreen() {
             data={friends.data ?? []}
             keyExtractor={(f) => f._id}
             renderItem={({ item }) => <FriendRow friend={item} />}
+            refreshControl={refreshFriends}
             ListEmptyComponent={
               friends.isLoading ? (
-                <Spinner style={styles.loader} />
+                <UserRowsSkeleton />
+              ) : friends.isError ? (
+                <ErrorState title="Couldn't load your friends" onRetry={() => friends.refetch()} retrying={friends.isRefetching} />
               ) : (
                 <EmptyState icon="heart-outline" title="No friends yet" body="Find people on the Add Friends tab." />
               )
@@ -331,7 +365,17 @@ const useStyles = makeStyles(t => ({
   inviteBtn: {
     marginVertical: t.space.xl,
   },
-  loader: {
-    marginTop: t.space.xxl,
+  rowSpinner: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contactsStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: t.space.sm,
+    paddingVertical: t.space.sm,
+    marginTop: t.space.sm,
   },
 }));

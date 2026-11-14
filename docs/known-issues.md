@@ -222,6 +222,31 @@ documents weren't rewritten. The seeded test users are already E.164.
 
 ---
 
+## Mobile: missing loading states
+
+An audit on 2026-11-15 against [Loading states](design-system.md#loading-states) found silent actions,
+wrong-while-loading screens and centred spinners where skeletons belong. Those were fixed the same day (see
+the commit that added `Skeleton`, `ErrorState` and `usePullToRefresh`). What's left:
+
+### 1. Nothing shows when the room's connection drops
+
+**Seen:** in a room with a weak connection, chat messages, walks, sits and emotes send nothing visible: they
+show up late, all at once, when the socket reconnects, or not at all. Nothing says the room is offline.
+
+**Why:** room actions are socket emits (`hooks/useChat.ts`), not mutations, so they have no pending state.
+Socket.IO buffers emits while disconnected, and `RoomShell` doesn't listen for `disconnect` / `reconnect`.
+
+**Fix:** track the socket's connection in the room session and show a small "Reconnecting…" pill (with a
+`Spinner`) at the top of `RoomShell` while it's down; disable or dim the chat send button meanwhile. Room-engine
+work: check the room engine plan doc first.
+
+### 2. Entering a room uses a centred spinner
+
+`RoomShell` shows a full-screen `Spinner` while the room's details load. It's allowed (the layout isn't known
+yet), but a branded "Entering room…" state with the room's name, passed from the room list, would feel better.
+
+---
+
 ## Scaling past one backend instance
 
 We run one instance and will fix these before running more. Nothing here shows today.

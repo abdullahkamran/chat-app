@@ -2,7 +2,7 @@ import React, { type ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
 
 import UserAvatar from '@/components/UserAvatar';
-import { AppText } from '@/components/ui';
+import { AppText, Skeleton, SkeletonGroup } from '@/components/ui';
 import { makeStyles } from '@/constants/theme';
 
 interface Props {
@@ -29,6 +29,9 @@ const useStyles = makeStyles(t => ({
     flex: 1,
     gap: 1,
   },
+  subtitleSkeleton: {
+    marginTop: 5,
+  },
 }));
 
 /** One person in a list: avatar, name, a detail line, and whatever goes on the right. */
@@ -43,5 +46,28 @@ export default function UserRow({ username, subtitle, right, onPress, disabled }
       </View>
       {right}
     </Pressable>
+  );
+}
+
+/** A UserRow-shaped placeholder while people load. */
+export function UserRowSkeleton() {
+  const styles = useStyles();
+  return (
+    <View style={styles.row}>
+      <Skeleton width={44} height={44} radius="circle" />
+      <View style={styles.text}>
+        <Skeleton width="55%" height={14} radius="xs" />
+        <Skeleton width="30%" height={10} radius="xs" style={styles.subtitleSkeleton} />
+      </View>
+    </View>
+  );
+}
+
+/** `count` UserRow placeholders, announced once as loading. */
+export function UserRowsSkeleton({ count = 5 }: Readonly<{ count?: number }>) {
+  return (
+    <SkeletonGroup>
+      {Array.from({ length: count }, (_, i) => <UserRowSkeleton key={i} />)}
+    </SkeletonGroup>
   );
 }

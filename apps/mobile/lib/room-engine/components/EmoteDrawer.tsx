@@ -3,11 +3,11 @@ import { useQuery } from '@tanstack/react-query';
 import type { ComponentProps } from 'react';
 import { FlatList, Pressable, View } from 'react-native';
 
-import { AppText, Spinner } from '@/components/ui';
+import { AppText } from '@/components/ui';
 import { makeStyles, useTheme } from '@/constants/theme';
 import { api } from '@/lib/api';
 import { AnimationCategory, EmoteType, type Animation } from '@chat-app/shared-types';
-import { Drawer } from './Drawer';
+import { Drawer, DrawerCardsSkeleton, DrawerError } from './Drawer';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -56,6 +56,9 @@ const useStyles = makeStyles(t => ({
     gap: t.space.sm + 2,
     paddingBottom: t.space.xs,
   },
+  empty: {
+    paddingVertical: t.space.md,
+  },
   tile: {
     width: 76,
     alignItems: 'center',
@@ -96,18 +99,23 @@ interface Props {
 export function EmoteDrawer({ onEmote, onClose }: Readonly<Props>) {
   const t = useTheme();
   const styles = useStyles();
-  const { data: owned = [], isLoading } = useQuery<Animation[]>({
+  const { data, isLoading, isError, isRefetching, refetch } = useQuery<Animation[]>({
     queryKey: ['animation-inventory'],
     queryFn: () => api.get<Animation[]>('/api/v1/inventory/animations'),
   });
-  const emotes = owned
+  const emotes = (data ?? [])
     .filter(a => a.category === AnimationCategory.EMOTE)
     .sort((a, b) => TYPE_ORDER[emoteTypeOf(a)] - TYPE_ORDER[emoteTypeOf(b)]);
 
   return (
     <Drawer title="Emotes" onClose={onClose} footer="Get more emotes in the Shop, under Animations.">
-      {isLoading && <Spinner />}
-
+      {isLoading ? (
+        <DrawerCardsSkeleton cardHeight={76} />
+      ) : isError && !data ? (
+        <DrawerError text="Couldn't load your emotes." onRetry={() => refetch()} retrying={isRefetching} />
+      ) : emotes.length === 0 ? (
+        <AppText variant="caption" color="textMuted" align="center" style={styles.empty}>No emotes yet.</AppText>
+      ) : (
       <FlatList
         data={emotes}
         keyExtractor={emote => emote._id}
@@ -137,6 +145,7 @@ export function EmoteDrawer({ onEmote, onClose }: Readonly<Props>) {
           );
         }}
       />
+      )}
     </Drawer>
   );
 }

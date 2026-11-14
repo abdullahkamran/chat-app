@@ -10,10 +10,12 @@ export const SUGGESTIONS_KEY = ['friendSuggestions'];
 
 /** Refetch everything that shows friend state: lists, requests, Quick Add, and search results' buttons. */
 export function refetchFriendData(queryClient: QueryClient) {
-  queryClient.invalidateQueries({ queryKey: FRIENDS_KEY });
-  queryClient.invalidateQueries({ queryKey: FRIEND_REQUESTS_KEY });
-  queryClient.invalidateQueries({ queryKey: SUGGESTIONS_KEY });
-  queryClient.invalidateQueries({ queryKey: ['userSearch'] });
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: FRIENDS_KEY }),
+    queryClient.invalidateQueries({ queryKey: FRIEND_REQUESTS_KEY }),
+    queryClient.invalidateQueries({ queryKey: SUGGESTIONS_KEY }),
+    queryClient.invalidateQueries({ queryKey: ['userSearch'] }),
+  ]);
 }
 
 /** Quick Add: people from contacts, friends of friends, and people in your rooms. */
@@ -47,6 +49,7 @@ export function useIncomingRequests() {
 export function useFriendActions() {
   const queryClient = useQueryClient();
   const options = {
+    // Returned, so the row keeps its spinner until the lists show the change.
     onSuccess: () => refetchFriendData(queryClient),
     onError: (e: Error) => showErrorDialog(e),
   };

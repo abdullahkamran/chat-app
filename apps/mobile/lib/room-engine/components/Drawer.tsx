@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { View } from 'react-native';
 
-import { AppText, IconButton } from '@/components/ui';
+import { AppText, Button, IconButton, Skeleton, SkeletonGroup } from '@/components/ui';
 import { makeStyles } from '@/constants/theme';
 
 const useStyles = makeStyles(t => ({
@@ -25,6 +25,21 @@ const useStyles = makeStyles(t => ({
   },
   footer: {
     marginTop: t.space.sm,
+  },
+  skeletonRow: {
+    flexDirection: 'row',
+    gap: t.space.sm + 2,
+    paddingBottom: t.space.xs,
+  },
+  error: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: t.space.md,
+    paddingVertical: t.space.sm,
+  },
+  errorText: {
+    flex: 1,
   },
   // A drop target: something dragged can be let go over it.
   target: {
@@ -65,6 +80,27 @@ export function Drawer({ title, onClose, footer, dropTarget, children }: Readonl
       </View>
       {children}
       {footer ? <AppText variant="caption" color="textMuted" style={styles.footer}>{footer}</AppText> : null}
+    </View>
+  );
+}
+
+/** A row of card placeholders in a drawer, sized like its cards, while they load. */
+export function DrawerCardsSkeleton({ cardHeight, count = 4 }: Readonly<{ cardHeight: number; count?: number }>) {
+  const styles = useStyles();
+  return (
+    <SkeletonGroup style={styles.skeletonRow}>
+      {Array.from({ length: count }, (_, i) => <Skeleton key={i} width={76} height={cardHeight} radius="md" />)}
+    </SkeletonGroup>
+  );
+}
+
+/** A drawer's contents couldn't load: say so, with a way to try again. */
+export function DrawerError({ text, onRetry, retrying }: Readonly<{ text: string; onRetry: () => void; retrying: boolean }>) {
+  const styles = useStyles();
+  return (
+    <View style={styles.error}>
+      <AppText variant="caption" color="textSecondary" style={styles.errorText}>{text}</AppText>
+      <Button title="Try again" size="sm" variant="secondary" loading={retrying} onPress={onRetry} />
     </View>
   );
 }
