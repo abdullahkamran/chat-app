@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Image } from 'expo-image';
 import { FlatList, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -9,7 +9,7 @@ import { AppText, Badge, Spinner } from '@/components/ui';
 import { makeStyles, useTheme } from '@/constants/theme';
 import { resolveItemSource } from '@/constants/avatarAssets';
 import { useInventory } from '@/hooks/useInventory';
-import { themeSlotsOf, type Item, type RoomTheme } from '@chat-app/shared-types';
+import { themeSlotsOf, type InventoryEntry, type Item, type RoomTheme } from '@chat-app/shared-types';
 import type { EditLink, EditDrag } from '../core/contract';
 import { Drawer } from '../components/Drawer';
 
@@ -95,7 +95,14 @@ export function InventoryDrawer({
 
   // Only the categories the user owns something in, so no tab is ever empty.
   const categories = [...new Set(groupedItems.map(e => e.item.category))].sort();
-  const [chosenCategory, setCategory] = useState(ALL_CATEGORY);
+  const [chosenCategory, setChosenCategory] = useState(ALL_CATEGORY);
+  // Back to the start on a tab change: a list scrolled far along "All" would otherwise sit
+  // past the end of a shorter category and look empty.
+  const listRef = useRef<FlatList<InventoryEntry>>(null);
+  const setCategory = useCallback((next: string) => {
+    listRef.current?.scrollToOffset({ offset: 0, animated: false });
+    setChosenCategory(next);
+  }, []);
   const category = categories.includes(chosenCategory) ? chosenCategory : ALL_CATEGORY;
   const shown = category === ALL_CATEGORY ? groupedItems : groupedItems.filter(e => e.item.category === category);
   const themeIds = new Set([theme?.floor?._id, theme?.leftWall?._id, theme?.rightWall?._id]);
@@ -117,6 +124,7 @@ export function InventoryDrawer({
       )}
 
       <FlatList
+        ref={listRef}
         data={shown}
         keyExtractor={({ item }) => item._id}
         horizontal
