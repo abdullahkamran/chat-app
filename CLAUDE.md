@@ -19,7 +19,7 @@ The full reference (look, every token and color, components, dialogs, accessibil
 
 | File | Holds |
 |------|-------|
-| `palette.ts` | Raw hex values (`palette`), plus `artPalette` for avatar programmer art, which stays the same in every theme |
+| `palette.ts` | Raw hex values (`palette`), plus `artPalette` for avatar and pet art colours, which stays the same in every theme |
 | `tokens.ts` | Theme-independent tokens: `space`, `radius`, `borderWidth`, `controlHeight`, `fontFamily`, `type`, `motion`, `pressDepth` |
 | `themes.ts` | The `Theme` type, `ThemeColors` (semantic colors), and each theme (`darkTheme` today). The `themes` registry lists them all |
 | `ThemeProvider.tsx` | `ThemeProvider` (mounted in `app/_layout.tsx`), `useTheme()`, `makeStyles()`, `useThemeName()` |
@@ -63,7 +63,7 @@ Name by purpose, never by look. Highlights (see `ThemeColors` in `themes.ts` for
   - `secondary`: sky blue, edit mode and highlights
   - `reward`: gold, coins and prices
   - `error`: red, destructive actions
-- **Room:** `bubble*`, `transcriptBackground`, `roomDoor*`, `roomEditGrid`, `roomLocalActor`, `roomShadow`
+- **Room:** `bubble*`, `transcriptBackground`, `roomDoor*`, `roomEditGrid`, `roomLocalActor`, `roomShadow`, `avatarLoading*` (the ghost avatar shown while an outfit loads)
 - **Letter avatars and sender names:** `t.avatarPalette[i % t.avatarPalette.length]`. Use `avatarColor(t, name)` from `components/UserAvatar.tsx`.
 
 ### Text

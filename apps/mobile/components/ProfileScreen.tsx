@@ -235,7 +235,7 @@ export default function ProfileScreen() {
             {/* Header */}
             {user && (
             <View style={styles.header}>
-                <UserAvatar username={user.username} size={84} />
+                <UserAvatar username={user.username} size={84} avatar={selectedAvatar} />
                 <AppText variant="display" align="center">{user.username}</AppText>
                 {location ? (
                     <View style={styles.location}>

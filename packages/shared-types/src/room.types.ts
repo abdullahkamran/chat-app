@@ -278,8 +278,23 @@ export interface RoomMailNotice {
 /** Longest postbox note, in characters. */
 export const ROOM_MAIL_MAX_LENGTH = 500;
 
+/** How many people a room's list entry previews (its badge shows their avatars' heads). */
+export const ROOM_PEOPLE_PREVIEW = 4;
+
+/** A room in the user's room list (`GET /rooms`). */
+export interface RoomListEntry extends Room {
+    /**
+     * Group rooms: up to ROOM_PEOPLE_PREVIEW of its members, the latest to send a message
+     * first, then other members. The viewer is in it when they are one of the latest to speak,
+     * or when there's a place to spare. Empty for a personal room (it's its owner's).
+     */
+    people: Array<PublicUser>;
+    /** Everyone in a group room, the viewer included. 0 for a personal room. */
+    memberCount: number;
+}
+
 export interface PaginatedRooms {
-    rooms: Array<Room>;
+    rooms: Array<RoomListEntry>;
     page: number;
     limit: number;
     total: number;

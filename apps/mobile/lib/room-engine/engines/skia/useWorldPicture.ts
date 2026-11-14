@@ -3,7 +3,6 @@ import {
   PaintStyle,
   Skia,
   createPicture,
-  type SkColor,
   type SkImage,
   type SkPicture,
 } from '@shopify/react-native-skia';
@@ -25,13 +24,14 @@ import type { PetState } from '../../core/pets';
 import { steadyFacingFromDelta } from '../../core/facing';
 import { findSeat } from '../../core/seats';
 import type { ActorMotion } from './actorMotion';
-import { drawAvatar, placeholderTints, type AvatarPlayhead } from './drawAvatar';
+import { ghostColorAt, useGhostColors } from './avatarGhost';
+import { drawAvatar, type AvatarPlayhead } from './drawAvatar';
 import { drawEffects, type EffectDraw, type PropColors } from './drawEffects';
 import { itemDepth, itemRect } from './geometry';
 import { drawPet, petDraws, petFrame, type PetFrame } from './pets/drawPet';
 import { PET_RUNTIME, getPetArts } from './pets/petArt';
 import { WALK_AUTHORED_MS_PER_CELL, isEmoteClip, type ClipId } from './skeleton/clips';
-import type { AvatarArt, TintGroup } from './skeleton/avatarArt';
+import type { AvatarArt } from './skeleton/avatarArt';
 import { COMPILED_CLIPS } from './skeleton/sampler';
 import { PLACEHOLDER_ART } from './wearables/useAvatarArts';
 
@@ -80,8 +80,6 @@ interface ActorDraw {
   isLocal: boolean;
   /** Key into the arts input; art travels separately so moving actors don't re-copy it. */
   artKey: string;
-  /** Programmer-art colours: five, not one per sprite, which keeps hand-offs small. */
-  tints: Record<TintGroup, SkColor>;
 }
 
 interface ItemDraw {
@@ -287,7 +285,6 @@ export function useWorldPicture({
       msPerCell: a.user?.attributes?.speed ?? DEFAULT_MS_PER_CELL,
       isLocal: a.id === localActorId,
       artKey: artKeys[a.id],
-      tints: placeholderTints(a.id),
     }];
   }), [actors, motions, localActorId, artKeys, items]);
 
@@ -317,6 +314,7 @@ export function useWorldPicture({
   const [petArts] = useState(() => getPetArts());
 
   const theme = useTheme();
+  const ghostColors = useGhostColors();
   const colors = useMemo(() => {
     const tint = Skia.Color(theme.colors.roomItemSelected);
     tint[3] = SELECTED_TINT_ALPHA;
@@ -409,6 +407,7 @@ export function useWorldPicture({
     entries.sort(byDepth);
     anim.set(next);
 
+    const ghost = ghostColorAt(ghostColors, Date.now());
     picture.set(createPicture(canvas => {
       const shadow = Skia.Paint();
       shadow.setColor(colors.shadow);
@@ -470,12 +469,12 @@ export function useWorldPicture({
           canvas.drawOval(oval, shadow);
           if (a.isLocal) canvas.drawOval(oval, ring);
           const art = arts[a.artKey] ?? arts[PLACEHOLDER_ART];
-          if (art) drawAvatar(canvas, art, next[a.id], a.tints, x, y);
+          if (art) drawAvatar(canvas, art, next[a.id], ghost, x, y);
         }
       }
       if (effectDraws.length > 0 && !hidden) drawEffects(canvas, effectDraws, ages, feetById, propColors);
     }));
-  }, [dragFree, actorsInput, itemsInput, petsInput, petArts, originInput, artsInput, hideInput, effectsInput, effectAges, anim, picture, colors, propColors, reportEmoteDone]);
+  }, [dragFree, actorsInput, itemsInput, petsInput, petArts, originInput, artsInput, hideInput, effectsInput, effectAges, anim, picture, colors, ghostColors, propColors, reportEmoteDone]);
 
   useFrameCallback(onFrame);
 

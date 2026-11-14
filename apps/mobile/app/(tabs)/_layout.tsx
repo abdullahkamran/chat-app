@@ -38,10 +38,6 @@ export default function TabLayout() {
         tabBarLabelStyle: { ...t.type.caption, fontFamily: t.fontFamily.bodyBold },
       }}>
       <Tabs.Screen
-        name="index"
-        options={{ href: null }}
-      />
-      <Tabs.Screen
         name="conversations"
         options={{ title: 'Rooms', tabBarIcon: RoomsIcon }}
       />

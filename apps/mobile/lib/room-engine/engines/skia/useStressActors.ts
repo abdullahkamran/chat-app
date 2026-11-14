@@ -11,7 +11,7 @@ export const STRESS_ACTOR_COUNT = __DEV__ && Number.isFinite(requested) ? Math.m
 
 const ID_PREFIX = 'stress-';
 
-/** Stress avatars have no user behind them, so they keep the programmer-art look. */
+/** Stress avatars have no user behind them, so they stay loading ghosts. */
 export function isStressActor(id: string): boolean {
   return id.startsWith(ID_PREFIX);
 }

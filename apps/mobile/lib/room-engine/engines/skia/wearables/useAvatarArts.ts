@@ -10,7 +10,7 @@ import { isStressActor } from '../useStressActors';
 import { loadAtlas } from './atlasCache';
 import { composeAvatar, type WornPart } from './composeAvatar';
 
-/** Art key for the tinted programmer-art avatar: the fallback while an outfit loads. */
+/** Art key for the loading ghost: the pulsing silhouette shown while an outfit loads. */
 export const PLACEHOLDER_ART = 'placeholder';
 
 /** Avatar parts, back to front where two share a slot layer (they don't today). */
@@ -104,28 +104,33 @@ export function useAvatarArts(actors: Readonly<Record<string, ActorState>>) {
 /**
  * Composed art for any set of outfits, by caller-chosen id (actor ids in rooms, one
  * entry for the avatar editor's preview). Same caches and placeholder rule as rooms:
- * an id maps to PLACEHOLDER_ART until its outfit is composed.
+ * an id maps to PLACEHOLDER_ART until its outfit is composed. `unavailable` marks the ids
+ * that will stay on the placeholder: no outfit, no packed art, or art that failed to load.
  */
 export function useOutfitArts(outfits: Readonly<Record<string, AvatarOutfit | null | undefined>>) {
   const [version, setVersion] = useState(0);
 
   const result = useMemo(() => {
     const artKeys: Record<string, string> = {};
+    const unavailable: Record<string, boolean> = {};
     const toCompose: Outfit[] = [];
 
     for (const [id, avatar] of Object.entries(outfits)) {
       artKeys[id] = PLACEHOLDER_ART;
       const outfit = outfitOf(avatar);
-      if (!outfit || failed.has(outfit.key)) continue;
+      if (!outfit || failed.has(outfit.key)) {
+        unavailable[id] = true;
+        continue;
+      }
       if (composed.has(outfit.key)) artKeys[id] = outfit.key;
       else toCompose.push(outfit);
     }
-    return { artKeys, toCompose };
+    return { artKeys, unavailable, toCompose };
     // `version` marks newly composed outfits; the caches live outside React.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [outfits, version]);
 
-  const { artKeys, toCompose } = result;
+  const { artKeys, unavailable, toCompose } = result;
 
   // Rebuilt only when the set of outfits in use changes, not as actors move.
   const inUse = [...new Set(Object.values(artKeys))].sort().join('\n');
@@ -153,5 +158,5 @@ export function useOutfitArts(outfits: Readonly<Record<string, AvatarOutfit | nu
   // Retry outfits that failed to load on the next room visit (or preview).
   useEffect(() => () => failed.clear(), []);
 
-  return { arts, artKeys };
+  return { arts, artKeys, unavailable };
 }

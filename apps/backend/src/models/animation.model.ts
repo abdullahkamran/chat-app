@@ -6,6 +6,7 @@ export interface IAnimation extends Omit<Animation, '_id'>, Document {}
 const AnimationSchema = new Schema<IAnimation>(
     {
         name: { type: String, required: true, unique: true },
+        description: { type: String, default: '' },
         category: {
             type: String,
             enum: Object.values(AnimationCategory),

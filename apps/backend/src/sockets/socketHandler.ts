@@ -4,6 +4,8 @@ import { SocketEvent } from '@chat-app/socket-constants';
 import {
     AnimationCategory,
     EmoteType,
+    ROOM_PEOPLE_PREVIEW,
+    RoomCategory,
     type MutualEmoteEndReason,
     type MutualEmoteRequest,
     type MutualEmoteRequestEnded,
@@ -182,6 +184,21 @@ interface ClientSocketData {
     presentRoomIds: Set<string>;
 }
 
+/**
+ * Remember who last spoke in a group room, newest first, for the room list's badge
+ * (`RoomListEntry.people`). One atomic update, which does nothing when they were already the
+ * latest. It leaves `updatedAt` alone: the room list's order doesn't follow chat.
+ */
+function noteRoomSender(roomId: string, userId: string): void {
+    const sender = new mongoose.Types.ObjectId(userId);
+    const others = { $filter: { input: { $ifNull: ['$recentSenders', []] }, cond: { $ne: ['$$this', sender] } } };
+    Room.updateOne(
+        { _id: roomId, category: RoomCategory.GROUP, 'recentSenders.0': { $ne: sender } },
+        [{ $set: { recentSenders: { $slice: [{ $concatArrays: [[sender], others] }, ROOM_PEOPLE_PREVIEW] } } }],
+        { timestamps: false },
+    ).catch((e) => console.error('Could not note who spoke in the room', e));
+}
+
 /** A user's own channel, joined by every socket of theirs: events about them rather than a room. */
 function userChannel(userId: string): string {
     return `user:${userId}`;
@@ -286,6 +303,7 @@ const handler = {
             if (me) roomPresence.addMessage(me, message);
             socket.to(roomId).emit(SocketEvent.RECEIVE_MESSAGE, { roomId, userId, message });
             sendMessagePush(roomId, { userId, username }, message);
+            noteRoomSender(roomId, userId);
         }));
 
         // A walk to a point. Walking leaves any seat and ends any emote.

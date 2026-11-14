@@ -70,16 +70,13 @@ export const palette = {
 
 // ---------------------------------------------------------------------------
 // Avatar art colors. The avatar art keeps its own look whatever the UI theme is,
-// so these sit outside the themes: programmer-art placeholders only.
+// so these sit outside the themes. (The loading ghost's colour is themed: `avatarLoading`.)
 // ---------------------------------------------------------------------------
 export const artPalette = {
+  /** Skin tone for an avatar that has none set. */
   skin: '#E0AC69',
-  hair: '#3B2A20',
-  eye: '#000000',
+  /** The loading ghost is drawn in white and tinted with the theme's `avatarLoading`. */
   pieceFill: '#FFFFFF',
-  pieceOutline: '#888888',
-  /** Placeholder clothing, picked per user. */
-  clothing: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8'],
   /** Things thrown by interactive emotes, and what they leave on whoever they hit. */
   props: {
     tomato: '#E5372B',

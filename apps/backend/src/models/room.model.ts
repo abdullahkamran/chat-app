@@ -10,6 +10,11 @@ export interface IRoom extends Omit<Room, '_id' | 'ownerId' | 'owners'>, Omit<Ro
     owners: mongoose.Types.ObjectId[];
     /** Everyone in a group room, owners included. Always empty in a personal room. */
     members: mongoose.Types.ObjectId[];
+    /**
+     * Group rooms: the last few different people to send a message, newest first (see
+     * `noteRoomSender`). May name people who have since left; readers keep members only.
+     */
+    recentSenders: mongoose.Types.ObjectId[];
     items: Array<{
         itemId: mongoose.Types.ObjectId;
         position: { x: number; y: number; z: number };
@@ -48,6 +53,7 @@ const RoomSchema = new Schema<IRoom, IRoomModel>(
                 message: "Personal rooms don't have members",
             },
         },
+        recentSenders: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
         // Rooms get ROOM_DEFAULTS_CATALOG.dimensions on creation; these defaults are the same, as a backstop.
         dimensions: {
             x: { type: Number, default: DEFAULT_ROOM_DIMENSIONS.x },

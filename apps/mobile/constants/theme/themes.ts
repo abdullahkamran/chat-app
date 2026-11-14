@@ -63,6 +63,8 @@ export interface ThemeColors {
   transcriptBackground: string; // see-through, so the room stays visible behind it
   roomShadow: string;
   roomLocalActor: string;   // the ring under your own avatar
+  avatarLoading: string;    // the ghost avatar shown while an outfit loads, in rooms and previews
+  avatarLoadingDim: string; // what the ghost pulses to and back
   roomDoorEntry: string;    // the mat on the floor in front of the entry door
   roomDoor: string;         // the mat in front of any other door
   roomDoorWood: string;     // every door's leaf
@@ -162,6 +164,8 @@ export const darkTheme: Theme = {
     transcriptBackground: palette.scrim,
     roomShadow: palette.ink,
     roomLocalActor: palette.mint500,
+    avatarLoading: palette.navy600,
+    avatarLoadingDim: palette.navy700,
     roomDoorEntry: palette.mint500,
     roomDoor: palette.frost50,
     roomDoorStroke: palette.ink,

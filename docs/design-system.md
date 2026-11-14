@@ -112,7 +112,8 @@ Each accent is a set of four. Use the whole set together so a light theme can sw
 
 - **Controls:** `icon`, `tabBar`, `tabIconDefault`, `tabIconSelected`, `switchTrackOff`, `switchThumb`.
 - **Room:** `bubble`, `bubbleText`, `bubbleTyping`, `transcriptBackground`, `roomShadow`,
-  `roomLocalActor`, `roomDoor*` (`roomDoorWood` / `…WoodDeep` / `…WoodLight`: a door's leaf / casing, step and seams / lit edge,
+  `roomLocalActor`, `avatarLoading` / `avatarLoadingDim` (the ghost avatar shown while an outfit loads, and the
+  colour it pulses to), `roomDoor*` (`roomDoorWood` / `…WoodDeep` / `…WoodLight`: a door's leaf / casing, step and seams / lit edge,
   `roomDoorGlint`: the knob's shine, `roomDoorStroke`: its ink outline, `roomDoorKnob`,
   `roomDoorEntry` / `roomDoor`: the mat in front of the entry door / any other), `roomEditGrid`, `roomItemSelected` (edit mode: tint over the picked-up item's own pixels),
   `roomDropTarget` / `roomDropBlocked` (edit mode: the cells
@@ -219,7 +220,7 @@ Elsewhere:
 | Component | Where | For |
 |---|---|---|
 | `showToast` / `ToastHost` | `components/Toast.tsx` | Short notices at the top of the screen |
-| `UserAvatar`, `UserRow`, `UserPicker` | `components/` | People in lists and pickers |
+| `UserAvatar`, `UserRow`, `UserPicker` | `components/` | People in lists and pickers. `UserAvatar` takes an `avatar` (from `useUserAvatar(userId)`) to show the avatar's head, drawn by the room's renderer, instead of the letter; `avatarLoading` shows the ghost head meanwhile |
 | `Drawer` | `lib/room-engine/components/Drawer.tsx` | The room's bottom drawers (avatars, emotes, inventory) |
 | `DrawerCardsSkeleton`, `DrawerError` | `lib/room-engine/components/Drawer.tsx` | A drawer's loading row and its compact error with retry |
 | `UserRowSkeleton`, `UserRowsSkeleton` | `components/UserRow.tsx` | People lists while they load |
@@ -249,6 +250,7 @@ user could wonder "did that work?" or "is there nothing here?", the state is mis
 | **Search as you type** | Small `Spinner` in the field | `TextField`'s `right` |
 | **Refreshing data already on screen** | Keep the data, show a quiet cue | `refreshControl={usePullToRefresh(refetch)}` on tab lists. Never swap live data back to a skeleton |
 | **Launch, or a whole-screen hand-off** (boot, entering a room) | Branded full-screen state | `BootScreen`; the room shows its own loading state |
+| **An avatar's outfit** (rooms, the editor, Profile's avatar cards) | The **ghost avatar**: a plain silhouette that pulses like a skeleton | Automatic: `AvatarPreview` and the room draw it until the outfit's art is ready (`avatarGhost.ts`) |
 | **Images** | A tinted box the size of the image | `expo-image` on its tinted tile (`surfaceElevated`) with `transition={t.motion.fast}`, so it doesn't pop in |
 
 Use a full-screen centred `Spinner` only when the layout can't be known in advance. Otherwise it's a skeleton.

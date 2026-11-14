@@ -220,7 +220,7 @@ When changing `WALL_HEIGHT`, verify that `WALL_HEIGHT + (roomX + roomY) * TILE_H
 
 `AVATAR_HEIGHT = 2 × TILE_H` gives the YoWorld proportion (an avatar is about 2 tile heights tall). The humanoid-v1 rig's root is the ground point between the feet.
 
-The rig's proportions are cartoon ones, about three heads tall (bind pose in `packages/shared-types/src/humanoid-v1.ts`): the head is a third of the height (head bone at 56 px, skull 24 px above it and about 25 px wide), the neck base is at 50 px, the shoulder joints at 47 px and 9.5 px out from the centre, and the hip joints at 31 px. Shoulders sit below the neck base and outside the ribs, so the shoulder line slopes and the arms hang beside the torso. The arms are short for the head, so clips that bring a hand to the face raise the upper arm past horizontal. Changing the bind pose means regenerating the template and art (`art:template`, `art:starter`, `art:pack`), re-checking the clips, and updating the designer's art spec.
+The rig's proportions are cartoon ones, about three heads tall (bind pose in `packages/shared-types/src/humanoid-v1.ts`): the head is a third of the height (head bone at 56 px, skull 24 px above it and about 25 px wide), the neck base is at 50 px, the shoulder joints at 47 px and 9.5 px out from the centre, and the hip joints at 31 px. Shoulders sit below the neck base and outside the ribs, so the shoulder line slopes and the arms hang beside the torso. The arms are short for the head, so clips that bring a hand to the face raise the upper arm past horizontal. `HEAD_FRAME` (`skeleton/humanoidV1.ts`) is the square around the head that list badges show (`components/UserAvatar.tsx`, on the room list and Profile); they draw through the same `drawAvatar`, so art and rig changes show there too. Changing the bind pose means regenerating the template and art (`art:template`, `art:starter`, `art:pack`), re-checking the clips, and updating the designer's art spec.
 
 **Anchor rule:** the rig root (the feet) is drawn at `gridToScreen(gx, gy, gz, origin)`, where `gz` is the seat height while sitting and 0 otherwise.
 
@@ -264,7 +264,7 @@ session/useRoomSession.ts     socket events, actors, chat, edit mode, intents
 session/RoomShell.tsx         header / edit toolbar, chat input / avatar, emote or inventory drawer, postbox + edit buttons, loading + error
 joystick/                     experimental thumbstick movement, off by default (see "Joystick" below)
 engines/skia/                 Skia + Reanimated renderer, skeletal avatars
-engines/skia/skeleton/        humanoid-v1 rig, hand-written clips, sampler/solver worklets, programmer-art atlas
+engines/skia/skeleton/        humanoid-v1 rig, hand-written clips, sampler/solver worklets, the loading ghost atlas
 ```
 
 Contract rules:
@@ -337,7 +337,7 @@ Not done yet: mutual-emote walks started mid-steer are overridden by the stick, 
 | `apps/mobile/lib/room-engine/session/useRoomSession.ts` | Engine-agnostic room state and intents |
 | `apps/mobile/lib/room-engine/engines/skia/SkiaRoomRenderer.tsx` | Skia canvas layers, tap routing, bubble overlay |
 | `apps/mobile/lib/room-engine/engines/skia/useWorldPicture.ts` | Per-frame UI-thread loop: clip playback, crossfade, facing, depth sort, world picture |
-| `apps/mobile/lib/room-engine/engines/skia/drawAvatar.ts` | `drawAvatar` worklet (sample, blend, solve, one `drawAtlas`) and placeholder tints; shared by rooms and the editor preview |
+| `apps/mobile/lib/room-engine/engines/skia/drawAvatar.ts` | `drawAvatar` worklet (sample, blend, solve, one `drawAtlas`) ; shared by rooms and the editor preview |
 | `apps/mobile/lib/room-engine/engines/skia/useAvatarPreviewPicture.ts` | One idling avatar redrawn per frame, for `components/AvatarPreview.tsx` (the avatar editor's preview) |
 | `apps/mobile/lib/room-engine/engines/skia/skeleton/` | `humanoidV1.ts` (solver arrays; the rig itself is `packages/shared-types/src/humanoid-v1.ts`), `clips.ts` (idle, walk, sit, emotes), `sampler.ts` (worklets), `avatarArt.ts` (draw-list format), `programmerArt.ts` (fallback atlas) |
 | `apps/mobile/lib/room-engine/engines/skia/wearables/` | `useAvatarArts.ts` (composed art for each actor's session-supplied avatar; `useOutfitArts` for any outfit, used by the editor preview), `atlasCache.ts` (download + disk cache by `atlasVersion`), `composeAvatar.ts` (bakes an outfit into one tinted atlas) |

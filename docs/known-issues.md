@@ -180,6 +180,26 @@ meanwhile, so neither client saw the other's new item when it checked.
 check the merged layout inside the transaction. Refuse a save that adds or moves an item onto taken or
 off-room floor, onto a door's cell or over a door on the wall (`core/doors.ts`) with 409, naming the item, so the client can reload and redo it.
 
+### 10. The room list fetches every badge's avatar on its own
+
+Found on 2026-11-15 while putting avatar heads on the room list's badges.
+
+**Seen:** nothing visible yet beyond ghost heads that fill in one by one on a slow connection. Opening the
+room list sends one `GET /api/v1/users/:id/avatar` per different person on a badge: one per personal room
+and up to four per group room, so a full first page can send some 50 to 80 requests. Each loads the user,
+their avatar and its items. The phone keeps each answer for five minutes.
+
+**Why:** `useUserAvatar` in `apps/mobile/hooks/useUserAvatar.ts` asks per user, and the room list
+(`RoomBadge` in `apps/mobile/components/RoomListItem.tsx`) calls it per face. `getRooms` sends only names
+(`RoomListEntry.people`), not outfits.
+
+**Fix:** a batch endpoint (`POST /api/v1/users/avatars { ids }`, answered with one user query and one avatar
+query) that the hook's requests are gathered into, or send each face's outfit with the room list.
+
+Each chat message in a group room also runs one small room update now (`noteRoomSender` in
+`socketHandler.ts`, which records the last four senders for those badges). It writes only when the sender
+changes, and belongs with issue 5's per-message work if that moves to a queue.
+
 ---
 
 ## Friends

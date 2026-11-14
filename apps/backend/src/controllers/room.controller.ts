@@ -14,7 +14,7 @@ import { sendPushToUsers } from '../services/notification.service';
 import { findAccessibleRoom, isPersonalRoom } from '../services/room-access.service';
 import { resolveRoomDefaults } from '../services/room-defaults.service';
 import { addReturn, changeCounts, freeCount, giveBack, type Returns } from '../services/inventory.service';
-import { RoomCategory, themeSlotsOf, type PublicUser, type RoomItemsUpdate, type RoomLeaveResult, type RoomMembers, type RoomThemeSlot } from '@chat-app/shared-types';
+import { ROOM_PEOPLE_PREVIEW, RoomCategory, themeSlotsOf, type PublicUser, type RoomItemsUpdate, type RoomLeaveResult, type RoomMembers, type RoomThemeSlot } from '@chat-app/shared-types';
 
 /**
  * The people `actorId` asked to add, deduplicated, leaving out `exclude` (the owner, people
@@ -388,8 +388,35 @@ const controller = {
                     : Promise.resolve([]),
                 Room.countDocuments(restFilter),
             ]);
-            const rooms = skip === 0 && ownRoom ? [ownRoom, ...rest] : rest;
+            const found = skip === 0 && ownRoom ? [ownRoom, ...rest] : rest;
             const total = restTotal + lead;
+
+            // Each group room previews a few of its members: the latest to send a message (if
+            // still members, the viewer included), then whoever else is in it, the viewer last
+            // so they only fill a spare place. One user lookup covers the page.
+            const previewIds = found.map((room) => {
+                if (isPersonalRoom(room)) return [];
+                const members = room.members.map((id) => id.toString());
+                const recent = (room.recentSenders ?? []).map((id) => id.toString()).filter((id) => members.includes(id));
+                const others = members.filter((id) => id !== userId);
+                const self = members.filter((id) => id === userId);
+                return [...new Set([...recent, ...others, ...self])].slice(0, ROOM_PEOPLE_PREVIEW);
+            });
+            const wanted = [...new Set(previewIds.flat())];
+            const users = wanted.length > 0
+                ? await User.find({ _id: { $in: wanted } }).select(PUBLIC_USER_FIELDS).lean()
+                : [];
+            const userById = new Map(users.map((u) => [u._id.toString(), { ...u, _id: u._id.toString() } as unknown as PublicUser]));
+            const rooms = found.map((room, i) => {
+                // The lists of ids stay on the server: the entry carries the preview and a count.
+                const { members, recentSenders: _recentSenders, ...entry } = room.toObject();
+                return {
+                    ...entry,
+                    // A member whose account was deleted isn't found, and drops out.
+                    people: previewIds[i].flatMap((id) => userById.get(id) ?? []),
+                    memberCount: isPersonalRoom(room) ? 0 : members.length,
+                };
+            });
 
             res.send({
                 rooms,

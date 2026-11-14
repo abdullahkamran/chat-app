@@ -13,6 +13,8 @@ interface Props {
   contentStyle?: StyleProp<ViewStyle>;
   /** The categories are still loading: show placeholders after "All". */
   loading?: boolean;
+  /** How a category reads on its chip; defaults to the category itself. */
+  labelOf?: (category: string) => string;
 }
 
 /** Chip widths while categories load, so the row doesn't look uniform. */
@@ -29,7 +31,7 @@ const useStyles = makeStyles(t => ({
 }));
 
 /** A horizontal row of category filters, "All" first. */
-export function CategoryChips({ categories, selected, onSelect, contentStyle, loading = false }: Readonly<Props>) {
+export function CategoryChips({ categories, selected, onSelect, contentStyle, loading = false, labelOf }: Readonly<Props>) {
   const styles = useStyles();
   return (
     <ScrollView
@@ -41,7 +43,7 @@ export function CategoryChips({ categories, selected, onSelect, contentStyle, lo
       {[ALL_CATEGORY, ...categories].map(cat => (
         <Chip
           key={cat}
-          label={cat === ALL_CATEGORY ? 'All' : cat}
+          label={cat === ALL_CATEGORY ? 'All' : labelOf?.(cat) ?? cat}
           selected={selected === cat}
           onPress={() => onSelect(cat)}
         />

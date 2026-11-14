@@ -1,50 +1,44 @@
-import { PaintStyle, Skia, type SkCanvas } from '@shopify/react-native-skia';
+import { Skia, type SkCanvas } from '@shopify/react-native-skia';
 
 import { artPalette } from '@/constants/theme';
 import type { RigView, SlotName } from '@chat-app/shared-types';
-import type { AvatarArt, TintGroup, ViewDrawList } from './avatarArt';
+import type { AvatarArt, ViewDrawList } from './avatarArt';
 import { BONE_INDEX, HUMANOID_V1 } from './humanoidV1';
 
 /**
- * Programmer art for the Phase 2 test avatar: one simple shape per bone, drawn white
- * with a grey outline into a small atlas, then tinted per avatar by drawAtlas colours.
- * Dressed avatars use packed wearable atlases in the same draw format (wearables/);
- * this stays as the fallback while those load, and for the dev stress avatars.
+ * The loading ghost: a plain silhouette of the rig, one rounded shape per bone with no
+ * face, hair, clothes or outlines. It's drawn white into a small atlas and tinted at draw
+ * time with the pulsing ghost colour (see avatarGhost.ts), so it reads as a skeleton
+ * placeholder, not as somebody's avatar. Shown while an outfit's atlases load and compose
+ * (dressed avatars use packed wearable atlases in the same draw format, see wearables/),
+ * and for the dev stress avatars, which have no outfit.
  */
 
 /** Atlas pixels per content pixel. 3x stays sharp at 1.5x zoom on a 2x screen. */
 export const ART_SCALE = 3;
 const PAD = 2;
-const OUTLINE = 0.6;
-
 
 interface Piece {
   /** Bounds in bone-local content pixels; the bone origin is (0, 0). */
   bounds: [minX: number, minY: number, maxX: number, maxY: number];
-  tint: TintGroup;
-  draw(canvas: SkCanvas, fill: ReturnType<typeof Skia.Paint>, stroke: ReturnType<typeof Skia.Paint>): void;
+  draw(canvas: SkCanvas, fill: ReturnType<typeof Skia.Paint>): void;
 }
 
 /** A rounded limb segment along local y, from y0 to y1, `w` wide. */
-function capsule(w: number, y0: number, y1: number, tint: TintGroup): Piece {
+function capsule(w: number, y0: number, y1: number): Piece {
   return {
     bounds: [-w / 2, y0, w / 2, y1],
-    tint,
-    draw(canvas, fill, stroke) {
-      const rrect = Skia.RRectXY(Skia.XYWHRect(-w / 2, y0, w, y1 - y0), w / 2, w / 2);
-      canvas.drawRRect(rrect, fill);
-      canvas.drawRRect(rrect, stroke);
+    draw(canvas, fill) {
+      canvas.drawRRect(Skia.RRectXY(Skia.XYWHRect(-w / 2, y0, w, y1 - y0), w / 2, w / 2), fill);
     },
   };
 }
 
-function disc(cx: number, cy: number, r: number, tint: TintGroup): Piece {
+function disc(cx: number, cy: number, r: number): Piece {
   return {
     bounds: [cx - r, cy - r, cx + r, cy + r],
-    tint,
-    draw(canvas, fill, stroke) {
+    draw(canvas, fill) {
       canvas.drawCircle(cx, cy, r, fill);
-      canvas.drawCircle(cx, cy, r, stroke);
     },
   };
 }
@@ -53,85 +47,33 @@ function disc(cx: number, cy: number, r: number, tint: TintGroup): Piece {
 const HEAD_R = 12.6;
 const HEAD_CY = -11.2;
 
-/** Front head turned to screen right: eyes sit right of centre. */
-const HEAD_FRONT: Piece = {
-  bounds: [-HEAD_R, HEAD_CY - HEAD_R, HEAD_R, HEAD_CY + HEAD_R],
-  tint: 'skin',
-  draw(canvas, fill, stroke) {
-    canvas.drawCircle(0, HEAD_CY, HEAD_R, fill);
-    canvas.drawCircle(0, HEAD_CY, HEAD_R, stroke);
-    const eye = Skia.Paint();
-    eye.setAntiAlias(true);
-    eye.setColor(Skia.Color(artPalette.eye));
-    canvas.drawCircle(2.1, HEAD_CY + 1.4, 1.6, eye);
-    canvas.drawCircle(7.7, HEAD_CY + 1.4, 1.6, eye);
-  },
-};
-
-/** Hair cap over the top of the head, with a fringe that leaves the face clear. */
-const HAIR_FRONT: Piece = {
-  bounds: [-HEAD_R - 0.5, HEAD_CY - HEAD_R - 1, HEAD_R + 0.5, HEAD_CY - 1],
-  tint: 'hair',
-  draw(canvas, fill, stroke) {
-    const path = Skia.PathBuilder.Make()
-      .addArc(Skia.XYWHRect(-HEAD_R - 0.5, HEAD_CY - HEAD_R - 1, 2 * HEAD_R + 1, 2 * HEAD_R + 1), 180, 180)
-      .lineTo(HEAD_R + 0.5, HEAD_CY - 1)
-      .lineTo(-HEAD_R + 2, HEAD_CY - 3)
-      .close()
-      .build();
-    canvas.drawPath(path, fill);
-    canvas.drawPath(path, stroke);
-  },
-};
-
-const HEAD_BACK: Piece = disc(0, HEAD_CY, HEAD_R, 'skin');
-
-/** Seen from behind, hair covers all but the nape. */
-const HAIR_BACK: Piece = {
-  bounds: [-HEAD_R - 0.5, HEAD_CY - HEAD_R - 1, HEAD_R + 0.5, HEAD_CY + HEAD_R - 3],
-  tint: 'hair',
-  draw(canvas, fill, stroke) {
-    const path = Skia.PathBuilder.Make()
-      .addArc(Skia.XYWHRect(-HEAD_R - 0.5, HEAD_CY - HEAD_R - 1, 2 * HEAD_R + 1, 2 * HEAD_R + 1), 150, 240)
-      .close()
-      .build();
-    canvas.drawPath(path, fill);
-    canvas.drawPath(path, stroke);
-  },
-};
-
 /** Feet point forward (screen right). */
 const FOOT: Piece = {
   bounds: [-3, -2, 8, 3.5],
-  tint: 'footwear',
-  draw(canvas, fill, stroke) {
-    const rect = Skia.XYWHRect(-3, -2, 11, 5.5);
-    canvas.drawOval(rect, fill);
-    canvas.drawOval(rect, stroke);
+  draw(canvas, fill) {
+    canvas.drawOval(Skia.XYWHRect(-3, -2, 11, 5.5), fill);
   },
 };
 
-const LIMBS: Partial<Record<SlotName, Piece>> = {
-  'spine/tops': capsule(13.5, -9, 3.5, 'tops'),
-  'chest/tops': capsule(14.5, -11.5, 2, 'tops'),
-  'neck/skin': capsule(5, -7, 1, 'skin'),
-  'upperArm.L/tops': capsule(5.4, -2.7, 10.5, 'tops'),
-  'foreArm.L/tops': capsule(4.6, -1.5, 9.5, 'tops'),
-  'hand.L/skin': disc(0, 2, 2.8, 'skin'),
-  'upperArm.R/tops': capsule(5.4, -2.7, 10.5, 'tops'),
-  'foreArm.R/tops': capsule(4.6, -1.5, 9.5, 'tops'),
-  'hand.R/skin': disc(0, 2, 2.8, 'skin'),
-  'thigh.L/bottoms': capsule(7.2, -3.6, 17, 'bottoms'),
-  'shin.L/bottoms': capsule(6.2, -2, 15, 'bottoms'),
-  'foot.L/footwear': FOOT,
-  'thigh.R/bottoms': capsule(7.2, -3.6, 17, 'bottoms'),
-  'shin.R/bottoms': capsule(6.2, -2, 15, 'bottoms'),
-  'foot.R/footwear': FOOT,
-};
-
-const PIECES: Record<RigView, Partial<Record<SlotName, Piece>>> = {
-  front: { ...LIMBS, 'head/skin': HEAD_FRONT, 'head/hair': HAIR_FRONT },
-  back: { ...LIMBS, 'head/skin': HEAD_BACK, 'head/hair': HAIR_BACK },
+/** The same from the front and the back: a silhouette has no face to turn. */
+const PIECES: Partial<Record<SlotName, Piece>> = {
+  'hip/skin': capsule(13.5, -3, 3.5),
+  'spine/skin': capsule(13.5, -9, 3.5),
+  'chest/skin': capsule(14.5, -11.5, 2),
+  'neck/skin': capsule(5, -7, 1),
+  'head/skin': disc(0, HEAD_CY, HEAD_R),
+  'upperArm.L/skin': capsule(5.4, -2.7, 10.5),
+  'foreArm.L/skin': capsule(4.6, -1.5, 9.5),
+  'hand.L/skin': disc(0, 2, 2.8),
+  'upperArm.R/skin': capsule(5.4, -2.7, 10.5),
+  'foreArm.R/skin': capsule(4.6, -1.5, 9.5),
+  'hand.R/skin': disc(0, 2, 2.8),
+  'thigh.L/skin': capsule(7.2, -3.6, 17),
+  'shin.L/skin': capsule(6.2, -2, 15),
+  'foot.L/skin': FOOT,
+  'thigh.R/skin': capsule(7.2, -3.6, 17),
+  'shin.R/skin': capsule(6.2, -2, 15),
+  'foot.R/skin': FOOT,
 };
 
 function cellSize(piece: Piece) {
@@ -146,8 +88,8 @@ function buildArt(): AvatarArt {
   // Each piece gets two cells side by side (normal, mirrored), one row per piece.
   const entries = (['front', 'back'] as RigView[]).flatMap(view =>
     HUMANOID_V1.drawOrder[view]
-      .filter(slot => PIECES[view][slot])
-      .map(slot => ({ view, slot, piece: PIECES[view][slot]! })),
+      .filter(slot => PIECES[slot])
+      .map(slot => ({ view, slot, piece: PIECES[slot]! })),
   );
   const cells = entries.map(e => cellSize(e.piece));
   const width = 2 * Math.max(...cells.map(c => c.w));
@@ -160,13 +102,8 @@ function buildArt(): AvatarArt {
   const fill = Skia.Paint();
   fill.setAntiAlias(true);
   fill.setColor(Skia.Color(artPalette.pieceFill));
-  const stroke = Skia.Paint();
-  stroke.setAntiAlias(true);
-  stroke.setStyle(PaintStyle.Stroke);
-  stroke.setStrokeWidth(OUTLINE);
-  stroke.setColor(Skia.Color(artPalette.pieceOutline));
 
-  const empty = (): ViewDrawList => ({ bone: [], tint: [], src: [], srcMirror: [], pivotX: [], pivotXMirror: [], pivotY: [], pivotYMirror: [] });
+  const empty = (): ViewDrawList => ({ bone: [], src: [], srcMirror: [], pivotX: [], pivotXMirror: [], pivotY: [], pivotYMirror: [] });
   const views: Record<RigView, ViewDrawList> = { front: empty(), back: empty() };
 
   let top = 0;
@@ -181,18 +118,17 @@ function buildArt(): AvatarArt {
     canvas.save();
     canvas.translate(pivotX, top + pivotY);
     canvas.scale(ART_SCALE, ART_SCALE);
-    piece.draw(canvas, fill, stroke);
+    piece.draw(canvas, fill);
     canvas.restore();
 
     canvas.save();
     canvas.translate(mirrorLeft + pivotXMirror, top + pivotY);
     canvas.scale(-ART_SCALE, ART_SCALE);
-    piece.draw(canvas, fill, stroke);
+    piece.draw(canvas, fill);
     canvas.restore();
 
     const list = views[view];
     list.bone.push(BONE_INDEX[HUMANOID_V1.slots.find(s => s.name === slot)!.bone]);
-    list.tint.push(piece.tint);
     list.src.push(Skia.XYWHRect(0, top, w, h));
     list.srcMirror.push(Skia.XYWHRect(mirrorLeft, top, w, h));
     list.pivotX.push(pivotX);
@@ -205,7 +141,7 @@ function buildArt(): AvatarArt {
   const snapshot = surface.makeImageSnapshot();
   // A CPU-backed copy can be drawn from the UI thread's canvas.
   const image = snapshot.makeNonTextureImage() ?? snapshot;
-  return { image, scale: ART_SCALE, tinted: true, views };
+  return { image, scale: ART_SCALE, ghost: true, views };
 }
 
 let art: AvatarArt | null = null;

@@ -6,6 +6,7 @@ import { Pressable, View } from 'react-native';
 import { makeStyles, useTheme } from '@/constants/theme';
 import { Facing } from '@chat-app/shared-types';
 import { useAvatarPreviewPicture } from '@/lib/room-engine/engines/skia/useAvatarPreviewPicture';
+import type { ClipId } from '@/lib/room-engine/engines/skia/skeleton/clips';
 import {
   PLACEHOLDER_ART,
   useOutfitArts,
@@ -23,19 +24,23 @@ const FEET_MARGIN = 6;
 interface Props {
   /** The outfit to draw; changes show as soon as they compose. Null draws the placeholder. */
   avatar: AvatarOutfit | null | undefined;
-  /** Canvas height in px; the width is 3/4 of it. */
+  /** Canvas height in px; the width is 3/4 of it unless `width` is given. */
   size?: number;
+  /** Canvas width in px, for clips that move sideways (moonwalk). The avatar stays centred. */
+  width?: number;
+  /** The clip to play instead of the idle; one-shot clips replay with a short rest. */
+  clip?: ClipId;
   /** Show a button that turns the avatar through the four facings. */
   rotatable?: boolean;
-  /** Play the idle animation. Pass false for lists of cards: each animated preview runs its own frame loop. */
+  /** Play the animation. Pass false for lists of cards: each animated preview runs its own frame loop. */
   animated?: boolean;
 }
 
 /**
  * The Skia rigged avatar exactly as rooms draw it, idling, for screens outside rooms.
- * Shows the programmer-art placeholder until the outfit's atlases are composed.
+ * Shows the pulsing loading ghost until the outfit's atlases are composed.
  */
-export default function AvatarPreview({ avatar, size = 220, rotatable = false, animated = true }: Props) {
+export default function AvatarPreview({ avatar, size = 220, width: widthProp, clip, rotatable = false, animated = true }: Props) {
   const t = useTheme();
   const styles = useStyles();
   const [facingIndex, setFacingIndex] = useState(0);
@@ -43,11 +48,12 @@ export default function AvatarPreview({ avatar, size = 220, rotatable = false, a
   const { arts, artKeys } = useOutfitArts(outfits);
   const art = arts[artKeys[PREVIEW_ID]] ?? arts[PLACEHOLDER_ART];
 
-  const width = Math.round(size * 0.75);
+  const width = widthProp ?? Math.round(size * 0.75);
   const scale = size / CONTENT_HEIGHT;
   const picture = useAvatarPreviewPicture({
     art,
     facing: FACINGS[facingIndex],
+    clip,
     feetX: width / 2,
     feetY: size - FEET_MARGIN * scale,
     scale,
@@ -55,7 +61,12 @@ export default function AvatarPreview({ avatar, size = 220, rotatable = false, a
   });
 
   return (
-    <View style={{ width, height: size }}>
+    <View
+      style={{ width, height: size }}
+      accessible={art.ghost || undefined}
+      accessibilityLabel={art.ghost ? 'Loading avatar' : undefined}
+      accessibilityState={art.ghost ? { busy: true } : undefined}
+    >
       <Canvas style={{ width, height: size }}>
         <Picture picture={picture} />
       </Canvas>

@@ -26,7 +26,7 @@ export default function RoomScreen() {
     if (!socket) return;
     const onRemoved = (p: { roomId: string; reason: RoomRemovalReason }) => {
       if (p.roomId !== roomId) return;
-      router.dismissTo('/(tabs)');
+      router.dismissTo('/conversations');
       // A toast, not a dialog: the room (and maybe its member list) is still closing under it.
       if (p.reason === 'removed') showToast({ text: 'An owner removed you from this room.', icon: 'exit-outline' });
       if (p.reason === 'deleted') showToast({ text: 'An owner deleted this room.', icon: 'trash-outline' });

@@ -4,7 +4,7 @@ import { FlatList, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { io } from 'socket.io-client';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
-import { PaginatedRooms, Room, RoomCategory } from '@chat-app/shared-types';
+import { PaginatedRooms, Room, RoomCategory, type RoomListEntry } from '@chat-app/shared-types';
 import { Button, Dialog, EmptyState, ErrorState, IconButton, ScreenHeader, SkeletonGroup, Spinner } from '@/components/ui';
 import { useAuth } from '@/context/auth.context';
 import { useIncomingRequests } from '@/hooks/useFriends';
@@ -13,7 +13,7 @@ import { api } from '@/lib/api';
 import { makeStyles } from '@/constants/theme';
 import { SERVER_ORIGIN } from '../utils/config';
 import { listenForAccountEvents, socketUtils } from '../utils/socketUtils';
-import RoomListItem, { RoomListItemSkeleton } from './RoomListItem';
+import RoomListItem, { RoomListItemSkeleton, type RoomFace } from './RoomListItem';
 
 const LIMIT = 20;
 
@@ -24,9 +24,34 @@ function roomKindLabel(room: Room, userId: string | null): string {
 }
 
 /** A friend's personal room shows only its label, without the owner's "Welcome to my room!" tagline. */
-function roomSubtitle(room: Room, userId: string | null): string {
+function roomSubtitle(room: RoomListEntry, userId: string | null): string {
   const isFriendsRoom = room.category === RoomCategory.PERSONAL && room.ownerId !== userId;
-  return [roomKindLabel(room, userId), isFriendsRoom ? '' : room.description].filter(Boolean).join(' · ');
+  const first = room.category === RoomCategory.PERSONAL ? roomKindLabel(room, userId) : peopleLine(room, userId);
+  return [first, isFriendsRoom ? '' : room.description].filter(Boolean).join(' · ');
+}
+
+/** Names shown in a group room's subtitle before "and N others". */
+const NAMES_SHOWN = 2;
+
+/** Who is in a group room, you included: "ana, you and 3 others". */
+function peopleLine(room: RoomListEntry, userId: string | null): string {
+  const shown = room.people.slice(0, NAMES_SHOWN);
+  if (shown.length === 0 || (room.memberCount <= 1 && shown[0]._id === userId)) return 'Just you';
+  const names = shown.map((p, i) => (p._id !== userId ? p.username : i === 0 ? 'You' : 'you'));
+  // Everyone but the people named.
+  const others = Math.max(0, room.memberCount - names.length);
+  if (others === 0) return names.join(' and ');
+  return `${names.join(', ')} and ${others} ${others === 1 ? 'other' : 'others'}`;
+}
+
+/**
+ * Whose heads make a room's badge. A personal room shows its owner. A group room shows its
+ * latest chatters, you among them when you're one of them.
+ */
+function roomFaces(room: RoomListEntry, userId: string | null): RoomFace[] {
+  if (room.category === RoomCategory.PERSONAL) return [{ userId: room.ownerId, username: room.name }];
+  if (room.people.length > 0) return room.people.map(p => ({ userId: p._id, username: p.username }));
+  return userId ? [{ userId, username: room.name }] : [];
 }
 
 const useStyles = makeStyles(t => ({
@@ -144,6 +169,7 @@ export default function RoomListScreen(): React.JSX.Element {
           renderItem={({ item }) => (
             <RoomListItem
               name={item.name}
+              faces={roomFaces(item, userId)}
               subtitle={roomSubtitle(item, userId)}
               isPersonal={item.category === RoomCategory.PERSONAL}
               onPress={() => handleRoomPress(item._id)}

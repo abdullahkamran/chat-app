@@ -5,6 +5,13 @@ export { HUMANOID_V1 };
 /** Avatar height in content pixels at zoom 1 (feet to top of head): two tile heights. */
 export const AVATAR_HEIGHT = 80;
 
+/**
+ * The square that frames the head for list badges (`UserAvatar`), in content pixels from the
+ * feet: its centre height and half its side. It takes in the skull, ears, most hair and the
+ * top of the shoulders; wide hats are cropped. Keep it in step with the rig's head bone.
+ */
+export const HEAD_FRAME = { y: -65, half: 18 };
+
 const BONES = HUMANOID_V1.bones;
 
 export const BONE_COUNT = BONES.length;

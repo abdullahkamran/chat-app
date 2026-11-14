@@ -58,7 +58,7 @@ function MembersList() {
   // Out of the room: back to the room list, which no longer has it.
   const exitRoom = () => {
     queryClient.invalidateQueries({ queryKey: ['rooms'] });
-    router.dismissTo('/(tabs)');
+    router.dismissTo('/conversations');
   };
 
   const add = useMutation({

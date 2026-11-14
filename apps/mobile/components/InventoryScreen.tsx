@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { FlatList, Pressable, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,6 +13,8 @@ import { AppText, Badge, EmptyState, ErrorState, ScreenHeader, SegmentedControl,
 import { makeStyles, useTheme } from '@/constants/theme';
 import { resolveAvatarSource, resolveItemSource } from '@/constants/avatarAssets';
 import ItemDetailModal from './ItemDetailModal';
+import AnimationRow, { AnimationRowSkeleton, animationCategoryLabel, useVisibleIds } from './AnimationRow';
+import { ALL_CATEGORY, CategoryChips } from './CategoryChips';
 
 type InventoryTab = 'items' | 'outfits' | 'animations';
 
@@ -28,15 +30,25 @@ type PopulatedAvatarInventoryEntry = {
     variantId: string;
 };
 
-const ANIMATION_CATEGORY_LABEL: Record<string, string> = {
-    EMOTE: 'Emote',
-    WALK: 'Walk',
-    SIT: 'Sit',
-};
+/** The categories in a list, in first-seen order, and the entries in the selected one. */
+function useCategoryFilter<T>(entries: T[], categoryOf: (entry: T) => string | undefined) {
+    const [selected, setSelected] = useState<string>(ALL_CATEGORY);
+    const categories = useMemo(
+        () => [...new Set(entries.map(categoryOf).filter((c): c is string => !!c))],
+        // categoryOf is a fresh arrow each render; the entries decide the categories.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [entries],
+    );
+    // A category that emptied out (its last item placed or sold) falls back to All.
+    const active = categories.includes(selected) ? selected : ALL_CATEGORY;
+    const filtered = active === ALL_CATEGORY ? entries : entries.filter(e => categoryOf(e) === active);
+    return { categories, selected: active, setSelected, filtered, isFiltered: active !== ALL_CATEGORY };
+}
 
 const useStyles = makeStyles(t => ({
     container: { flex: 1, backgroundColor: t.colors.background },
-    tabSwitcher: { marginHorizontal: t.space.lg, marginBottom: t.space.md },
+    tabSwitcher: { marginHorizontal: t.space.lg, marginBottom: t.space.xs },
+    animationsList: { paddingTop: t.space.xs, gap: t.space.md },
     skeletonRow: { borderColor: t.colors.surface },
     skeletonInfo: { flex: 1, gap: t.space.sm },
     list: { paddingBottom: t.space.xl, gap: t.space.sm + 2 },
@@ -120,6 +132,11 @@ export default function InventoryScreen(): React.JSX.Element {
     });
     const animations = animationsQuery.data ?? [];
 
+    const itemFilter = useCategoryFilter(entries, e => e.item.category);
+    const outfitFilter = useCategoryFilter(avatarInventory, e => e.item?.category);
+    const animationFilter = useCategoryFilter(animations, a => a.category);
+    const { visible: visibleAnimationIds, listProps: animationListProps } = useVisibleIds(inventoryTab === 'animations');
+
     const refreshItems = usePullToRefresh(itemsQuery.refetch);
     const refreshOutfits = usePullToRefresh(outfitsQuery.refetch);
     const refreshAnimations = usePullToRefresh(animationsQuery.refetch);
@@ -139,38 +156,40 @@ export default function InventoryScreen(): React.JSX.Element {
             <SegmentedControl options={TABS} value={inventoryTab} onChange={setInventoryTab} style={styles.tabSwitcher} />
 
             {inventoryTab === 'animations' ? (
-                animationsQuery.isLoading ? (
-                    <InventoryRowsSkeleton />
+                <>
+                <CategoryChips categories={animationFilter.categories} selected={animationFilter.selected} onSelect={animationFilter.setSelected} loading={animationsQuery.isLoading} labelOf={animationCategoryLabel} />
+                {animationsQuery.isLoading ? (
+                    <SkeletonGroup style={[styles.list, styles.animationsList]} label="Loading animations">
+                        {[0, 1, 2, 3].map(i => <AnimationRowSkeleton key={i} />)}
+                    </SkeletonGroup>
                 ) : animationsQuery.isError && !animationsQuery.data ? (
                     <ErrorState title="Couldn't load your animations" onRetry={() => animationsQuery.refetch()} retrying={animationsQuery.isRefetching} />
                 ) : (
                     <FlatList
-                        data={animations}
+                        data={animationFilter.filtered}
                         keyExtractor={(a) => a._id}
-                        contentContainerStyle={styles.list}
+                        contentContainerStyle={[styles.list, styles.animationsList]}
                         refreshControl={refreshAnimations}
+                        {...animationListProps}
                         renderItem={({ item: anim }) => (
-                            <View style={styles.row}>
-                                <View style={styles.thumbTile}>
-                                    <Ionicons name="musical-notes" size={22} color={t.colors.primary} />
-                                </View>
-                                <AppText variant="heading" style={styles.info}>{anim.name}</AppText>
-                                {tag(ANIMATION_CATEGORY_LABEL[anim.category] ?? anim.category)}
-                            </View>
+                            <AnimationRow animation={anim} animated={visibleAnimationIds.has(anim._id)} />
                         )}
                         ListEmptyComponent={
                             <EmptyState icon="musical-notes-outline" title="No animations yet" body="Visit the Shop to pick up some moves!" />
                         }
                     />
-                )
+                )}
+                </>
             ) : inventoryTab === 'items' ? (
-                itemsQuery.isLoading ? (
+                <>
+                <CategoryChips categories={itemFilter.categories} selected={itemFilter.selected} onSelect={itemFilter.setSelected} loading={itemsQuery.isLoading} />
+                {itemsQuery.isLoading ? (
                     <InventoryRowsSkeleton />
                 ) : itemsQuery.isError && !itemsQuery.data ? (
                     <ErrorState title="Couldn't load your items" onRetry={() => itemsQuery.refetch()} retrying={itemsQuery.isRefetching} />
                 ) : (
                     <FlatList
-                        data={entries}
+                        data={itemFilter.filtered}
                         keyExtractor={({ item }) => item._id}
                         contentContainerStyle={styles.list}
                         refreshControl={refreshItems}
@@ -200,15 +219,18 @@ export default function InventoryScreen(): React.JSX.Element {
                             <EmptyState icon="cube-outline" title="Your inventory is empty" body="Visit the Shop to find furniture for your room!" />
                         }
                     />
-                )
+                )}
+                </>
             ) : (
-                outfitsQuery.isLoading ? (
+                <>
+                <CategoryChips categories={outfitFilter.categories} selected={outfitFilter.selected} onSelect={outfitFilter.setSelected} loading={outfitsQuery.isLoading} />
+                {outfitsQuery.isLoading ? (
                     <InventoryRowsSkeleton round />
                 ) : outfitsQuery.isError && !outfitsQuery.data ? (
                     <ErrorState title="Couldn't load your outfits" onRetry={() => outfitsQuery.refetch()} retrying={outfitsQuery.isRefetching} />
                 ) : (
                     <FlatList
-                        data={avatarInventory}
+                        data={outfitFilter.filtered}
                         keyExtractor={(entry, index) => `${entry.item?._id ?? index}-${entry.variantId}`}
                         contentContainerStyle={styles.list}
                         refreshControl={refreshOutfits}
@@ -233,7 +255,8 @@ export default function InventoryScreen(): React.JSX.Element {
                             <EmptyState icon="shirt-outline" title="No outfits yet" body="Visit the Shop to find something to wear!" />
                         }
                     />
-                )
+                )}
+                </>
             )}
 
             <ItemDetailModal

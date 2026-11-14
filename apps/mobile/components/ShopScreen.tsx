@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Animation, AvatarInventoryEntry, AvatarItem, Item, PaginatedAnimations, PaginatedAvatarItems, PaginatedItems } from '@chat-app/shared-types';
 import { useAuth } from '@/context/auth.context';
 import { api } from '@/lib/api';
-import { AppText, Button, CoinPill, EmptyState, ErrorState, ScreenHeader, SegmentedControl, Skeleton, SkeletonGroup, Spinner, showErrorDialog } from '@/components/ui';
+import { Button, CoinPill, EmptyState, ErrorState, ScreenHeader, SegmentedControl, SkeletonGroup, Spinner, showErrorDialog } from '@/components/ui';
 import { showToast } from '@/components/Toast';
 import { makeStyles } from '@/constants/theme';
 import { useMe } from '@/hooks/useMe';
@@ -15,6 +15,7 @@ import ShopItemCard, { ShopItemCardSkeleton } from './ShopItemCard';
 import AvatarShopItemCard, { AvatarShopItemCardSkeleton } from './AvatarShopItemCard';
 import ItemDetailModal from './ItemDetailModal';
 import { ALL_CATEGORY, CategoryChips } from './CategoryChips';
+import AnimationRow, { AnimationRowSkeleton, animationCategoryLabel, useVisibleIds } from './AnimationRow';
 
 const LIMIT = 20;
 /** How many placeholder cards a loading tab shows: about a screenful. */
@@ -155,6 +156,7 @@ export default function ShopScreen(): React.JSX.Element {
         enabled: !!userId && shopTab === 'animations',
     });
 
+    const { visible: visibleAnimationIds, listProps: animationListProps } = useVisibleIds(shopTab === 'animations');
     const ownedAnimationIds = new Set((ownedAnimationsQuery.data ?? []).map((a) => a._id));
     const isLoadingAnimations = animationsQuery.isLoading || ownedAnimationsQuery.isLoading;
 
@@ -266,18 +268,10 @@ export default function ShopScreen(): React.JSX.Element {
 
             {shopTab === 'animations' && (
                 <>
-                    <CategoryChips categories={animationCategories} selected={selectedAnimationCategory} onSelect={setSelectedAnimationCategory} loading={isLoadingAnimationCategories} />
+                    <CategoryChips categories={animationCategories} selected={selectedAnimationCategory} onSelect={setSelectedAnimationCategory} loading={isLoadingAnimationCategories} labelOf={animationCategoryLabel} />
                     {isLoadingAnimations ? (
                         <SkeletonGroup style={styles.list} label="Loading animations">
-                            {SKELETON_ROWS.map(i => (
-                                <View key={i} style={[styles.animationRow, styles.skeletonRow]}>
-                                    <View style={styles.skeletonInfo}>
-                                        <Skeleton width="45%" height={16} radius="xs" />
-                                        <Skeleton width="25%" height={10} radius="xs" />
-                                    </View>
-                                    <Skeleton width={96} height={36} radius="pill" />
-                                </View>
-                            ))}
+                            {SKELETON_ROWS.slice(0, 4).map(i => <AnimationRowSkeleton key={i} withAction />)}
                         </SkeletonGroup>
                     ) : (animationsQuery.isError && !animationsData) || (ownedAnimationsQuery.isError && !ownedAnimationsQuery.data) ? (
                         <ErrorState
@@ -291,25 +285,26 @@ export default function ShopScreen(): React.JSX.Element {
                             keyExtractor={(item) => item._id}
                             contentContainerStyle={styles.list}
                             refreshControl={refreshAnimations}
+                            {...animationListProps}
                             renderItem={({ item }) => {
                                 const owned = ownedAnimationIds.has(item._id);
                                 const isBuying = buyingAnimationId === item._id;
                                 return (
-                                    <View style={styles.animationRow}>
-                                        <View style={styles.animationInfo}>
-                                            <AppText variant="heading">{item.name}</AppText>
-                                            <AppText variant="overline" color="textMuted">{item.category}</AppText>
-                                        </View>
-                                        <Button
-                                            title={owned ? 'Owned' : `${item.price.coins} coins`}
-                                            icon={owned ? 'checkmark' : 'star'}
-                                            variant={owned ? 'secondary' : 'reward'}
-                                            size="sm"
-                                            loading={isBuying}
-                                            disabled={owned}
-                                            onPress={() => buyAnimation(item._id)}
-                                        />
-                                    </View>
+                                    <AnimationRow
+                                        animation={item}
+                                        animated={visibleAnimationIds.has(item._id)}
+                                        action={
+                                            <Button
+                                                title={owned ? 'Owned' : item.price.coins === 0 ? 'Free' : `${item.price.coins} coins`}
+                                                icon={owned ? 'checkmark' : 'star'}
+                                                variant={owned ? 'secondary' : 'reward'}
+                                                size="sm"
+                                                loading={isBuying}
+                                                disabled={owned}
+                                                onPress={() => buyAnimation(item._id)}
+                                            />
+                                        }
+                                    />
                                 );
                             }}
                             onEndReached={() => { if (hasNextAnimationsPage && !isFetchingNextAnimationsPage) fetchNextAnimationsPage(); }}
@@ -338,20 +333,4 @@ const useStyles = makeStyles(t => ({
     tabSwitcher: { marginHorizontal: t.space.lg, marginBottom: t.space.xs },
     footer: { paddingVertical: t.space.lg },
     list: { paddingTop: t.space.xs, paddingBottom: t.space.xl, gap: t.space.md },
-    animationRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: t.space.md,
-        marginHorizontal: t.space.lg,
-        padding: t.space.md,
-        paddingLeft: t.space.lg,
-        borderRadius: t.radius.lg,
-        borderWidth: t.borderWidth.thick,
-        borderColor: t.colors.border,
-        backgroundColor: t.colors.surface,
-        ...t.shadows.sticker,
-    },
-    animationInfo: { flex: 1, gap: 2 },
-    skeletonRow: { borderColor: t.colors.surface },
-    skeletonInfo: { flex: 1, gap: t.space.sm },
 }));

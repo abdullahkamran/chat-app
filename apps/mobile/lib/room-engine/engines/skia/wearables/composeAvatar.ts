@@ -91,7 +91,7 @@ export function composeAvatar(parts: WornPart[]): AvatarArt {
   if (!surface) throw new Error('Could not create an avatar atlas surface');
   const canvas = surface.getCanvas();
 
-  const empty = (): ViewDrawList => ({ bone: [], tint: [], src: [], srcMirror: [], pivotX: [], pivotXMirror: [], pivotY: [], pivotYMirror: [] });
+  const empty = (): ViewDrawList => ({ bone: [], src: [], srcMirror: [], pivotX: [], pivotXMirror: [], pivotY: [], pivotYMirror: [] });
   const views: Record<RigView, ViewDrawList> = { front: empty(), back: empty() };
 
   const draw = (e: Entry, sprite: AtlasSprite, left: number, paint: ReturnType<typeof Skia.Paint>) => {
@@ -115,7 +115,6 @@ export function composeAvatar(parts: WornPart[]): AvatarArt {
 
     const list = views[e.view];
     list.bone.push(BONE_INDEX[slotBone(e.slot)]);
-    list.tint.push('skin');
     list.src.push(Skia.XYWHRect(e.x, e.y, e.att.east.region.w * e.k, e.att.east.region.h * e.k));
     list.srcMirror.push(Skia.XYWHRect(westX, e.y, e.att.west.region.w * e.k, e.att.west.region.h * e.k));
     // Pivots are relative to their own rect: east pairs with src, west with srcMirror.
@@ -128,5 +127,5 @@ export function composeAvatar(parts: WornPart[]): AvatarArt {
   const snapshot = surface.makeImageSnapshot();
   // A CPU-backed copy can be drawn from the UI thread's canvas.
   const image = snapshot.makeNonTextureImage() ?? snapshot;
-  return { image, scale: WEARABLE_ART_SCALE, tinted: false, views };
+  return { image, scale: WEARABLE_ART_SCALE, ghost: false, views };
 }

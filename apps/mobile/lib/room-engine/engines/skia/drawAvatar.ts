@@ -7,11 +7,10 @@ import {
   type SkColor,
 } from '@shopify/react-native-skia';
 
-import { artPalette } from '@/constants/theme';
 import type { Facing } from '@chat-app/shared-types';
 import { facingToView } from '../../core/facing';
 import type { ClipId } from './skeleton/clips';
-import type { AvatarArt, TintGroup } from './skeleton/avatarArt';
+import type { AvatarArt } from './skeleton/avatarArt';
 import { COMPILED_CLIPS, blendPose, samplePose, solveWorld } from './skeleton/sampler';
 
 const ATLAS_SAMPLING = { filter: FilterMode.Linear, mipmap: MipmapMode.None };
@@ -28,45 +27,17 @@ export interface AvatarPlayhead {
   facing: Facing;
 }
 
-function hashId(id: string): number {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
-
-const tintCache = new Map<string, Record<TintGroup, SkColor>>();
-
-/**
- * Programmer-art placeholder colours, stable per key (a user id in rooms) and cached so
- * re-renders don't reallocate them.
- */
-export function placeholderTints(id: string): Record<TintGroup, SkColor> {
-  let tints = tintCache.get(id);
-  if (!tints) {
-    const n = artPalette.clothing.length;
-    const h = hashId(id);
-    tints = {
-      skin: Skia.Color(artPalette.skin),
-      tops: Skia.Color(artPalette.clothing[h % n]),
-      bottoms: Skia.Color(artPalette.clothing[(h + 3) % n]),
-      footwear: Skia.Color(artPalette.hair),
-      hair: Skia.Color(artPalette.hair),
-    };
-    tintCache.set(id, tints);
-  }
-  return tints;
-}
-
 /**
  * Draws one avatar with its feet at (feetX, feetY): sample the clip (crossfading from the
  * previous one), solve the bones, then one drawAtlas. A UI-thread worklet; rooms and the
- * avatar editor's preview both draw through it.
+ * avatar editor's preview both draw through it. `ghost` is this frame's colour for the
+ * loading ghost (see avatarGhost.ts); dressed avatars ignore it.
  */
 export function drawAvatar(
   canvas: SkCanvas,
   art: AvatarArt,
   st: AvatarPlayhead,
-  tints: Record<TintGroup, SkColor>,
+  ghost: SkColor,
   feetX: number,
   feetY: number,
 ) {
@@ -83,7 +54,7 @@ export function drawAvatar(
   const xforms = [];
   const colors: SkColor[] = [];
   for (let i = 0; i < list.bone.length; i++) {
-    if (art.tinted) colors.push(tints[list.tint[i]]);
+    if (art.ghost) colors.push(ghost);
     const b = list.bone[i];
     const x = mirror ? -bones.x[b] : bones.x[b];
     const angle = mirror ? -bones.angle[b] : bones.angle[b];
@@ -97,7 +68,7 @@ export function drawAvatar(
     xforms,
     Skia.Paint(),
     BlendMode.Modulate,
-    art.tinted ? colors : undefined,
+    art.ghost ? colors : undefined,
     ATLAS_SAMPLING,
   );
 }

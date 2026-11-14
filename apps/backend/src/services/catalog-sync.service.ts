@@ -45,6 +45,22 @@ async function syncAnimations(): Promise<void> {
     }
 
     console.log(`[catalog-sync] animations: ${inserted} inserted, ${ANIMATIONS_CATALOG.length - inserted} already exist`);
+
+    // Descriptions were added after most animations were seeded, and are copy we keep
+    // tuning, so existing records follow the catalog. The filter makes it a no-op once in
+    // step, so booting several instances writes nothing.
+    const updates = ANIMATIONS_CATALOG
+        .filter(e => e.description)
+        .map(e => ({
+            updateOne: {
+                filter: { name: e.name, description: { $ne: e.description } },
+                update: { $set: { description: e.description } },
+            },
+        }));
+    if (updates.length > 0) {
+        const result = await AnimationModel.bulkWrite(updates, { ordered: false });
+        if (result.modifiedCount > 0) console.log(`[catalog-sync] animations: ${result.modifiedCount} descriptions updated`);
+    }
 }
 
 async function syncAvatarItems(): Promise<void> {

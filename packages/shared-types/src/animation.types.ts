@@ -3,6 +3,8 @@ import { Amount } from './currency.types';
 export interface Animation {
     _id: string;
     name: string; // camelCase string unique identifier
+    /** A short, playful line for the shop and inventory. */
+    description?: string;
     category: AnimationCategory;
     /** For an EMOTE: who takes part. Absent means `solo`. */
     emoteType?: EmoteType;

@@ -94,6 +94,8 @@ function AppNavigator() {
         <QueryClientProvider client={queryClient}>
           <NavigationThemeProvider value={navigationTheme}>
             <Stack>
+              {/* `/` is reachable either way and redirects by sign-in state (app/index.tsx). */}
+              <Stack.Screen name="index" options={{ headerShown: false }} />
               <Stack.Protected guard={isAuthenticated}>
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                 <Stack.Screen name="(avatar)" options={{ headerShown: false }} />
