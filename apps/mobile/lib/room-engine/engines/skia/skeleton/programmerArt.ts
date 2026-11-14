@@ -49,8 +49,9 @@ function disc(cx: number, cy: number, r: number, tint: TintGroup): Piece {
   };
 }
 
-const HEAD_R = 9;
-const HEAD_CY = -8;
+/** The skull: a third of the avatar's height, centred above the head bone's origin. */
+const HEAD_R = 12.6;
+const HEAD_CY = -11.2;
 
 /** Front head turned to screen right: eyes sit right of centre. */
 const HEAD_FRONT: Piece = {
@@ -62,8 +63,8 @@ const HEAD_FRONT: Piece = {
     const eye = Skia.Paint();
     eye.setAntiAlias(true);
     eye.setColor(Skia.Color(artPalette.eye));
-    canvas.drawCircle(1.5, HEAD_CY + 1, 1.2, eye);
-    canvas.drawCircle(5.5, HEAD_CY + 1, 1.2, eye);
+    canvas.drawCircle(2.1, HEAD_CY + 1.4, 1.6, eye);
+    canvas.drawCircle(7.7, HEAD_CY + 1.4, 1.6, eye);
   },
 };
 
@@ -111,20 +112,20 @@ const FOOT: Piece = {
 };
 
 const LIMBS: Partial<Record<SlotName, Piece>> = {
-  'spine/tops': capsule(14, -11, 4, 'tops'),
-  'chest/tops': capsule(16, -16, 2, 'tops'),
-  'neck/skin': capsule(5, -5, 1, 'skin'),
-  'upperArm.L/tops': capsule(6, -2, 13, 'tops'),
-  'foreArm.L/tops': capsule(5, -1, 12, 'tops'),
-  'hand.L/skin': disc(0, 2, 3, 'skin'),
-  'upperArm.R/tops': capsule(6, -2, 13, 'tops'),
-  'foreArm.R/tops': capsule(5, -1, 12, 'tops'),
-  'hand.R/skin': disc(0, 2, 3, 'skin'),
-  'thigh.L/bottoms': capsule(8, -3, 18, 'bottoms'),
-  'shin.L/bottoms': capsule(7, -1, 16, 'bottoms'),
+  'spine/tops': capsule(13.5, -9, 3.5, 'tops'),
+  'chest/tops': capsule(14.5, -11.5, 2, 'tops'),
+  'neck/skin': capsule(5, -7, 1, 'skin'),
+  'upperArm.L/tops': capsule(5.4, -2.7, 10.5, 'tops'),
+  'foreArm.L/tops': capsule(4.6, -1.5, 9.5, 'tops'),
+  'hand.L/skin': disc(0, 2, 2.8, 'skin'),
+  'upperArm.R/tops': capsule(5.4, -2.7, 10.5, 'tops'),
+  'foreArm.R/tops': capsule(4.6, -1.5, 9.5, 'tops'),
+  'hand.R/skin': disc(0, 2, 2.8, 'skin'),
+  'thigh.L/bottoms': capsule(7.2, -3.6, 17, 'bottoms'),
+  'shin.L/bottoms': capsule(6.2, -2, 15, 'bottoms'),
   'foot.L/footwear': FOOT,
-  'thigh.R/bottoms': capsule(8, -3, 18, 'bottoms'),
-  'shin.R/bottoms': capsule(7, -1, 16, 'bottoms'),
+  'thigh.R/bottoms': capsule(7.2, -3.6, 17, 'bottoms'),
+  'shin.R/bottoms': capsule(6.2, -2, 15, 'bottoms'),
   'foot.R/footwear': FOOT,
 };
 

@@ -19,32 +19,38 @@ import {
  * Bind pose in the front view (facing SE: towards the viewer, turned to screen right).
  * The avatar's left side is nearer the viewer and sits at +x. Root is the ground point
  * between the feet. Limbs hang down (+length); the torso and head point up (-length).
+ *
+ * Proportions are cartoon ones, about three heads tall: the head is a third of the 80 px
+ * height (24 px of skull above the head bone, plus the chin below it), the torso from the
+ * base of the neck to the hip joints is 19 px and the legs are 31 px.
  */
 const BONES: RigBone[] = [
   { name: 'root', x: 0, y: 0, rotation: 0, length: 0 },
-  { name: 'hip', parent: 'root', x: 0, y: -34, rotation: 0, length: 0 },
-  { name: 'spine', parent: 'hip', x: 0, y: -2, rotation: 0, length: -10 },
-  { name: 'chest', parent: 'spine', x: 0, y: -10, rotation: 0, length: -14 },
-  { name: 'neck', parent: 'chest', x: 0, y: -14, rotation: 0, length: -4 },
-  { name: 'head', parent: 'neck', x: 0, y: -4, rotation: 0, length: -16 },
-  { name: 'upperArm.L', parent: 'chest', x: 9, y: -12, rotation: 0, length: 12 },
-  { name: 'foreArm.L', parent: 'upperArm.L', x: 0, y: 12, rotation: 0, length: 11 },
-  { name: 'hand.L', parent: 'foreArm.L', x: 0, y: 11, rotation: 0, length: 4 },
-  { name: 'upperArm.R', parent: 'chest', x: -9, y: -12, rotation: 0, length: 12 },
-  { name: 'foreArm.R', parent: 'upperArm.R', x: 0, y: 12, rotation: 0, length: 11 },
-  { name: 'hand.R', parent: 'foreArm.R', x: 0, y: 11, rotation: 0, length: 4 },
-  { name: 'thigh.L', parent: 'hip', x: 4, y: 0, rotation: 0, length: 17 },
-  { name: 'shin.L', parent: 'thigh.L', x: 0, y: 17, rotation: 0, length: 15 },
-  { name: 'foot.L', parent: 'shin.L', x: 0, y: 15, rotation: 0, length: 2 },
-  { name: 'thigh.R', parent: 'hip', x: -4, y: 0, rotation: 0, length: 17 },
-  { name: 'shin.R', parent: 'thigh.R', x: 0, y: 17, rotation: 0, length: 15 },
-  { name: 'foot.R', parent: 'shin.R', x: 0, y: 15, rotation: 0, length: 2 },
+  { name: 'hip', parent: 'root', x: 0, y: -31, rotation: 0, length: 0 },
+  { name: 'spine', parent: 'hip', x: 0, y: -1, rotation: 0, length: -8 },
+  { name: 'chest', parent: 'spine', x: 0, y: -8, rotation: 0, length: -10 },
+  { name: 'neck', parent: 'chest', x: 0, y: -10, rotation: 0, length: -6 },
+  { name: 'head', parent: 'neck', x: 0, y: -6, rotation: 0, length: -24 },
+  // Shoulders sit below the base of the neck and outside the ribs, so the shoulder line
+  // slopes down from the neck and the arms hang clear of the torso.
+  { name: 'upperArm.L', parent: 'chest', x: 9.5, y: -7, rotation: 0, length: 9 },
+  { name: 'foreArm.L', parent: 'upperArm.L', x: 0, y: 9, rotation: 0, length: 8.5 },
+  { name: 'hand.L', parent: 'foreArm.L', x: 0, y: 8.5, rotation: 0, length: 4 },
+  { name: 'upperArm.R', parent: 'chest', x: -9.5, y: -7, rotation: 0, length: 9 },
+  { name: 'foreArm.R', parent: 'upperArm.R', x: 0, y: 9, rotation: 0, length: 8.5 },
+  { name: 'hand.R', parent: 'foreArm.R', x: 0, y: 8.5, rotation: 0, length: 4 },
+  { name: 'thigh.L', parent: 'hip', x: 3.5, y: 0, rotation: 0, length: 15 },
+  { name: 'shin.L', parent: 'thigh.L', x: 0, y: 15, rotation: 0, length: 14 },
+  { name: 'foot.L', parent: 'shin.L', x: 0, y: 14, rotation: 0, length: 2 },
+  { name: 'thigh.R', parent: 'hip', x: -3.5, y: 0, rotation: 0, length: 15 },
+  { name: 'shin.R', parent: 'thigh.R', x: 0, y: 15, rotation: 0, length: 14 },
+  { name: 'foot.R', parent: 'shin.R', x: 0, y: 14, rotation: 0, length: 2 },
   // Followers. Skirt panels hang from the hip at the thighs and swing half as far, so
   // long coats and skirts move with the legs without splitting at the hip.
-  { name: 'skirt.L', parent: 'hip', x: 4, y: 0, rotation: 0, length: 30, follow: { bone: 'thigh.L', weight: 0.5 } },
-  { name: 'skirt.R', parent: 'hip', x: -4, y: 0, rotation: 0, length: 30, follow: { bone: 'thigh.R', weight: 0.5 } },
+  { name: 'skirt.L', parent: 'hip', x: 3.5, y: 0, rotation: 0, length: 26, follow: { bone: 'thigh.L', weight: 0.5 } },
+  { name: 'skirt.R', parent: 'hip', x: -3.5, y: 0, rotation: 0, length: 26, follow: { bone: 'thigh.R', weight: 0.5 } },
   // Long hair below the head: pivots where the head does but turns only half as far.
-  { name: 'hairBack', parent: 'neck', x: 0, y: -4, rotation: 0, length: 24, follow: { bone: 'head', weight: 0.5 } },
+  { name: 'hairBack', parent: 'neck', x: 0, y: -6, rotation: 0, length: 30, follow: { bone: 'head', weight: 0.5 } },
 ];
 
 const BODY_LAYERS: SlotLayer[] = ['skin', 'bottoms', 'tops', 'footwear', 'wristwear'];

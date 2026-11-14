@@ -6,7 +6,7 @@ Wearables for the Skia room engine are drawn against the `humanoid-v1` rig and p
 
 1. Open the template in `rig-template/`: `humanoid-v1-front.svg` (facing SE) and `humanoid-v1-back.svg` (facing NE). Red dots are joints: every piece rotates about its bone's joint.
 2. Draw the item one piece per bone, in both views. Jeans are `hip`, both `thigh`s and both `shin`s.
-3. Export every piece as its own PNG or SVG **at the full frame size (192×288)**, frame-aligned, with the rest transparent. Don't crop: the packer finds each pivot from where the piece sits in the frame.
+3. Export every piece as its own PNG or SVG **at the full frame size (192×312)**, frame-aligned, with the rest transparent. Don't crop: the packer finds each pivot from where the piece sits in the frame.
 4. Name each file `<bone>.<layer>`, for example `shin.L.bottoms.png` or `head.hair.svg`. Layers: `skin bottoms tops footwear wristwear` on body bones, plus `neckwear` on `neck` and `chest`; `skin face eye nose mouth facialHair hair headwear facewear` on `head`; `bottoms tops` on `skirt.L`/`skirt.R`; `hair` on `hairBack`. Add a band for pieces that stack against the whole body (see below): `hairBack.hair.behind.svg`, `chest.neckwear.front.svg`.
 5. Put them in `wearables/<id>/front/` and `wearables/<id>/back/`, add `wearables/<id>/asset.json`, then run `pnpm art:pack <id>` from `apps/backend`.
 6. Point the catalog variant at it: `wearable: '<id>'` in `src/catalog/avatar-items.catalog.ts`. The server attaches it as `rigAsset` on its next start.

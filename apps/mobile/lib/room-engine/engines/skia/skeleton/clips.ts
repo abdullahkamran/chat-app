@@ -19,11 +19,11 @@ const WALK_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
     // A swung leg reaches less far down than a straight one, so the hip drops to keep the
     // planted foot on the ground: lowest on each foot strike, a little higher while passing.
     translate: [
-      { t: 0, v: [0, 2.5], ease: 'inOut' },
-      { t: 0.2, v: [0, 1.5], ease: 'inOut' },
-      { t: 0.4, v: [0, 2.5], ease: 'inOut' },
-      { t: 0.6, v: [0, 1.5], ease: 'inOut' },
-      { t: 0.8, v: [0, 2.5] },
+      { t: 0, v: [0, 2.8], ease: 'inOut' },
+      { t: 0.2, v: [0, 1.6], ease: 'inOut' },
+      { t: 0.4, v: [0, 2.8], ease: 'inOut' },
+      { t: 0.6, v: [0, 1.6], ease: 'inOut' },
+      { t: 0.8, v: [0, 2.8] },
     ],
   },
   chest: {
@@ -35,9 +35,9 @@ const WALK_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
   },
   'thigh.L': {
     rotate: [
-      { t: 0, v: -25, ease: 'inOut' },
-      { t: 0.4, v: 20, ease: 'inOut' },
-      { t: 0.8, v: -25 },
+      { t: 0, v: -28, ease: 'inOut' },
+      { t: 0.4, v: 22, ease: 'inOut' },
+      { t: 0.8, v: -28 },
     ],
   },
   'shin.L': {
@@ -61,9 +61,9 @@ const WALK_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
   },
   'thigh.R': {
     rotate: [
-      { t: 0, v: 20, ease: 'inOut' },
-      { t: 0.4, v: -25, ease: 'inOut' },
-      { t: 0.8, v: 20 },
+      { t: 0, v: 22, ease: 'inOut' },
+      { t: 0.4, v: -28, ease: 'inOut' },
+      { t: 0.8, v: 22 },
     ],
   },
   // shin.L shifted by half a stride.
@@ -160,17 +160,17 @@ const IDLE_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
 };
 
 /**
- * Seated, breathing slowly. Thighs swing forward 80 degrees (knees end 3 px below the
- * hip) and shins hang straight down, so dropping the hip 14 px puts the feet back on
- * the anchor's floor line, 21 px ahead of it, with the hip right above the anchor. The
+ * Seated, breathing slowly. Thighs swing forward 80 degrees (knees end 2.6 px below the
+ * hip) and shins hang straight down, so dropping the hip 12.4 px puts the feet back on
+ * the anchor's floor line, 15 px ahead of it, with the hip right above the anchor. The
  * seat lifts the anchor to the cushion (ItemSeat.offset.z); the hands rest on the thighs.
  */
 const SIT_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
   hip: {
     translate: [
-      { t: 0, v: [0, 14], ease: 'inOut' },
-      { t: 1.4, v: [0, 14.5], ease: 'inOut' },
-      { t: 2.8, v: [0, 14] },
+      { t: 0, v: [0, 12.4], ease: 'inOut' },
+      { t: 1.4, v: [0, 12.9], ease: 'inOut' },
+      { t: 2.8, v: [0, 12.4] },
     ],
   },
   chest: {
@@ -202,6 +202,9 @@ const SIT_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
  * near the bind pose so the crossfades in and out stay short. Raising an arm forward
  * and up is negative (-90 points it ahead, -180 straight up); leaning the chest back is
  * negative too. The near arm in the front view is `.L`.
+ *
+ * The head is large and the arms short, so a hand only reaches the face with the upper
+ * arm raised past horizontal (about -110) and the forearm folded back towards the head.
  */
 function keys(times: number[], values: number[]): ClipKey<number>[] {
   return times.map((t, i) => ({ t, v: values[i], ease: 'inOut' }));
@@ -278,8 +281,8 @@ const SHRUG_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
 
 /** The near hand comes up over the face; head and chest drop and shake slowly. */
 const FACEPALM_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
-  'upperArm.L': { rotate: keys([0, 0.35, 1.5, 1.8], [0, -55, -55, 0]) },
-  'foreArm.L': { rotate: keys([0, 0.35, 1.5, 1.8], [0, -120, -120, 0]) },
+  'upperArm.L': { rotate: keys([0, 0.35, 1.5, 1.8], [0, -115, -115, 0]) },
+  'foreArm.L': { rotate: keys([0, 0.35, 1.5, 1.8], [0, -105, -105, 0]) },
   head: { rotate: keys([0, 0.35, 0.7, 0.95, 1.2, 1.5, 1.8], [0, 14, 10, 14, 10, 14, 0]) },
   chest: { rotate: keys([0, 0.35, 1.5, 1.8], [0, 5, 5, 0]) },
 };
@@ -307,10 +310,10 @@ const BOW_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
 /** Both hands to the eyes, sobbing: chest and head bob. */
 const CRY_BEATS = [0.4, 0.6, 0.8, 1, 1.2, 1.4, 1.6];
 const CRY_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
-  'upperArm.L': { rotate: keys([0, 0.35, 1.7, 2], [0, -55, -55, 0]) },
-  'upperArm.R': { rotate: keys([0, 0.35, 1.7, 2], [0, -50, -50, 0]) },
-  'foreArm.L': { rotate: keys([0, 0.35, 1.7, 2], [0, -115, -115, 0]) },
-  'foreArm.R': { rotate: keys([0, 0.35, 1.7, 2], [0, -115, -115, 0]) },
+  'upperArm.L': { rotate: keys([0, 0.35, 1.7, 2], [0, -118, -118, 0]) },
+  'upperArm.R': { rotate: keys([0, 0.35, 1.7, 2], [0, -108, -108, 0]) },
+  'foreArm.L': { rotate: keys([0, 0.35, 1.7, 2], [0, -100, -100, 0]) },
+  'foreArm.R': { rotate: keys([0, 0.35, 1.7, 2], [0, -85, -85, 0]) },
   head: { rotate: keys([0, ...CRY_BEATS, 2], [0, 10, 6, 10, 6, 10, 6, 10, 0]) },
   chest: { rotate: keys([0, ...CRY_BEATS, 2], [0, 4, 2, 4, 2, 4, 2, 4, 0]) },
 };
@@ -356,8 +359,8 @@ const FLEX_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
 
 /** The near hand goes to the lips, then sweeps out towards whoever's watching. */
 const BLOW_KISS_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
-  'upperArm.L': { rotate: keys([0, 0.35, 0.8, 1.15, 1.6], [0, -45, -45, -110, 0]) },
-  'foreArm.L': { rotate: keys([0, 0.35, 0.8, 1.15, 1.6], [0, -125, -125, -10, 0]) },
+  'upperArm.L': { rotate: keys([0, 0.35, 0.8, 1.15, 1.6], [0, -105, -105, -110, 0]) },
+  'foreArm.L': { rotate: keys([0, 0.35, 0.8, 1.15, 1.6], [0, -100, -100, -10, 0]) },
   head: { rotate: keys([0, 0.35, 0.8, 1.15, 1.6], [0, 6, 6, -4, 0]) },
   chest: { rotate: keys([0, 0.8, 1.15, 1.6], [0, 0, 4, 0]) },
 };
@@ -464,10 +467,10 @@ const HIT_REACT_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
   chest: { rotate: keys([0, 0.08, 0.3, 0.8, 1.1], [0, -14, -6, -6, 0]) },
   head: { rotate: keys([0, 0.08, 0.3, 0.5, 0.7, 1.1], [0, -18, 6, -6, 6, 0]) },
   hip: { translate: hop([0, 0.1, 0.4, 1.1], [0, 0, 0, 0], [0, -4, -2, 0]) },
-  'upperArm.L': { rotate: keys([0, 0.15, 0.85, 1.1], [0, -50, -50, 0]) },
-  'upperArm.R': { rotate: keys([0, 0.15, 0.85, 1.1], [0, -50, -50, 0]) },
-  'foreArm.L': { rotate: keys([0, 0.15, 0.85, 1.1], [0, -120, -120, 0]) },
-  'foreArm.R': { rotate: keys([0, 0.15, 0.85, 1.1], [0, -120, -120, 0]) },
+  'upperArm.L': { rotate: keys([0, 0.15, 0.85, 1.1], [0, -115, -115, 0]) },
+  'upperArm.R': { rotate: keys([0, 0.15, 0.85, 1.1], [0, -108, -108, 0]) },
+  'foreArm.L': { rotate: keys([0, 0.15, 0.85, 1.1], [0, -100, -100, 0]) },
+  'foreArm.R': { rotate: keys([0, 0.15, 0.85, 1.1], [0, -90, -90, 0]) },
 };
 
 function bothViews(base: Omit<AnimationClip, 'view'>): Record<RigView, AnimationClip> {

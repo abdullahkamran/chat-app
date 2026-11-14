@@ -1,81 +1,81 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="192" height="288" viewBox="0 0 192 288">
-<!-- humanoid-v1 front view, west-facing. Export every piece at 192x288, frame-aligned. -->
-<rect x="0" y="0" width="192" height="288" fill="none" stroke="#333333" stroke-dasharray="4 4"/>
-<line x1="0" y1="264" x2="192" y2="264" stroke="#27ae60"/>
-<g transform="translate(123 90) scale(-3 3)"><rect x="-2.5" y="-2" width="5" height="15" rx="2.5" ry="2.5" fill="#e8e8e8" stroke="#b0b0b0" stroke-width="0.3"/></g>
-<g transform="translate(123 126) scale(-3 3)"><rect x="-2.25" y="-1" width="4.5" height="13" rx="2.25" ry="2.25" fill="#e8e8e8" stroke="#b0b0b0" stroke-width="0.3"/></g>
-<g transform="translate(123 159) scale(-3 3)"><circle cx="0" cy="2" r="3" fill="#e8e8e8" stroke="#b0b0b0" stroke-width="0.3"/></g>
-<g transform="translate(108 162) scale(-3 3)"><rect x="-3.5" y="-3" width="7" height="21" rx="3.5" ry="3.5" fill="#e8e8e8" stroke="#b0b0b0" stroke-width="0.3"/></g>
-<g transform="translate(108 213) scale(-3 3)"><rect x="-3" y="-1" width="6" height="17" rx="3" ry="3" fill="#e8e8e8" stroke="#b0b0b0" stroke-width="0.3"/></g>
-<g transform="translate(108 258) scale(-3 3)"><ellipse cx="2" cy="0.5" rx="5" ry="2.5" fill="#e8e8e8" stroke="#b0b0b0" stroke-width="0.3"/></g>
-<g transform="translate(84 162) scale(-3 3)"><rect x="-3.5" y="-3" width="7" height="21" rx="3.5" ry="3.5" fill="#e8e8e8" stroke="#b0b0b0" stroke-width="0.3"/></g>
-<g transform="translate(84 213) scale(-3 3)"><rect x="-3" y="-1" width="6" height="17" rx="3" ry="3" fill="#e8e8e8" stroke="#b0b0b0" stroke-width="0.3"/></g>
-<g transform="translate(84 258) scale(-3 3)"><ellipse cx="2" cy="0.5" rx="5" ry="2.5" fill="#e8e8e8" stroke="#b0b0b0" stroke-width="0.3"/></g>
-<g transform="translate(96 162) scale(-3 3)"><rect x="-6.5" y="-3" width="13" height="7" rx="6.5" ry="6.5" fill="#e8e8e8" stroke="#b0b0b0" stroke-width="0.3"/></g>
-<g transform="translate(96 156) scale(-3 3)"><rect x="-6.5" y="-11" width="13" height="13" rx="6.5" ry="6.5" fill="#e8e8e8" stroke="#b0b0b0" stroke-width="0.3"/></g>
-<g transform="translate(96 126) scale(-3 3)"><rect x="-7.5" y="-16" width="15" height="17" rx="7.5" ry="7.5" fill="#e8e8e8" stroke="#b0b0b0" stroke-width="0.3"/></g>
-<g transform="translate(96 84) scale(-3 3)"><rect x="-2.5" y="-5" width="5" height="6" rx="2.5" ry="2.5" fill="#e8e8e8" stroke="#b0b0b0" stroke-width="0.3"/></g>
-<g transform="translate(96 72) scale(-3 3)"><circle cx="0" cy="-8" r="9" fill="#e8e8e8" stroke="#b0b0b0" stroke-width="0.3"/></g>
-<g transform="translate(69 90) scale(-3 3)"><rect x="-2.5" y="-2" width="5" height="15" rx="2.5" ry="2.5" fill="#e8e8e8" stroke="#b0b0b0" stroke-width="0.3"/></g>
-<g transform="translate(69 126) scale(-3 3)"><rect x="-2.25" y="-1" width="4.5" height="13" rx="2.25" ry="2.25" fill="#e8e8e8" stroke="#b0b0b0" stroke-width="0.3"/></g>
-<g transform="translate(69 159) scale(-3 3)"><circle cx="0" cy="2" r="3" fill="#e8e8e8" stroke="#b0b0b0" stroke-width="0.3"/></g>
-<circle cx="96" cy="162" r="2.5" fill="#eb5757"/>
-<text x="102" y="164" font-family="sans-serif" font-size="6" fill="#333333" text-anchor="start">hip</text>
-<line x1="96" y1="156" x2="96" y2="126" stroke="#2f80ed" stroke-width="1.5"/>
-<circle cx="96" cy="156" r="2.5" fill="#eb5757"/>
-<text x="102" y="158" font-family="sans-serif" font-size="6" fill="#333333" text-anchor="start">spine</text>
-<line x1="96" y1="126" x2="96" y2="84" stroke="#2f80ed" stroke-width="1.5"/>
-<circle cx="96" cy="126" r="2.5" fill="#eb5757"/>
-<text x="102" y="128" font-family="sans-serif" font-size="6" fill="#333333" text-anchor="start">chest</text>
-<line x1="96" y1="84" x2="96" y2="72" stroke="#2f80ed" stroke-width="1.5"/>
-<circle cx="96" cy="84" r="2.5" fill="#eb5757"/>
-<text x="102" y="86" font-family="sans-serif" font-size="6" fill="#333333" text-anchor="start">neck</text>
-<line x1="96" y1="72" x2="96" y2="24" stroke="#2f80ed" stroke-width="1.5"/>
-<circle cx="96" cy="72" r="2.5" fill="#eb5757"/>
-<text x="102" y="74" font-family="sans-serif" font-size="6" fill="#333333" text-anchor="start">head</text>
-<line x1="69" y1="90" x2="69" y2="126" stroke="#2f80ed" stroke-width="1.5"/>
-<circle cx="69" cy="90" r="2.5" fill="#eb5757"/>
-<text x="63" y="92" font-family="sans-serif" font-size="6" fill="#333333" text-anchor="end">upperArm.L</text>
-<line x1="69" y1="126" x2="69" y2="159" stroke="#2f80ed" stroke-width="1.5"/>
-<circle cx="69" cy="126" r="2.5" fill="#eb5757"/>
-<text x="63" y="128" font-family="sans-serif" font-size="6" fill="#333333" text-anchor="end">foreArm.L</text>
-<line x1="69" y1="159" x2="69" y2="171" stroke="#2f80ed" stroke-width="1.5"/>
-<circle cx="69" cy="159" r="2.5" fill="#eb5757"/>
-<text x="63" y="161" font-family="sans-serif" font-size="6" fill="#333333" text-anchor="end">hand.L</text>
-<line x1="123" y1="90" x2="123" y2="126" stroke="#2f80ed" stroke-width="1.5"/>
-<circle cx="123" cy="90" r="2.5" fill="#eb5757"/>
-<text x="129" y="92" font-family="sans-serif" font-size="6" fill="#333333" text-anchor="start">upperArm.R</text>
-<line x1="123" y1="126" x2="123" y2="159" stroke="#2f80ed" stroke-width="1.5"/>
-<circle cx="123" cy="126" r="2.5" fill="#eb5757"/>
-<text x="129" y="128" font-family="sans-serif" font-size="6" fill="#333333" text-anchor="start">foreArm.R</text>
-<line x1="123" y1="159" x2="123" y2="171" stroke="#2f80ed" stroke-width="1.5"/>
-<circle cx="123" cy="159" r="2.5" fill="#eb5757"/>
-<text x="129" y="161" font-family="sans-serif" font-size="6" fill="#333333" text-anchor="start">hand.R</text>
-<line x1="84" y1="162" x2="84" y2="213" stroke="#2f80ed" stroke-width="1.5"/>
-<circle cx="84" cy="162" r="2.5" fill="#eb5757"/>
-<text x="78" y="164" font-family="sans-serif" font-size="6" fill="#333333" text-anchor="end">thigh.L</text>
-<line x1="84" y1="213" x2="84" y2="258" stroke="#2f80ed" stroke-width="1.5"/>
-<circle cx="84" cy="213" r="2.5" fill="#eb5757"/>
-<text x="78" y="215" font-family="sans-serif" font-size="6" fill="#333333" text-anchor="end">shin.L</text>
-<line x1="84" y1="258" x2="84" y2="264" stroke="#2f80ed" stroke-width="1.5"/>
-<circle cx="84" cy="258" r="2.5" fill="#eb5757"/>
-<text x="78" y="260" font-family="sans-serif" font-size="6" fill="#333333" text-anchor="end">foot.L</text>
-<line x1="108" y1="162" x2="108" y2="213" stroke="#2f80ed" stroke-width="1.5"/>
-<circle cx="108" cy="162" r="2.5" fill="#eb5757"/>
-<text x="114" y="164" font-family="sans-serif" font-size="6" fill="#333333" text-anchor="start">thigh.R</text>
-<line x1="108" y1="213" x2="108" y2="258" stroke="#2f80ed" stroke-width="1.5"/>
-<circle cx="108" cy="213" r="2.5" fill="#eb5757"/>
-<text x="114" y="215" font-family="sans-serif" font-size="6" fill="#333333" text-anchor="start">shin.R</text>
-<line x1="108" y1="258" x2="108" y2="264" stroke="#2f80ed" stroke-width="1.5"/>
-<circle cx="108" cy="258" r="2.5" fill="#eb5757"/>
-<text x="114" y="260" font-family="sans-serif" font-size="6" fill="#333333" text-anchor="start">foot.R</text>
-<line x1="84" y1="162" x2="84" y2="252" stroke="#9b51e0" stroke-width="1.5" stroke-dasharray="3 2"/>
-<circle cx="84" cy="162" r="2.5" fill="#eb5757"/>
-<text x="78" y="172" font-family="sans-serif" font-size="6" fill="#9b51e0" text-anchor="end">skirt.L (0.5 × thigh.L)</text>
-<line x1="108" y1="162" x2="108" y2="252" stroke="#9b51e0" stroke-width="1.5" stroke-dasharray="3 2"/>
-<circle cx="108" cy="162" r="2.5" fill="#eb5757"/>
-<text x="114" y="172" font-family="sans-serif" font-size="6" fill="#9b51e0" text-anchor="start">skirt.R (0.5 × thigh.R)</text>
-<line x1="96" y1="72" x2="96" y2="144" stroke="#9b51e0" stroke-width="1.5" stroke-dasharray="3 2"/>
-<circle cx="96" cy="72" r="2.5" fill="#eb5757"/>
-<text x="102" y="82" font-family="sans-serif" font-size="6" fill="#9b51e0" text-anchor="start">hairBack (0.5 × head)</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="312" viewBox="0 0 192 312">
+<!-- humanoid-v1 front view, west-facing. Export every piece at 192x312, frame-aligned. -->
+<rect x="0" y="0" width="192" height="312" fill="none" stroke="#333333" stroke-dasharray="4 4"/>
+<line x1="0" y1="288" x2="192" y2="288" stroke="#27ae60"/>
+<g transform="translate(124.5 147) scale(-3 3)"><rect x="-2.4" y="-2.4" width="4.8" height="12.9" rx="2.4" ry="2.4" fill="#e8e8e8" stroke="#b0b0b0" stroke-width="0.3"/></g>
+<g transform="translate(124.5 174) scale(-3 3)"><rect x="-2.1" y="-1.5" width="4.2" height="11.5" rx="2.1" ry="2.1" fill="#e8e8e8" stroke="#b0b0b0" stroke-width="0.3"/></g>
+<g transform="translate(124.5 199.5) scale(-3 3)"><circle cx="0" cy="2" r="2.8" fill="#e8e8e8" stroke="#b0b0b0" stroke-width="0.3"/></g>
+<g transform="translate(106.5 195) scale(-3 3)"><rect x="-3.3" y="-3.3" width="6.6" height="20.3" rx="3.3" ry="3.3" fill="#e8e8e8" stroke="#b0b0b0" stroke-width="0.3"/></g>
+<g transform="translate(106.5 240) scale(-3 3)"><rect x="-2.7" y="-2" width="5.4" height="17.5" rx="2.7" ry="2.7" fill="#e8e8e8" stroke="#b0b0b0" stroke-width="0.3"/></g>
+<g transform="translate(106.5 282) scale(-3 3)"><ellipse cx="2" cy="0.25" rx="4.5" ry="2.25" fill="#e8e8e8" stroke="#b0b0b0" stroke-width="0.3"/></g>
+<g transform="translate(85.5 195) scale(-3 3)"><rect x="-3.3" y="-3.3" width="6.6" height="20.3" rx="3.3" ry="3.3" fill="#e8e8e8" stroke="#b0b0b0" stroke-width="0.3"/></g>
+<g transform="translate(85.5 240) scale(-3 3)"><rect x="-2.7" y="-2" width="5.4" height="17.5" rx="2.7" ry="2.7" fill="#e8e8e8" stroke="#b0b0b0" stroke-width="0.3"/></g>
+<g transform="translate(85.5 282) scale(-3 3)"><ellipse cx="2" cy="0.25" rx="4.5" ry="2.25" fill="#e8e8e8" stroke="#b0b0b0" stroke-width="0.3"/></g>
+<g transform="translate(96 195) scale(-3 3)"><rect x="-6.5" y="-3" width="13" height="6.5" rx="6.5" ry="6.5" fill="#e8e8e8" stroke="#b0b0b0" stroke-width="0.3"/></g>
+<g transform="translate(96 192) scale(-3 3)"><rect x="-6.3" y="-9" width="12.6" height="10.5" rx="6.3" ry="6.3" fill="#e8e8e8" stroke="#b0b0b0" stroke-width="0.3"/></g>
+<g transform="translate(96 168) scale(-3 3)"><rect x="-7" y="-11" width="14" height="12" rx="7" ry="7" fill="#e8e8e8" stroke="#b0b0b0" stroke-width="0.3"/></g>
+<g transform="translate(96 138) scale(-3 3)"><rect x="-2.5" y="-7" width="5" height="8" rx="2.5" ry="2.5" fill="#e8e8e8" stroke="#b0b0b0" stroke-width="0.3"/></g>
+<g transform="translate(96 120) scale(-3 3)"><circle cx="0" cy="-11.2" r="12.6" fill="#e8e8e8" stroke="#b0b0b0" stroke-width="0.3"/></g>
+<g transform="translate(67.5 147) scale(-3 3)"><rect x="-2.4" y="-2.4" width="4.8" height="12.9" rx="2.4" ry="2.4" fill="#e8e8e8" stroke="#b0b0b0" stroke-width="0.3"/></g>
+<g transform="translate(67.5 174) scale(-3 3)"><rect x="-2.1" y="-1.5" width="4.2" height="11.5" rx="2.1" ry="2.1" fill="#e8e8e8" stroke="#b0b0b0" stroke-width="0.3"/></g>
+<g transform="translate(67.5 199.5) scale(-3 3)"><circle cx="0" cy="2" r="2.8" fill="#e8e8e8" stroke="#b0b0b0" stroke-width="0.3"/></g>
+<circle cx="96" cy="195" r="2.5" fill="#eb5757"/>
+<text x="102" y="197" font-family="sans-serif" font-size="6" fill="#333333" text-anchor="start">hip</text>
+<line x1="96" y1="192" x2="96" y2="168" stroke="#2f80ed" stroke-width="1.5"/>
+<circle cx="96" cy="192" r="2.5" fill="#eb5757"/>
+<text x="102" y="194" font-family="sans-serif" font-size="6" fill="#333333" text-anchor="start">spine</text>
+<line x1="96" y1="168" x2="96" y2="138" stroke="#2f80ed" stroke-width="1.5"/>
+<circle cx="96" cy="168" r="2.5" fill="#eb5757"/>
+<text x="102" y="170" font-family="sans-serif" font-size="6" fill="#333333" text-anchor="start">chest</text>
+<line x1="96" y1="138" x2="96" y2="120" stroke="#2f80ed" stroke-width="1.5"/>
+<circle cx="96" cy="138" r="2.5" fill="#eb5757"/>
+<text x="102" y="140" font-family="sans-serif" font-size="6" fill="#333333" text-anchor="start">neck</text>
+<line x1="96" y1="120" x2="96" y2="48" stroke="#2f80ed" stroke-width="1.5"/>
+<circle cx="96" cy="120" r="2.5" fill="#eb5757"/>
+<text x="102" y="122" font-family="sans-serif" font-size="6" fill="#333333" text-anchor="start">head</text>
+<line x1="67.5" y1="147" x2="67.5" y2="174" stroke="#2f80ed" stroke-width="1.5"/>
+<circle cx="67.5" cy="147" r="2.5" fill="#eb5757"/>
+<text x="61.5" y="149" font-family="sans-serif" font-size="6" fill="#333333" text-anchor="end">upperArm.L</text>
+<line x1="67.5" y1="174" x2="67.5" y2="199.5" stroke="#2f80ed" stroke-width="1.5"/>
+<circle cx="67.5" cy="174" r="2.5" fill="#eb5757"/>
+<text x="61.5" y="176" font-family="sans-serif" font-size="6" fill="#333333" text-anchor="end">foreArm.L</text>
+<line x1="67.5" y1="199.5" x2="67.5" y2="211.5" stroke="#2f80ed" stroke-width="1.5"/>
+<circle cx="67.5" cy="199.5" r="2.5" fill="#eb5757"/>
+<text x="61.5" y="201.5" font-family="sans-serif" font-size="6" fill="#333333" text-anchor="end">hand.L</text>
+<line x1="124.5" y1="147" x2="124.5" y2="174" stroke="#2f80ed" stroke-width="1.5"/>
+<circle cx="124.5" cy="147" r="2.5" fill="#eb5757"/>
+<text x="130.5" y="149" font-family="sans-serif" font-size="6" fill="#333333" text-anchor="start">upperArm.R</text>
+<line x1="124.5" y1="174" x2="124.5" y2="199.5" stroke="#2f80ed" stroke-width="1.5"/>
+<circle cx="124.5" cy="174" r="2.5" fill="#eb5757"/>
+<text x="130.5" y="176" font-family="sans-serif" font-size="6" fill="#333333" text-anchor="start">foreArm.R</text>
+<line x1="124.5" y1="199.5" x2="124.5" y2="211.5" stroke="#2f80ed" stroke-width="1.5"/>
+<circle cx="124.5" cy="199.5" r="2.5" fill="#eb5757"/>
+<text x="130.5" y="201.5" font-family="sans-serif" font-size="6" fill="#333333" text-anchor="start">hand.R</text>
+<line x1="85.5" y1="195" x2="85.5" y2="240" stroke="#2f80ed" stroke-width="1.5"/>
+<circle cx="85.5" cy="195" r="2.5" fill="#eb5757"/>
+<text x="79.5" y="197" font-family="sans-serif" font-size="6" fill="#333333" text-anchor="end">thigh.L</text>
+<line x1="85.5" y1="240" x2="85.5" y2="282" stroke="#2f80ed" stroke-width="1.5"/>
+<circle cx="85.5" cy="240" r="2.5" fill="#eb5757"/>
+<text x="79.5" y="242" font-family="sans-serif" font-size="6" fill="#333333" text-anchor="end">shin.L</text>
+<line x1="85.5" y1="282" x2="85.5" y2="288" stroke="#2f80ed" stroke-width="1.5"/>
+<circle cx="85.5" cy="282" r="2.5" fill="#eb5757"/>
+<text x="79.5" y="284" font-family="sans-serif" font-size="6" fill="#333333" text-anchor="end">foot.L</text>
+<line x1="106.5" y1="195" x2="106.5" y2="240" stroke="#2f80ed" stroke-width="1.5"/>
+<circle cx="106.5" cy="195" r="2.5" fill="#eb5757"/>
+<text x="112.5" y="197" font-family="sans-serif" font-size="6" fill="#333333" text-anchor="start">thigh.R</text>
+<line x1="106.5" y1="240" x2="106.5" y2="282" stroke="#2f80ed" stroke-width="1.5"/>
+<circle cx="106.5" cy="240" r="2.5" fill="#eb5757"/>
+<text x="112.5" y="242" font-family="sans-serif" font-size="6" fill="#333333" text-anchor="start">shin.R</text>
+<line x1="106.5" y1="282" x2="106.5" y2="288" stroke="#2f80ed" stroke-width="1.5"/>
+<circle cx="106.5" cy="282" r="2.5" fill="#eb5757"/>
+<text x="112.5" y="284" font-family="sans-serif" font-size="6" fill="#333333" text-anchor="start">foot.R</text>
+<line x1="85.5" y1="195" x2="85.5" y2="273" stroke="#9b51e0" stroke-width="1.5" stroke-dasharray="3 2"/>
+<circle cx="85.5" cy="195" r="2.5" fill="#eb5757"/>
+<text x="79.5" y="205" font-family="sans-serif" font-size="6" fill="#9b51e0" text-anchor="end">skirt.L (0.5 × thigh.L)</text>
+<line x1="106.5" y1="195" x2="106.5" y2="273" stroke="#9b51e0" stroke-width="1.5" stroke-dasharray="3 2"/>
+<circle cx="106.5" cy="195" r="2.5" fill="#eb5757"/>
+<text x="112.5" y="205" font-family="sans-serif" font-size="6" fill="#9b51e0" text-anchor="start">skirt.R (0.5 × thigh.R)</text>
+<line x1="96" y1="120" x2="96" y2="210" stroke="#9b51e0" stroke-width="1.5" stroke-dasharray="3 2"/>
+<circle cx="96" cy="120" r="2.5" fill="#eb5757"/>
+<text x="102" y="130" font-family="sans-serif" font-size="6" fill="#9b51e0" text-anchor="start">hairBack (0.5 × head)</text>
 </svg>

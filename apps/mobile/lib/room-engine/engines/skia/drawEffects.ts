@@ -24,7 +24,7 @@ export interface PropColors {
 /** Rig heights above the feet: roughly the throwing hand at release, and the face. */
 const HAND_Y = -60;
 const HAND_X = 8;
-const FACE_Y = -70;
+const FACE_Y = -66;
 const ARC_BASE = 22;
 const ARC_PER_PX = 0.18;
 const POP_IN_S = 0.08;

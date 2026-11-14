@@ -7,12 +7,13 @@ import { WEARABLE_ART_SCALE, bindOrigins, type BoneName, type RigView } from '@c
  * origin sits without per-piece pivots.
  *
  * Content pixels (zoom 1). The root (ground point between the feet) is centred
- * horizontally, so a west-facing frame is the same frame mirrored.
+ * horizontally, so a west-facing frame is the same frame mirrored. The avatar is 80
+ * tall, which leaves 16 above the skull for hair and hats.
  */
 export const FRAME_W = 64;
-export const FRAME_H = 96;
+export const FRAME_H = 104;
 export const ROOT_X = FRAME_W / 2;
-export const ROOT_Y = 88;
+export const ROOT_Y = 96;
 
 /** Export size in pixels: the frame at the wearable art scale. */
 export const FRAME_PX_W = FRAME_W * WEARABLE_ART_SCALE;

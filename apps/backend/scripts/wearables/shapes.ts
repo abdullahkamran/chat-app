@@ -38,29 +38,34 @@ export function shapeSvg(shape: Shape, attrs: string): string {
   }
 }
 
+/**
+ * The skull in head art units: head art is drawn at this size and scaled up by HEAD_SCALE
+ * about the head bone's origin when it's written, so the head is large for the body.
+ */
 export const HEAD_R = 9;
 export const HEAD_CY = -8;
+export const HEAD_SCALE = 1.4;
 
 /** The bare body, one skin piece per bone; clothing is drawn a little wider over it. */
 export function bodyShapes(view: RigView): Partial<Record<BoneName, Shape>> {
   void view;
   return {
-    hip: capsule(13, -3, 4),
-    spine: capsule(13, -11, 2),
-    chest: capsule(15, -16, 1),
-    neck: capsule(5, -5, 1),
-    head: disc(0, HEAD_CY, HEAD_R),
-    'upperArm.L': capsule(5, -2, 13),
-    'foreArm.L': capsule(4.5, -1, 12),
-    'hand.L': disc(0, 2, 3),
-    'upperArm.R': capsule(5, -2, 13),
-    'foreArm.R': capsule(4.5, -1, 12),
-    'hand.R': disc(0, 2, 3),
-    'thigh.L': capsule(7, -3, 18),
-    'shin.L': capsule(6, -1, 16),
-    'foot.L': { kind: 'oval', x: -3, y: -2, w: 10, h: 5 },
-    'thigh.R': capsule(7, -3, 18),
-    'shin.R': capsule(6, -1, 16),
-    'foot.R': { kind: 'oval', x: -3, y: -2, w: 10, h: 5 },
+    hip: capsule(13, -3, 3.5),
+    spine: capsule(12.6, -9, 1.5),
+    chest: capsule(14, -11, 1),
+    neck: capsule(5, -7, 1),
+    head: disc(0, HEAD_CY * HEAD_SCALE, HEAD_R * HEAD_SCALE),
+    'upperArm.L': capsule(4.8, -2.4, 10.5),
+    'foreArm.L': capsule(4.2, -1.5, 10),
+    'hand.L': disc(0, 2, 2.8),
+    'upperArm.R': capsule(4.8, -2.4, 10.5),
+    'foreArm.R': capsule(4.2, -1.5, 10),
+    'hand.R': disc(0, 2, 2.8),
+    'thigh.L': capsule(6.6, -3.3, 17),
+    'shin.L': capsule(5.4, -2, 15.5),
+    'foot.L': { kind: 'oval', x: -2.5, y: -2, w: 9, h: 4.5 },
+    'thigh.R': capsule(6.6, -3.3, 17),
+    'shin.R': capsule(5.4, -2, 15.5),
+    'foot.R': { kind: 'oval', x: -2.5, y: -2, w: 9, h: 4.5 },
   };
 }
