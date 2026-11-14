@@ -105,6 +105,15 @@ Write another `Theme` in `themes.ts` with every key filled, add it to `themes`, 
 
 ---
 
+## Performance
+
+Rules and the current list audit are in [docs/performance.md](docs/performance.md). Read it before building a list or anything that animates, and update its audit when you add or change a list. The short version:
+
+- **A list whose length depends on data is a `FlatList` / `SectionList`, never `ScrollView` + `.map()`.** ScrollView is only for small, fixed sets (chips, colour variants, the 4-avatar strip). Never nest a vertical FlatList inside a vertical ScrollView; use `ListHeaderComponent` instead. Page long server lists with `useInfiniteQuery` + `onEndReached`.
+- **Animate only what's on screen, and stop when the screen isn't showing.** Animated Skia previews in lists take `animated` from `useVisibleIds(active)` (`components/AnimationRow.tsx`), which also stops them on tab or segment switches. Frame callbacks must stop and unregister on unmount; start and stop `useFrameCallback` with `setActive`, since its `autostart` is only read on mount.
+
+---
+
 ## General Rules
 
 - Use `pnpm` for package management (monorepo uses pnpm workspaces).
