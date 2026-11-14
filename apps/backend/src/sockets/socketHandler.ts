@@ -10,6 +10,7 @@ import {
     type MutualEmoteStart,
     type RoomInteraction,
     type RoomMailNotice,
+    type RoomPresenceSnapshot,
     type RoomPresenceState,
     type RoomRemovalReason,
     type RoomVisit,
@@ -336,7 +337,8 @@ const handler = {
             if (roomPresence.has(roomId, userId)) endEmoteRequestsOf(socket.nsp.server, roomId, userId);
             roomPresence.enter(roomId, userId, presence);
             presentRoomIds.add(roomId);
-            socket.emit(SocketEvent.RECEIVE_ROOM_PRESENCE, { roomId, occupants });
+            const snapshot: RoomPresenceSnapshot = { roomId, occupants, serverNow: Date.now() };
+            socket.emit(SocketEvent.RECEIVE_ROOM_PRESENCE, snapshot);
             const joined = socket.join(roomId);
             socket.to(roomId).emit(SocketEvent.RECEIVE_ENTER, { roomId, userId, ...state });
             await joined;

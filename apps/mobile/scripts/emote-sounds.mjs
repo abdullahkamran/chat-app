@@ -1,4 +1,4 @@
-// Synthesises the placeholder emote sounds into assets/sounds/ (16-bit mono WAV).
+// Synthesises the placeholder emote and pet sounds into assets/sounds/ (16-bit mono WAV).
 // Run from apps/mobile: `node scripts/emote-sounds.mjs`. Replace any file with a real
 // recording of the same name whenever one exists; nothing else needs to change.
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -101,6 +101,44 @@ const sounds = {
       const p = t / D;
       const env = Math.sin(Math.PI * p) ** 2;
       return lp(rnd(), 0.04 + 0.25 * env) * env;
+    });
+  },
+  // Pets (core/pets.ts).
+  // A meow: a nasal tone gliding up and back down, rich in harmonics.
+  meow: () => {
+    let phase = 0;
+    const D = 0.6;
+    return render(D, t => {
+      const p = t / D;
+      const pitch = 520 + 330 * Math.sin(Math.PI * Math.min(1, p * 1.3)) - 120 * p;
+      phase += 2 * Math.PI * pitch / RATE;
+      const tone = Math.sin(phase) + 0.5 * Math.sin(2 * phase) + 0.3 * Math.sin(3 * phase) + 0.15 * Math.sin(4 * phase);
+      const env = Math.min(1, t / 0.05) * Math.min(1, (D - t) / 0.15);
+      return tone * env;
+    });
+  },
+  // A bark: a rough, falling burst.
+  bark: () => {
+    const rnd = noise(5);
+    const lp = lowpass();
+    let phase = 0;
+    const D = 0.22;
+    return render(D, t => {
+      phase += 2 * Math.PI * (420 * Math.exp(-t / 0.12) + 160) / RATE;
+      const voice = Math.sin(phase) + 0.6 * Math.sin(2 * phase) + 0.35 * Math.sin(3 * phase);
+      const rasp = lp(rnd(), 0.35) * 0.9;
+      const env = Math.min(1, t / 0.008) * Math.exp(-t / 0.07);
+      return (voice + rasp) * env;
+    });
+  },
+  // A chirp: two quick rising whistles.
+  chirp: () => {
+    let phase = 0;
+    return render(0.26, t => {
+      const d = t < 0.13 ? t : t - 0.13;
+      const on = d < 0.08;
+      phase += 2 * Math.PI * (2600 + 1800 * (d / 0.08)) / RATE;
+      return on ? Math.sin(phase) * Math.sin(Math.PI * d / 0.08) : 0;
     });
   },
 };

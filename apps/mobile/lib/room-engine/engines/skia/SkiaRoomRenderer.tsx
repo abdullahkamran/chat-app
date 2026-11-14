@@ -78,6 +78,7 @@ function Room({
   onDragOver,
   onDrop,
   onActionComplete: sessionOnActionComplete,
+  pets,
   steering,
   camera: cameraLink,
   width,
@@ -212,6 +213,7 @@ function Room({
     // Nobody shows while the room is being rearranged: someone seated on a chair being
     // moved would otherwise hang in the air until the layout is saved and stands them up.
     hideActors: isEditMode,
+    pets,
   });
 
   return (

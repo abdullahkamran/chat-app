@@ -1,6 +1,7 @@
 import { Dimensions } from "./dimensions.types";
 import { Amount } from "./currency.types";
 import type { Facing } from "./room.types";
+import type { ItemPet } from "./pet.types";
 
 /**
  * Where an avatar sits on a seatable item, in grid units relative to the item's position.
@@ -32,6 +33,8 @@ export interface Item {
     /** Seats for items whose action is SIT. */
     seats?: ItemSeat[];
     canOwnMultiple?: boolean;
+    /** Set on pets (category `Pets`): they move about the room on their own. See pet.types.ts. */
+    pet?: ItemPet;
 }
 
 /**

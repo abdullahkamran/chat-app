@@ -19,14 +19,17 @@ import { scheduleOnRN } from 'react-native-worklets';
 
 import { TILE_H, TILE_W, gridToScreen, isMirrored, type GridOrigin } from '@/constants/grid';
 import { artPalette, useTheme } from '@/constants/theme';
-import type { ActorAction, ActorActionKind, Facing, RoomItem } from '@chat-app/shared-types';
+import { isPetItem, type ActorAction, type ActorActionKind, type Facing, type RoomItem } from '@chat-app/shared-types';
 import type { ActorState, RoomEffect } from '../../core/contract';
+import type { PetState } from '../../core/pets';
 import { steadyFacingFromDelta } from '../../core/facing';
 import { findSeat } from '../../core/seats';
 import type { ActorMotion } from './actorMotion';
 import { drawAvatar, placeholderTints, type AvatarPlayhead } from './drawAvatar';
 import { drawEffects, type EffectDraw, type PropColors } from './drawEffects';
 import { itemDepth, itemRect } from './geometry';
+import { drawPet, petDraws, petFrame, type PetFrame } from './pets/drawPet';
+import { PET_RUNTIME, getPetArts } from './pets/petArt';
 import { WALK_AUTHORED_MS_PER_CELL, isEmoteClip, type ClipId } from './skeleton/clips';
 import type { AvatarArt, TintGroup } from './skeleton/avatarArt';
 import { COMPILED_CLIPS } from './skeleton/sampler';
@@ -51,6 +54,11 @@ const SEATED_DEPTH = 0.01;
 const FRONT_LAYER_DEPTH = 0.02;
 /** Longest an actor walking off a seat keeps the seated depth, until it clears the item. */
 const STAND_HOLD_S = 1.5;
+/** Pets sort just behind an avatar on the same cell; a flying bird over everything. */
+const PET_DEPTH = 0.4;
+const FLYING_DEPTH = 1e5;
+/** A flying pet's shadow shrinks to this share at a height of one grid unit. */
+const SHADOW_SHRINK = 0.35;
 
 /** Everything the UI thread needs about one actor; rebuilt when actors change. */
 interface ActorDraw {
@@ -226,8 +234,13 @@ interface Params {
   origin: GridOrigin;
   /** Thrown props, drawn over everything else. */
   effects: readonly RoomEffect[];
-  /** Leave avatars and effects out of the picture (edit mode); they keep animating unseen. */
+  /**
+   * Leave avatars, pets and effects out of the picture (edit mode); they keep animating unseen.
+   * Pets then show as their placed items instead, so they can be moved like any item.
+   */
   hideActors: boolean;
+  /** Pets and their timelines (device-clock times); drawn in play mode in place of their items. */
+  pets: readonly PetState[];
 }
 
 /**
@@ -242,7 +255,7 @@ interface Params {
  */
 export function useWorldPicture({
   actors, motions, localActorId, items, arts, artKeys, itemImages, selectedPlaced, dragged, dragFree, origin, onActionComplete, effects,
-  hideActors,
+  hideActors, pets,
 }: Params): SharedValue<SkPicture> {
   const [picture] = useState(() => makeMutable(createPicture(() => {})));
   const anim = useSharedValue<Record<string, AnimRuntime>>({});
@@ -279,6 +292,8 @@ export function useWorldPicture({
   }), [actors, motions, localActorId, artKeys, items]);
 
   const itemDraws = useMemo<ItemDraw[]>(() => items.flatMap(ri => {
+    // In play mode a pet is drawn moving about (below), not as its item.
+    if (!hideActors && isPetItem(ri.itemId)) return [];
     const image = itemImages[ri.itemId.assetUrl];
     if (!image) return [];
     const rect = itemRect(ri, origin);
@@ -296,7 +311,10 @@ export function useWorldPicture({
       pos: [ri.position.x, ri.position.y, ri.position.z],
       mirrored: isMirrored(ri.orientation),
     }];
-  }), [items, itemImages, selectedPlaced, dragged, origin]);
+  }), [items, itemImages, selectedPlaced, dragged, origin, hideActors]);
+
+  const petDrawList = useMemo(() => petDraws(pets), [pets]);
+  const [petArts] = useState(() => getPetArts());
 
   const theme = useTheme();
   const colors = useMemo(() => {
@@ -327,12 +345,14 @@ export function useWorldPicture({
   const actorsInput = useSharedValue<ActorDraw[]>([]);
   const effectsInput = useSharedValue<EffectDraw[]>([]);
   const itemsInput = useSharedValue<ItemDraw[]>([]);
+  const petsInput = useSharedValue(petDrawList);
   const originInput = useSharedValue(origin);
   const artsInput = useSharedValue(arts);
   const hideInput = useSharedValue(hideActors);
   useEffect(() => hideInput.set(hideActors), [hideInput, hideActors]);
   useEffect(() => actorsInput.set(actorDraws), [actorsInput, actorDraws]);
   useEffect(() => itemsInput.set(itemDraws), [itemsInput, itemDraws]);
+  useEffect(() => petsInput.set(petDrawList), [petsInput, petDrawList]);
   useEffect(() => originInput.set(origin), [originInput, origin]);
   useEffect(() => artsInput.set(arts), [artsInput, arts]);
   useEffect(() => effectsInput.set(effectDraws), [effectsInput, effectDraws]);
@@ -354,7 +374,7 @@ export function useWorldPicture({
     for (const e of effectDraws) ages[e.id] = (prevAges[e.id] ?? 0) + dt;
     if (effectDraws.length > 0 || Object.keys(prevAges).length > 0) effectAges.set(ages);
 
-    const entries: { depth: number; actor: number; item: number; front: boolean }[] = [];
+    const entries: { depth: number; actor: number; item: number; pet: number; front: boolean }[] = [];
     const feet: { x: number; y: number }[] = [];
     const feetById: Record<string, { x: number; y: number }> = {};
     for (let i = 0; i < actorDraws.length; i++) {
@@ -369,12 +389,22 @@ export function useWorldPicture({
       feetById[a.id] = foot;
       const depth = gx + gy + 0.5;
       if (hidden) continue;
-      entries.push({ depth: st.seatDepth >= 0 ? Math.max(depth, st.seatDepth) : depth, actor: i, item: -1, front: false });
+      entries.push({ depth: st.seatDepth >= 0 ? Math.max(depth, st.seatDepth) : depth, actor: i, item: -1, pet: -1, front: false });
     }
     for (let i = 0; i < itemDraws.length; i++) {
       const it = itemDraws[i];
-      entries.push({ depth: it.depth, actor: -1, item: i, front: false });
-      if (it.front) entries.push({ depth: it.depth + FRONT_LAYER_DEPTH, actor: -1, item: i, front: true });
+      entries.push({ depth: it.depth, actor: -1, item: i, pet: -1, front: false });
+      if (it.front) entries.push({ depth: it.depth + FRONT_LAYER_DEPTH, actor: -1, item: i, pet: -1, front: true });
+    }
+    const petDrawsNow = petsInput.get();
+    const petFrames: (PetFrame | null)[] = [];
+    if (!hidden) {
+      const now = Date.now();
+      for (let i = 0; i < petDrawsNow.length; i++) {
+        const f = petFrame(petDrawsNow[i], now);
+        petFrames.push(f);
+        if (f) entries.push({ depth: f.z > 0.3 ? FLYING_DEPTH : f.gx + f.gy + PET_DEPTH, actor: -1, item: -1, pet: i, front: false });
+      }
     }
     entries.sort(byDepth);
     anim.set(next);
@@ -390,7 +420,15 @@ export function useWorldPicture({
       ring.setStrokeWidth(2);
 
       for (const e of entries) {
-        if (e.item >= 0) {
+        if (e.pet >= 0) {
+          const p = petDrawsNow[e.pet];
+          const f = petFrames[e.pet]!;
+          const rt = PET_RUNTIME[p.kind];
+          const ground = gridToScreen(f.gx, f.gy, 0, origin);
+          const k = 1 - SHADOW_SHRINK * Math.min(1, f.z);
+          canvas.drawOval(Skia.XYWHRect(ground.x - (rt.shadowW * k) / 2, ground.y - (rt.shadowH * k) / 2, rt.shadowW * k, rt.shadowH * k), shadow);
+          drawPet(canvas, petArts[p.kind], rt, f, ground.x, ground.y - f.z * TILE_H);
+        } else if (e.item >= 0) {
           const it = itemDraws[e.item];
           const [x, y, w, h] = it.rect;
           canvas.save();
@@ -437,7 +475,7 @@ export function useWorldPicture({
       }
       if (effectDraws.length > 0 && !hidden) drawEffects(canvas, effectDraws, ages, feetById, propColors);
     }));
-  }, [dragFree, actorsInput, itemsInput, originInput, artsInput, hideInput, effectsInput, effectAges, anim, picture, colors, propColors, reportEmoteDone]);
+  }, [dragFree, actorsInput, itemsInput, petsInput, petArts, originInput, artsInput, hideInput, effectsInput, effectAges, anim, picture, colors, propColors, reportEmoteDone]);
 
   useFrameCallback(onFrame);
 

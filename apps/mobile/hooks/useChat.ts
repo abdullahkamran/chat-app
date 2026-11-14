@@ -6,7 +6,7 @@ import type {
   MutualEmoteRequestEnded,
   MutualEmoteStart,
   RoomInteraction,
-  RoomOccupant,
+  RoomPresenceSnapshot,
   RoomPresenceState,
 } from '@chat-app/shared-types';
 import { SocketEvent } from '@chat-app/socket-constants';
@@ -18,7 +18,7 @@ interface ReceiveHandlers {
   /** Someone entered. A re-entry after their reconnect carries where they were. */
   onEnter: (payload: { userId: string } & RoomPresenceState) => void;
   /** Everyone already in the room, sent to us alone each time we enter. */
-  onPresence: (payload: { occupants: RoomOccupant[] }) => void;
+  onPresence: (payload: RoomPresenceSnapshot) => void;
   /** The server refused our sit because someone else holds that seat. */
   onSitRefused: (payload: { action: SitAction }) => void;
   onExit: (payload: { userId: string }) => void;
@@ -83,7 +83,7 @@ export function useChat({ roomId, userId, handlers, getMyState, enabled, onEnter
     const handleEnter = (p: RoomPayload<{ userId: string } & RoomPresenceState>) => {
       if (p.roomId === roomId) handlersRef.current.onEnter(p);
     };
-    const handlePresence = (p: RoomPayload<{ occupants: RoomOccupant[] }>) => {
+    const handlePresence = (p: RoomPresenceSnapshot) => {
       if (p.roomId === roomId) handlersRef.current.onPresence(p);
     };
     const handleSitRefused = (p: RoomPayload<{ action: SitAction }>) => {

@@ -1,7 +1,7 @@
 import type { AudioPlayer } from 'expo-audio';
 
 /**
- * Emote sound effects. The files are placeholders made by `scripts/emote-sounds.mjs`;
+ * Emote and pet sound effects. The files are placeholders made by `scripts/emote-sounds.mjs`;
  * swap any for a real recording with the same name.
  */
 const SOURCES = {
@@ -9,6 +9,9 @@ const SOURCES = {
   splat: require('../../../assets/sounds/splat.wav'),
   poof: require('../../../assets/sounds/poof.wav'),
   whoosh: require('../../../assets/sounds/whoosh.wav'),
+  meow: require('../../../assets/sounds/meow.wav'),
+  bark: require('../../../assets/sounds/bark.wav'),
+  chirp: require('../../../assets/sounds/chirp.wav'),
 };
 
 export type SoundId = keyof typeof SOURCES;
@@ -35,8 +38,11 @@ function load(): ExpoAudio | null {
   return audio;
 }
 
-/** Play a sound effect from the start, cutting off the same sound if it is still playing. */
-export function playSound(id: SoundId): void {
+/**
+ * Play a sound effect from the start, cutting off the same sound if it is still playing.
+ * `volume` is 0 to 1; pets are quieter than emotes, so they don't drown out the room.
+ */
+export function playSound(id: SoundId, volume = 1): void {
   const lib = load();
   if (!lib) return;
   try {
@@ -45,6 +51,7 @@ export function playSound(id: SoundId): void {
       player = lib.createAudioPlayer(SOURCES[id]);
       players.set(id, player);
     }
+    player.volume = volume;
     player.seekTo(0).catch(() => {});
     player.play();
   } catch (e) {

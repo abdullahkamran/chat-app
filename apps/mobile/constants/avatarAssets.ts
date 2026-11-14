@@ -79,6 +79,9 @@ const ITEM_ASSET_MAP: Record<string, ImageSource> = {
     'items/decor/speaker.png':         require('../assets/items/decor/speaker.png'),
     'items/decor/fish-tank.png':       require('../assets/items/decor/fish-tank.png'),
     'items/decor/trash-can.png':       require('../assets/items/decor/trash-can.png'),
+    'items/pets/cat.png':              require('../assets/items/pets/cat.png'),
+    'items/pets/dog.png':              require('../assets/items/pets/dog.png'),
+    'items/pets/bird.png':             require('../assets/items/pets/bird.png'),
 
     // ── wall-items (placeholder art)
     'items/wall-items/poster.png':          require('../assets/items/wall-items/poster.png'),

@@ -89,4 +89,12 @@ export const artPalette = {
     snowShade: '#BFD3E6',
     highlight: '#FFFFFF',
   },
+  /** Programmer art for pets (engines/skia/pets/petRigs.ts), until the designer's art replaces it. */
+  pets: {
+    ink: '#3B2A20',
+    eye: '#1A1A1A',
+    cat: { fur: '#F0A04B', farFur: '#C97F33', nose: '#E07A8A' },
+    dog: { fur: '#B07A4F', farFur: '#8C5E3A', ear: '#7A5233', muzzle: '#E8CFAE' },
+    bird: { body: '#5AB0E8', wing: '#3D86C0', belly: '#FFF3C4', beak: '#F2B33D', leg: '#E8902A' },
+  },
 } as const;

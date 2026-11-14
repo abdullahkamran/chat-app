@@ -4,6 +4,7 @@ export * from './rig.types';
 export * from './humanoid-v1';
 export * from './user.types';
 export * from './item.types';
+export * from './pet.types';
 export * from './avatar.types';
 export * from './dimensions.types';
 export * from './currency.types';

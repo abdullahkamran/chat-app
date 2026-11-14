@@ -105,6 +105,18 @@ export interface RoomOccupant extends RoomPresenceState {
     bubbles?: { text: string; elapsedMs: number }[];
 }
 
+/** `RECEIVE_ROOM_PRESENCE`, to a newcomer alone. */
+export interface RoomPresenceSnapshot {
+    roomId: string;
+    occupants: RoomOccupant[];
+    /**
+     * The server's clock (`Date.now()`) when it sent this. Clients line their clock up with it,
+     * so pets (which every client animates from the server clock) do the same thing everywhere.
+     * Absent from servers older than pets.
+     */
+    serverNow?: number;
+}
+
 /** How long the asked person has to answer a mutual emote before it lapses. */
 export const MUTUAL_EMOTE_REQUEST_MS = 15_000;
 /** Grid cells between the two people of a mutual emote, along one grid axis so they face each other squarely. */

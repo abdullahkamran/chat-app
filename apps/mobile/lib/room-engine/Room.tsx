@@ -26,6 +26,7 @@ export function Room({ roomId }: Readonly<{ roomId: string }>) {
           mode={session.mode}
           edit={session.edit}
           effects={session.effects}
+          pets={session.pets}
           onActorTap={session.intents.tapActor}
           onFloorTap={session.intents.walkTo}
           onItemTap={session.intents.interactWith}

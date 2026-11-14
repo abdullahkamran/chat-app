@@ -130,15 +130,16 @@ async function syncItems(): Promise<void> {
             inserted++;
             continue;
         }
-        // Seats and front layers are tuned against the art, and canOwnMultiple was added after
-        // most items were seeded, so existing records follow the catalog for these.
-        const { seats, frontAssetUrl } = entry;
+        // Seats and front layers are tuned against the art, and canOwnMultiple and pet were
+        // added after most items were seeded, so existing records follow the catalog for these.
+        const { seats, frontAssetUrl, pet } = entry;
         const set = {
             canOwnMultiple: entry.canOwnMultiple ?? false,
             ...(seats && { seats }),
             ...(frontAssetUrl && { frontAssetUrl }),
+            ...(pet && { pet }),
         };
-        const unset = { ...(!seats && { seats: 1 }), ...(!frontAssetUrl && { frontAssetUrl: 1 }) };
+        const unset = { ...(!seats && { seats: 1 }), ...(!frontAssetUrl && { frontAssetUrl: 1 }), ...(!pet && { pet: 1 }) };
         await ItemModel.updateOne({ name: entry.name }, {
             ...(Object.keys(set).length > 0 && { $set: set }),
             ...(Object.keys(unset).length > 0 && { $unset: unset }),

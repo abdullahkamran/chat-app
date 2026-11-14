@@ -1,4 +1,4 @@
-import { Facing, Item, ItemAction, ItemPlacement, ItemState, ItemVariant } from '@chat-app/shared-types';
+import { Facing, Item, ItemAction, ItemPlacement, ItemState, ItemVariant, PET_CATEGORY, PetKind } from '@chat-app/shared-types';
 
 type CatalogItem = Omit<Item, '_id' | 'variant'> & {
     variant: Omit<ItemVariant, '_id'>;
@@ -46,7 +46,7 @@ const WALL = ItemPlacement.WALL;
  * On startup, new entries here are inserted into the DB automatically.
  * Existing DB entries are never overwritten — to update a record in dev,
  * drop the `items` collection and restart. The exceptions are layout data
- * (`seats`, `frontAssetUrl`) and `canOwnMultiple`, which are rewritten on every startup.
+ * (`seats`, `frontAssetUrl`), `canOwnMultiple` and `pet`, which are rewritten on every startup.
  */
 export const ITEMS_CATALOG: CatalogItem[] = [
     {
@@ -178,6 +178,14 @@ export const ITEMS_CATALOG: CatalogItem[] = [
     // ── Seasonal ──────────────────────────────────────────────────────────────
     item({ name: 'Pumpkin Lantern', description: 'Spooky season', category: 'Seasonal', placement: FLOOR, dimensions: { x: 1, y: 1, z: 1 }, coins: 20, assetUrl: 'items/seasonal/pumpkin-lantern.png', canOwnMultiple: true }),
     item({ name: 'Snowman', description: 'Will not melt indoors', category: 'Seasonal', placement: FLOOR, dimensions: { x: 1, y: 1, z: 2 }, coins: 25, assetUrl: 'items/seasonal/snowman.png', canOwnMultiple: true }),
+
+    // ── Pets ──────────────────────────────────────────────────────────────────
+    // Companions that wander the room on their own (see pet.types.ts in shared-types). Bought
+    // and placed like any item, as many as you like. Overlappable: they never block walking or
+    // furniture, and the position is just their home spot.
+    item({ name: 'Cat', description: 'Naps, grooms, judges you quietly', category: PET_CATEGORY, placement: FLOOR, dimensions: { x: 1, y: 1, z: 1 }, coins: 450, assetUrl: 'items/pets/cat.png', isOverlappable: true, pet: { kind: PetKind.CAT }, canOwnMultiple: true }),
+    item({ name: 'Dog', description: 'Your biggest fan. Very good at sitting', category: PET_CATEGORY, placement: FLOOR, dimensions: { x: 1, y: 1, z: 1 }, coins: 500, assetUrl: 'items/pets/dog.png', isOverlappable: true, pet: { kind: PetKind.DOG }, canOwnMultiple: true }),
+    item({ name: 'Bird', description: 'Flits about and sings for snacks', category: PET_CATEGORY, placement: FLOOR, dimensions: { x: 1, y: 1, z: 1 }, coins: 300, assetUrl: 'items/pets/bird.png', isOverlappable: true, pet: { kind: PetKind.BIRD }, canOwnMultiple: true }),
 
     // ── Floorings ─────────────────────────────────────────────────────────────
     item({ name: 'Wood Planks Floor', description: 'Classic hardwood', category: 'Floorings', placement: FLOOR, dimensions: { x: 1, y: 0, z: 1 }, coins: 15, assetUrl: 'items/floorings/wood-planks.png', isOverlappable: true }),

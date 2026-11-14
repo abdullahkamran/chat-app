@@ -32,7 +32,7 @@ import {
   type RoomInteraction,
   type RoomItem,
   type RoomItemsUpdate,
-  type RoomOccupant,
+  type RoomPresenceSnapshot,
   type RoomPresenceState,
   type RoomTheme,
   type User,
@@ -58,6 +58,7 @@ import {
   type InteractiveEmoteDef,
 } from './emotes';
 import { playSound } from './sounds';
+import { usePets } from './usePets';
 
 type EmoteAction = Extract<ActorAction, { kind: 'emote' }>;
 
@@ -101,6 +102,16 @@ const TYPING_SHOW_MS = 2500;
 const TYPING_SEND_MS = 1500;
 /** The transcript keeps this many of the latest messages. */
 const TRANSCRIPT_MAX = 50;
+/**
+ * The server's clock minus ours, from a time the server just sent. Half the trip back is
+ * unknown; pets a few tens of milliseconds apart between phones doesn't show.
+ */
+function clockOffsetFrom(serverNow: number): number {
+  return serverNow - Date.now();
+}
+
+/** A stable empty layout while the room loads. */
+const NO_ITEMS: RoomItem[] = [];
 /** A message seen late this close to one already in the transcript is the same message. */
 const TRANSCRIPT_SAME_MS = 3000;
 
@@ -152,6 +163,8 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
   const [walkIds] = useState(() => new WeakMap<ActorAction, number>());
   // Whether the server has told us who was here when we entered. Until then, an empty room may not be.
   const [presenceKnown, setPresenceKnown] = useState(false);
+  /** The server's clock minus ours, from the presence snapshot; pets follow the server's clock. */
+  const [clockOffsetMs, setClockOffsetMs] = useState(0);
   const canEmote = capabilities.actions.includes('emote');
 
   // Two-person emotes. `picking`: chosen in the drawer, waiting for a tap on someone.
@@ -524,8 +537,9 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
   }
 
   /** Everyone already in the room when we entered. They appear where they are, not at the door. */
-  function receivePresence({ occupants }: { occupants: RoomOccupant[] }) {
+  function receivePresence({ occupants, serverNow }: RoomPresenceSnapshot) {
     setPresenceKnown(true);
+    if (serverNow !== undefined) setClockOffsetMs(clockOffsetFrom(serverNow));
     for (const { userId: uid, bubbles = [], ...state } of occupants) {
       placeActor(uid, state);
       // Bubbles still up show for the time they have left.
@@ -1394,6 +1408,9 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     }
     : null;
 
+  // Edit mode shows pets as items, so only play mode has them wander.
+  const pets = usePets(roomDetails?.items ?? NO_ITEMS, roomDimensions, mode, clockOffsetMs);
+
   const renderedActors = useMemo(() => {
     const result: Record<string, ActorState> = {};
     for (const actor of Object.values(actors)) {
@@ -1434,6 +1451,8 @@ export function useRoomSession(roomId: string, capabilities: EngineCapabilities)
     canEmote,
     /** Thrown props for the engine to draw. */
     effects,
+    /** Pets and their timelines, for the engine to draw in play mode. */
+    pets,
     /** An emote waiting for the user to tap whom it is for. */
     picking,
     /** Our mutual emote request, until it is answered. */

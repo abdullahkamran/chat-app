@@ -15,6 +15,7 @@ import type {
   RoomTheme,
   User,
 } from '@chat-app/shared-types';
+import type { PetState } from './pets';
 
 /**
  * Room engine contract.
@@ -145,6 +146,12 @@ export interface RoomRendererProps {
   edit: EditState;
   /** Thrown props and similar, drawn over the room. */
   effects: readonly RoomEffect[];
+  /**
+   * Pets and what they are doing around now (core/pets.ts), with times on this device's clock
+   * (`Date.now()`). The engine draws each where its timeline puts it, in play mode only: while
+   * editing, pets are ordinary items in `scene.items`. Empty in edit mode.
+   */
+  pets: readonly PetState[];
   /**
    * An avatar tapped in play mode (the front-most under the tap). Returns whether the
    * session used the tap; if not, the engine handles it as an item or floor tap.

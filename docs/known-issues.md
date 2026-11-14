@@ -398,3 +398,18 @@ a different instance from the sender.
 (scaling issue 2). Mail pushes skip the same way and have the same gap. Added 2026-11-12.
 
 **Fix:** comes with presence in Redis (scaling issue 2): check the shared presence hash instead.
+
+### 14. Pets follow each instance's own clock
+
+**Seen (with two instances whose clocks drift apart):** people connected to different instances see the same
+pet doing different things, or a pet jumps when someone reconnects through another instance.
+
+**Why:** nothing about pets goes over the socket. Every client works out what each pet is doing from the
+room's layout and the server's clock (`apps/mobile/lib/room-engine/core/pets.ts`), and learns that clock from
+`serverNow` in the presence snapshot (`RECEIVE_ROOM_PRESENCE`), which comes from whichever instance it is
+connected to. Instances whose clocks disagree by more than a few hundred milliseconds put their clients' pets
+out of step. Added 2026-11-14.
+
+**Fix:** keep the instances' clocks synced (NTP, as any managed host does); nothing in the app needs to change.
+If that's ever not enough, take `serverNow` from one place (a Redis `TIME` call) instead of `Date.now()`.
+

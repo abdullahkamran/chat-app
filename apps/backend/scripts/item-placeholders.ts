@@ -205,6 +205,59 @@ function wallpaper(name: string): string {
     return svg(640 * k, 384 * k, `<g transform="scale(${k})">${pattern}</g>`);
 }
 
+/**
+ * A pet sitting on its cell, side on and facing right, for the Shop, the inventory and edit
+ * mode (rooms draw pets with their rig in play mode). Same box as a 1×1×1 floor item, with
+ * the feet on the middle of the floor diamond.
+ */
+function petPortrait(kind: string): string {
+    const w = TILE_W * K, h = 2 * TILE_H * K;
+    const feetY = h - (TILE_H / 2) * K;
+    const ink = 'stroke="#3b2a20" stroke-width="3" stroke-linejoin="round"';
+    const eye = (x: number, y: number) => `<circle cx="${x}" cy="${y}" r="3.5" fill="#1a1a1a"/>`;
+    const shadow = `<ellipse cx="${w / 2}" cy="${feetY}" rx="34" ry="9" fill="rgba(0,0,0,0.25)"/>`;
+    const at = (body: string) => svg(w, h, shadow + `<g transform="translate(${w / 2} ${feetY})">${body}</g>`);
+    if (kind === 'cat') {
+        const c = '#f0a04b';
+        return at(`
+            <path d="M-34,-14 C-52,-20 -50,-52 -36,-56" fill="none" stroke="#3b2a20" stroke-width="10" stroke-linecap="round"/>
+            <path d="M-34,-14 C-52,-20 -50,-52 -36,-56" fill="none" stroke="${c}" stroke-width="5" stroke-linecap="round"/>
+            <ellipse cx="-6" cy="-22" rx="30" ry="20" fill="${c}" ${ink}/>
+            <rect x="-26" y="-14" width="10" height="14" rx="5" fill="${c}" ${ink}/>
+            <rect x="12" y="-14" width="10" height="14" rx="5" fill="${c}" ${ink}/>
+            <polygon points="10,-58 14,-76 24,-62" fill="${c}" ${ink}/>
+            <polygon points="30,-62 40,-76 42,-56" fill="${c}" ${ink}/>
+            <circle cx="26" cy="-48" r="17" fill="${c}" ${ink}/>
+            ${eye(24, -50)}${eye(36, -50)}
+            <path d="M28,-41 q2,3 4,0" fill="none" stroke="#3b2a20" stroke-width="2"/>`);
+    }
+    if (kind === 'dog') {
+        const c = '#b07a4f', light = '#e8cfae';
+        return at(`
+            <path d="M-36,-26 q-12,-14 -6,-26" fill="none" stroke="#3b2a20" stroke-width="10" stroke-linecap="round"/>
+            <path d="M-36,-26 q-12,-14 -6,-26" fill="none" stroke="${c}" stroke-width="5" stroke-linecap="round"/>
+            <ellipse cx="-8" cy="-26" rx="32" ry="20" fill="${c}" ${ink}/>
+            <rect x="-30" y="-16" width="11" height="16" rx="5" fill="${c}" ${ink}/>
+            <rect x="10" y="-16" width="11" height="16" rx="5" fill="${c}" ${ink}/>
+            <circle cx="24" cy="-54" r="18" fill="${c}" ${ink}/>
+            <ellipse cx="40" cy="-48" rx="11" ry="8" fill="${light}" ${ink}/>
+            <circle cx="49" cy="-50" r="3.5" fill="#1a1a1a"/>
+            <ellipse cx="12" cy="-50" rx="7" ry="14" fill="#7a5233" ${ink} transform="rotate(15 12 -50)"/>
+            ${eye(30, -60)}`);
+    }
+    const c = '#5ab0e8', belly = '#fff3c4';
+    return at(`
+        <line x1="-4" y1="-12" x2="-6" y2="0" stroke="#e8902a" stroke-width="3"/>
+        <line x1="6" y1="-12" x2="6" y2="0" stroke="#e8902a" stroke-width="3"/>
+        <polygon points="-18,-26 -38,-20 -20,-16" fill="#3d86c0" ${ink}/>
+        <ellipse cx="0" cy="-26" rx="20" ry="15" fill="${c}" ${ink}/>
+        <ellipse cx="6" cy="-22" rx="11" ry="8" fill="${belly}"/>
+        <ellipse cx="-4" cy="-28" rx="12" ry="8" fill="#3d86c0" ${ink}/>
+        <circle cx="14" cy="-44" r="12" fill="${c}" ${ink}/>
+        <polygon points="24,-48 36,-44 24,-40" fill="#f2b33d" ${ink}/>
+        ${eye(18, -46)}`);
+}
+
 async function main() {
     let written = 0;
     for (const item of ITEMS_CATALOG) {
@@ -213,7 +266,8 @@ async function main() {
 
         const color = CATEGORY_COLORS[item.category] ?? FALLBACK_COLOR;
         const art =
-            item.category === 'Floorings' ? flooring(item.name)
+            item.pet ? petPortrait(item.pet.kind)
+            : item.category === 'Floorings' ? flooring(item.name)
             : item.category === 'Wallpapers' ? wallpaper(item.name)
             : item.placement === ItemPlacement.WALL ? wallPanel(item.name, item.dimensions, color)
             : floorBox(item.name, item.dimensions, color);

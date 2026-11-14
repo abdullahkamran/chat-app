@@ -118,8 +118,8 @@ Each accent is a set of four. Use the whole set together so a light theme can sw
   under a dragged item, where it can and can't be dropped), `roomDebug*` (dev overlays only).
 - **Letter avatars and sender names:** `avatarColor(t, name)` from `components/UserAvatar.tsx`, which picks
   from `t.avatarPalette` by a hash of the name, so a person keeps their color.
-- **Avatar art:** `artPalette` in `palette.ts`. It's programmer art that looks the same in every theme,
-  so it sits outside the themes on purpose.
+- **Avatar and pet art:** `artPalette` in `palette.ts` (`artPalette.pets` for the cat, dog and bird
+  placeholders). It's programmer art that looks the same in every theme, so it sits outside the themes on purpose.
 
 ### Adding a color
 
