@@ -288,6 +288,8 @@ nothing), or enable sticky sessions on the load balancer.
 different instances: no enters, walks or chat between them, snapshots missing people, and two users able to
 take the same seat.
 
+The room list's green "is here" line (`getRooms` reads presence) would only count people on the instance that answered the request.
+
 **Why:** two things live in one process's memory. Room presence (`apps/backend/src/sockets/roomPresence.ts`)
 is a `Map` per process, so each instance only knows its own sockets. And Socket.IO's default adapter only
 broadcasts to sockets on the same instance, so relays (`socket.to(roomId)`) never cross instances. The same goes for layout saves: `announceRoomItemsChanged` only places the people this instance knows and tells only its own sockets. And for membership and friends: the added, removed, members-changed and friends-changed events only reach this instance's sockets, and `announceMemberRemoved` only takes out a removed user standing in the room on this instance. On another instance, the removed user stays and is still relayed to until they exit. Deleting a room (`deleteRoom`, or the last person leaving) evicts everyone through the same call, so on other instances people stay in a deleted room until they exit; new owners (`announceOwnersChanged`) are also only told on this instance. With the Redis adapter, evict with `io.in(userChannel).socketsLeave(roomId)` plus a broadcast that tells each instance to drop the user from presence and its sockets' `presentRoomIds`.

@@ -100,6 +100,11 @@ export const roomPresence = {
         return !!rooms.get(roomId)?.has(userId);
     },
 
+    /** The ids of everyone in the room now. */
+    userIds(roomId: string): string[] {
+        return [...(rooms.get(roomId)?.keys() ?? [])];
+    },
+
     /** Everyone in the room, for changes that touch them all (a new layout). */
     entries(roomId: string): [string, Presence][] {
         return [...(rooms.get(roomId) ?? [])];

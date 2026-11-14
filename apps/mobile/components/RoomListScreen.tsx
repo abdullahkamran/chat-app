@@ -1,5 +1,5 @@
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { io } from 'socket.io-client';
@@ -21,6 +21,18 @@ const LIMIT = 20;
 function roomKindLabel(room: Room, userId: string | null): string {
   if (room.category !== RoomCategory.PERSONAL) return '';
   return room.ownerId === userId ? 'Your room' : "Friend's room";
+}
+
+/**
+ * Who is in the room right now: "ana is here", "ana, ben and 2 others are here". Empty when
+ * nobody is. It takes the place of the usual subtitle.
+ */
+function hereLine(room: RoomListEntry): string {
+  const names = room.here.slice(0, NAMES_SHOWN).map(p => p.username);
+  if (names.length === 0) return '';
+  const others = Math.max(0, room.hereCount - names.length);
+  if (others === 0) return `${names.join(' and ')} ${names.length === 1 ? 'is' : 'are'} here`;
+  return `${names.join(', ')} and ${others} ${others === 1 ? 'other' : 'others'} are here`;
 }
 
 /** A friend's personal room shows only its label, without the owner's "Welcome to my room!" tagline. */
@@ -111,6 +123,13 @@ export default function RoomListScreen(): React.JSX.Element {
 
   const rooms = data?.pages.flatMap((p) => p.rooms) ?? [];
   const refreshControl = usePullToRefresh(refetch);
+
+  // Who is in each room changes while you're away in one: reload on coming back to the list.
+  const seen = useRef(false);
+  useFocusEffect(useCallback(() => {
+    if (seen.current) void refetch();
+    seen.current = true;
+  }, [refetch]));
   const requestCount = useIncomingRequests().data?.length ?? 0;
 
   function handleRoomPress(roomId: string) {
@@ -166,15 +185,19 @@ export default function RoomListScreen(): React.JSX.Element {
           keyExtractor={(room) => room._id}
           contentContainerStyle={styles.list}
           refreshControl={refreshControl}
-          renderItem={({ item }) => (
+          renderItem={({ item }) => {
+            const here = hereLine(item);
+            return (
             <RoomListItem
               name={item.name}
               faces={roomFaces(item, userId)}
-              subtitle={roomSubtitle(item, userId)}
+              subtitle={here || roomSubtitle(item, userId)}
+              live={!!here}
               isPersonal={item.category === RoomCategory.PERSONAL}
               onPress={() => handleRoomPress(item._id)}
             />
-          )}
+            );
+          }}
           onEndReached={() => { if (hasNextPage && !isFetchingNextPage) fetchNextPage(); }}
           onEndReachedThreshold={0.4}
           ListEmptyComponent={

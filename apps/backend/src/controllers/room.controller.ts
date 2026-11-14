@@ -6,6 +6,7 @@ import { inTransaction } from '../db/transaction';
 import Room, { canManageMembers, IRoom, isProtectedCreator, isRoomOwner } from '../models/room.model';
 import { MailboxRead, RoomMail } from '../models/room-mail.model';
 import { roomLayoutOf } from '../sockets/roomLayout';
+import { roomPresence } from '../sockets/roomPresence';
 import { announceMemberRemoved, announceMembersAdded, announceOwnersChanged, announceRoomItemsChanged } from '../sockets/socketHandler';
 import Item from '../models/item.model';
 import User, { PUBLIC_USER_FIELDS } from '../models/user.model';
@@ -402,7 +403,9 @@ const controller = {
                 const self = members.filter((id) => id === userId);
                 return [...new Set([...recent, ...others, ...self])].slice(0, ROOM_PEOPLE_PREVIEW);
             });
-            const wanted = [...new Set(previewIds.flat())];
+            // Who is in each room right now, other than the viewer (this instance's presence).
+            const hereIds = found.map((room) => roomPresence.userIds(room._id.toString()).filter((id) => id !== userId));
+            const wanted = [...new Set([...previewIds.flat(), ...hereIds.flatMap((ids) => ids.slice(0, ROOM_PEOPLE_PREVIEW))])];
             const users = wanted.length > 0
                 ? await User.find({ _id: { $in: wanted } }).select(PUBLIC_USER_FIELDS).lean()
                 : [];
@@ -415,6 +418,8 @@ const controller = {
                     // A member whose account was deleted isn't found, and drops out.
                     people: previewIds[i].flatMap((id) => userById.get(id) ?? []),
                     memberCount: isPersonalRoom(room) ? 0 : members.length,
+                    here: hereIds[i].slice(0, ROOM_PEOPLE_PREVIEW).flatMap((id) => userById.get(id) ?? []),
+                    hereCount: hereIds[i].length,
                 };
             });
 

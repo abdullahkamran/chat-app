@@ -44,6 +44,20 @@ const useStyles = makeStyles(t => ({
   clusterFace: {
     position: 'absolute',
   },
+  subtitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  subtitle: {
+    flexShrink: 1,
+  },
+  liveDot: {
+    width: t.space.sm,
+    height: t.space.sm,
+    borderRadius: t.radius.pill,
+    backgroundColor: t.colors.success,
+  },
 }));
 
 /** The badge's side: one tile, or the box a cluster of faces sits in. */
@@ -91,6 +105,7 @@ const RoomListItem = ({
   name,
   faces,
   subtitle,
+  live,
   isPersonal,
   onPress,
 }: {
@@ -98,6 +113,8 @@ const RoomListItem = ({
   /** Whose avatars' heads make the room's badge: one for a tile, two to four for a cluster. */
   faces?: RoomFace[];
   subtitle?: string;
+  /** People are in the room now and the subtitle names them: it gets a green dot. */
+  live?: boolean;
   /** Someone's personal room: marked with a house. */
   isPersonal?: boolean;
   onPress?: () => void;
@@ -119,7 +136,12 @@ const RoomListItem = ({
           <AppText variant="heading" style={styles.name} numberOfLines={1}>{name}</AppText>
         </View>
         {subtitle ? (
-          <AppText variant="caption" color="textSecondary" numberOfLines={1}>{subtitle}</AppText>
+          <View style={styles.subtitleRow}>
+            {live && <View style={styles.liveDot} />}
+            <AppText variant="caption" color={live ? 'success' : 'textSecondary'} style={styles.subtitle} numberOfLines={1}>
+              {subtitle}
+            </AppText>
+          </View>
         ) : null}
       </View>
       <Ionicons name="chevron-forward" size={20} color={t.colors.textMuted} />

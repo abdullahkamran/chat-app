@@ -291,6 +291,13 @@ export interface RoomListEntry extends Room {
     people: Array<PublicUser>;
     /** Everyone in a group room, the viewer included. 0 for a personal room. */
     memberCount: number;
+    /**
+     * Up to ROOM_PEOPLE_PREVIEW of the people in the room right now, other than the viewer.
+     * True when the list was fetched; it isn't pushed as people come and go.
+     */
+    here: Array<PublicUser>;
+    /** Everyone in the room right now, other than the viewer. */
+    hereCount: number;
 }
 
 export interface PaginatedRooms {
