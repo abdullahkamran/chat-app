@@ -15,6 +15,9 @@ interface AuthState {
     userId: string | null;
     selectedAvatar: Avatar | null;
     isLoading: boolean;
+    /** Signing back in on launch couldn't reach the server. The saved session is kept; call retryBoot to try again. */
+    bootFailed: boolean;
+    retryBoot: () => void;
     isAuthenticated: boolean;
     login: (username: string, password: string) => Promise<void>;
     logout: () => Promise<void>;
@@ -25,16 +28,26 @@ const AuthContext = createContext<AuthState>({
     userId: null,
     selectedAvatar: null,
     isLoading: true,
+    bootFailed: false,
+    retryBoot: () => {},
     isAuthenticated: false,
     login: async () => {},
     logout: async () => {},
     setSelectedAvatar: () => {},
 });
 
+/** The server looked at the refresh token and turned it down, as opposed to not answering at all. */
+function isRejected(e: unknown): boolean {
+    const status = (e as { status?: number } | null)?.status;
+    return status === 400 || status === 401 || status === 403;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [userId, setUserId] = useState<string | null>(null);
     const [selectedAvatar, setSelectedAvatar] = useState<Avatar | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [bootFailed, setBootFailed] = useState(false);
+    const [bootAttempt, setBootAttempt] = useState(0);
 
     const applyTokens = useCallback((tokens: Pick<AuthTokens, 'accessToken' | 'refreshToken'> & { userId?: string; selectedAvatar?: Avatar | null }) => {
         setAccessToken(tokens.accessToken);
@@ -52,8 +65,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             await saveRefreshToken(tokens.refreshToken);
             setAccessToken(tokens.accessToken);
             return tokens.accessToken;
-        } catch {
-            // Refresh failed — force logout
+        } catch (e) {
+            // Server unreachable: keep the session and let this request fail; the next one tries again
+            if (!isRejected(e)) return null;
+            // The server turned the token down — sign out
             setAccessToken(null);
             setUserId(null);
             setSelectedAvatar(null);
@@ -62,10 +77,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }, []);
 
-    // On app launch: try silent login via stored refresh token
     useEffect(() => {
         setTokenRefresher(refreshAccessToken);
+        return () => setTokenRefresher(null);
+    }, [refreshAccessToken]);
 
+    // On app launch: try silent login via stored refresh token.
+    // Only a rejected token signs you out. If the server can't be reached (e.g. the backend is
+    // restarting), keep the token and offer a retry, so a restart doesn't log you out.
+    useEffect(() => {
+        let cancelled = false;
         (async () => {
             try {
                 const stored = await loadRefreshToken();
@@ -74,17 +95,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     await saveRefreshToken(tokens.refreshToken);
                     // Refresh endpoint doesn't return userId — parse it from the token payload
                     const payload = JSON.parse(atob(tokens.accessToken.split('.')[1]));
+                    if (cancelled) return;
                     applyTokens({ ...tokens, userId: payload.userId, selectedAvatar: tokens.selectedAvatar ?? null });
                 }
-            } catch {
-                await clearRefreshToken();
-            } finally {
-                setIsLoading(false);
+                if (!cancelled) setIsLoading(false);
+            } catch (e) {
+                if (cancelled) return;
+                if (isRejected(e)) {
+                    await clearRefreshToken();
+                    setIsLoading(false);
+                } else {
+                    console.warn('Silent sign-in could not reach the server', e);
+                    setBootFailed(true);
+                }
             }
         })();
+        return () => { cancelled = true; };
+    }, [applyTokens, bootAttempt]);
 
-        return () => setTokenRefresher(null);
-    }, [applyTokens, refreshAccessToken]);
+    const retryBoot = useCallback(() => {
+        setBootFailed(false);
+        setBootAttempt(n => n + 1);
+    }, []);
 
     const login = useCallback(async (username: string, password: string) => {
         const tokens = await loginRequest(username, password);
@@ -102,7 +134,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     return (
-        <AuthContext.Provider value={{ userId, selectedAvatar, isLoading, isAuthenticated: !!userId, login, logout, setSelectedAvatar }}>
+        <AuthContext.Provider value={{ userId, selectedAvatar, isLoading, bootFailed, retryBoot, isAuthenticated: !!userId, login, logout, setSelectedAvatar }}>
             {children}
         </AuthContext.Provider>
     );

@@ -6,12 +6,14 @@ import { useFonts } from 'expo-font';
 import {
   DarkTheme, DefaultTheme, Stack, ThemeProvider as NavigationThemeProvider, enableLegacyHeaderAppearance, useRouter,
 } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { BootScreen } from '@/components/BootScreen';
 import { ToastHost } from '@/components/Toast';
 import { DialogHost } from '@/components/ui';
 import { ActiveRoomContext } from '@/context/activeRoom.context';
@@ -23,6 +25,9 @@ import { queryClient } from '@/utils/queryClient';
 
 // Keep the opaque, theme-styled stack header on iOS 26+ instead of SDK 58's Liquid Glass default.
 enableLegacyHeaderAppearance();
+
+// Keep the native splash up until the fonts are in, then BootScreen takes over while signing in.
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 // // Smart foreground suppression: suppress notifications for the room the user is currently viewing
 // Notifications.setNotificationHandler({
@@ -42,7 +47,7 @@ enableLegacyHeaderAppearance();
 function AppNavigator() {
   const t = useTheme();
   const router = useRouter();
-  const { userId, isLoading, isAuthenticated } = useAuth();
+  const { userId, isLoading, bootFailed, retryBoot, isAuthenticated } = useAuth();
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -88,7 +93,7 @@ function AppNavigator() {
     };
   }, [t]);
 
-  if (isLoading) return null;
+  if (isLoading) return <BootScreen failed={bootFailed} onRetry={retryBoot} />;
 
   return (
     <UserContext.Provider value={{ user: { userId: userId ?? '' }, setUser: () => {} }}>
@@ -127,8 +132,12 @@ export default function RootLayout() {
     Nunito_700Bold,
     Nunito_800ExtraBold,
   });
-  // On a font error, carry on with system fonts rather than a blank screen.
-  if (!fontsLoaded && !fontError) return null;
+  const fontsReady = fontsLoaded || !!fontError;
+  useEffect(() => {
+    if (fontsReady) SplashScreen.hideAsync().catch(() => {});
+  }, [fontsReady]);
+  // The native splash is still showing. On a font error, carry on with system fonts.
+  if (!fontsReady) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
