@@ -91,6 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         (async () => {
             try {
                 const stored = await loadRefreshToken();
+                console.log(`[boot] saved session: ${stored ? 'yes, signing in' : 'none'}`);
                 if (stored) {
                     const tokens = await refreshRequest(stored);
                     await saveRefreshToken(tokens.refreshToken);

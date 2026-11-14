@@ -15,6 +15,7 @@
     "mobile": "pnpm set-api-url && pnpm --filter=@chat-app/mobile dev",
     "build:android": "pnpm set-api-url && pnpm --filter=@chat-app/mobile build:android",
     "install:android": "pnpm --filter=@chat-app/mobile install:android",
+    "logs:android": "pnpm --filter=@chat-app/mobile logs:android",
     "backend": "pnpm set-api-url && turbo run dev --filter=@chat-app/backend"
   },
   "devDependencies": {

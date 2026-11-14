@@ -3,7 +3,7 @@ import { Fredoka_600SemiBold, Fredoka_700Bold } from '@expo-google-fonts/fredoka
 import { Nunito_600SemiBold, Nunito_700Bold, Nunito_800ExtraBold } from '@expo-google-fonts/nunito';
 import { useFonts } from 'expo-font';
 import {
-  DarkTheme, DefaultTheme, Stack, ThemeProvider as NavigationThemeProvider, enableLegacyHeaderAppearance, useRouter,
+  DarkTheme, DefaultTheme, Stack, ThemeProvider as NavigationThemeProvider, enableLegacyHeaderAppearance, usePathname, useRouter,
 } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -27,6 +27,7 @@ import { queryClient } from '@/utils/queryClient';
 // Keep the opaque, theme-styled stack header on iOS 26+ instead of SDK 58's Liquid Glass default.
 enableLegacyHeaderAppearance();
 
+console.log('[boot] JS loaded');
 configureNotifications();
 
 // Keep the native splash up until the fonts are in, then BootScreen takes over while signing in.
@@ -38,14 +39,16 @@ function AppNavigator() {
   const { userId, isLoading, bootFailed, retryBoot, isAuthenticated } = useAuth();
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
 
+  // Which screens you can reach comes from the Stack.Protected guards below: signing in or out moves you
+  // to the first screen allowed. Don't also navigate here; a replace fired while the navigator is first
+  // mounting can leave an empty screen.
+  const pathname = usePathname();
   useEffect(() => {
-    if (isLoading) return;
-    if (isAuthenticated) {
-      router.replace('/(tabs)');
-    } else {
-      router.replace('/(auth)/login');
-    }
+    if (!isLoading) console.log(`[boot] signed ${isAuthenticated ? 'in' : 'out'}`);
   }, [isLoading, isAuthenticated]);
+  useEffect(() => {
+    if (!isLoading) console.log(`[nav] ${pathname}`);
+  }, [isLoading, pathname]);
 
   // Pushes: register this device once signed in, and open the room of a tapped push.
   useEffect(() => {
@@ -124,8 +127,12 @@ export default function RootLayout() {
   });
   const fontsReady = fontsLoaded || !!fontError;
   useEffect(() => {
-    if (fontsReady) SplashScreen.hideAsync().catch(() => {});
-  }, [fontsReady]);
+    if (fontError) console.warn('[boot] fonts failed, using system fonts', fontError);
+    if (fontsReady) {
+      console.log('[boot] fonts ready, hiding splash');
+      SplashScreen.hideAsync().catch((e) => console.warn('[boot] hiding the splash failed', e));
+    }
+  }, [fontsReady, fontError]);
   // The native splash is still showing. On a font error, carry on with system fonts.
   if (!fontsReady) return null;
 
