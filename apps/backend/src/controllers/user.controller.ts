@@ -88,10 +88,13 @@ const controller = {
         try {
             const id = req.user!.userId;
             const { token } = req.body;
-            if (!token) {
+            if (typeof token !== 'string' || !token || token.length > 4096) {
                 res.status(400).send({ error: 'token is required' });
                 return;
             }
+            // A device belongs to whoever logged in on it last: drop it from any other account
+            // (someone who used this phone before) so they stop getting pushes here.
+            await User.updateMany({ _id: { $ne: id }, pushTokens: token }, { $pull: { pushTokens: token } });
             await User.findByIdAndUpdate(id, { $addToSet: { pushTokens: token } });
             res.sendStatus(200);
         } catch (e) {
@@ -104,7 +107,7 @@ const controller = {
         try {
             const id = req.user!.userId;
             const { token } = req.body;
-            if (!token) {
+            if (typeof token !== 'string' || !token) {
                 res.status(400).send({ error: 'token is required' });
                 return;
             }

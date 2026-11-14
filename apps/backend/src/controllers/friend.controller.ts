@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import type { Server } from 'socket.io';
-import { FriendshipStatus, RoomCategory, type FriendRelation, type IncomingFriendRequest, type PublicUser } from '@chat-app/shared-types';
+import { FriendshipStatus, RoomCategory, type FriendRelation, type PushType, type IncomingFriendRequest, type PublicUser } from '@chat-app/shared-types';
 import Friendship, { IFriendship, pairKeyOf } from '../models/friendship.model';
 import Room from '../models/room.model';
 import User, { PUBLIC_USER_FIELDS } from '../models/user.model';
@@ -21,7 +21,7 @@ function isDuplicateKey(e: unknown): boolean {
 }
 
 /** Tell both users' devices to refetch, and push `push` to `pushTo` when given. */
-function notify(req: Request, userIds: string[], push?: { to: string; body: string; type: string }): void {
+function notify(req: Request, userIds: string[], push?: { to: string; body: string; type: PushType }): void {
     announceFriendsChanged(req.app.get('io') as Server, userIds);
     if (push) {
         sendPushToUsers([push.to], { title: 'Friends', body: push.body, type: push.type }, { senderUserId: req.user!.userId });

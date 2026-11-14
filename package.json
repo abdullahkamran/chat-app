@@ -13,6 +13,8 @@
     "type-check": "turbo run type-check",
     "set-api-url": "node scripts/set-api-url.mjs",
     "mobile": "pnpm set-api-url && pnpm --filter=@chat-app/mobile dev",
+    "build:android": "pnpm set-api-url && pnpm --filter=@chat-app/mobile build:android",
+    "install:android": "pnpm --filter=@chat-app/mobile install:android",
     "backend": "pnpm set-api-url && turbo run dev --filter=@chat-app/backend"
   },
   "devDependencies": {

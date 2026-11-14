@@ -17,7 +17,7 @@ import {
 import Animation from '../models/animation.model';
 import Room, { IRoom } from '../models/room.model';
 import User from '../models/user.model';
-import { sendPushToRoom, sendPushToUsers } from '../services/notification.service';
+import { sendMessagePush, sendPushToUsers } from '../services/notification.service';
 import { findAccessibleRoom, isPersonalRoom } from '../services/room-access.service';
 import { emoteRequests, type EmoteRequest } from './emoteRequests';
 import { blockedCells, cellOf, loadRoomLayout, mutualEmoteSpot, nearestFreeCell, type RoomLayout } from './roomLayout';
@@ -284,11 +284,7 @@ const handler = {
             const me = roomPresence.own(roomId, userId, socket.id);
             if (me) roomPresence.addMessage(me, message);
             socket.to(roomId).emit(SocketEvent.RECEIVE_MESSAGE, { roomId, userId, message });
-            sendPushToRoom(roomId, userId, {
-                title: 'New message',
-                body: message,
-                type: 'message',
-            });
+            sendMessagePush(roomId, { userId, username }, message);
         }));
 
         // A walk to a point. Walking leaves any seat and ends any emote.
@@ -349,11 +345,6 @@ const handler = {
             if (isPersonalRoom(room) && room.ownerId.toString() !== userId && !isReentry) {
                 announceVisit(socket.nsp.server, roomId, room, { userId, username });
             }
-            sendPushToRoom(roomId, userId, {
-                title: 'Room activity',
-                body: 'Someone entered the room',
-                type: 'enter',
-            });
         }));
 
         socket.on(SocketEvent.SEND_EXIT, inRoom(SocketEvent.SEND_EXIT, async ({ roomId }: { roomId: string }) => {
@@ -366,12 +357,6 @@ const handler = {
                 socket.to(roomId).emit(SocketEvent.RECEIVE_EXIT, { roomId, userId });
             }
             await socket.leave(roomId);
-            if (!left) return;
-            sendPushToRoom(roomId, userId, {
-                title: 'Room activity',
-                body: 'Someone left the room',
-                type: 'exit',
-            });
         }));
 
         socket.on(SocketEvent.SEND_TYPING, inRoom(SocketEvent.SEND_TYPING, ({ roomId, isTyping }: { roomId: string; isTyping: boolean }) => {

@@ -91,16 +91,19 @@ leave a debit without a record.
 **Fix:** exit the process when the connection fails so the process manager restarts it, and add a readiness
 check (see scaling issue 4).
 
-### 5. Push notifications run inline on every message and enter
+### 5. A push goes out for every chat message, sent inline
 
-**Seen:** nothing visible yet. Each chat message loads the room with its members, loads those users, and calls
-FCM, inside the socket process. People already in the room are notified about what they're watching.
+**Seen:** nothing visible yet. Each chat message loads the room (name and members), loads those users' tokens
+and calls FCM, inside the socket process. A busy room sends one FCM request per message to everyone away from
+it. On the phone, Android's notification tag and iOS's collapse ID make each new push replace the room's last
+one, so it doesn't stack, but each one still buzzes and costs a send.
 
-**Why:** `sendPushToRoom` in `apps/backend/src/services/notification.service.ts` is called from the
-`SEND_MESSAGE`, `SEND_ENTER` and `SEND_EXIT` handlers with no batching.
+**Why:** `sendMessagePush` in `apps/backend/src/services/notification.service.ts` is called from the
+`SEND_MESSAGE` handler with no debounce. (Enter and exit pushes were removed and people in the room are
+skipped, 2026-11-12.)
 
-**Fix:** skip users present in the room (room presence knows), debounce per room (e.g. one push per room per
-user per minute), and with more traffic move sending to a queue (BullMQ on the scaling Redis).
+**Fix:** debounce per room per recipient (e.g. at most one push per room per user per minute, with "3 new
+messages" when more came), and with more traffic move sending to a queue (BullMQ on the scaling Redis).
 
 ### 6. No rate limiting
 
@@ -385,3 +388,13 @@ With the Redis adapter (scaling issue 2) every relay also crosses Redis to every
 dropping extras but always keeping the latest); and, if it matters, coalesce relays per room per tick
 (e.g. 100 ms) into one batched event. Raising `STEER_REPORT_MS` with a matching `STEER_LEAD_MS` is the quick
 client-side lever, at the cost of others seeing slightly looser motion.
+
+### 13. Message pushes reach people in the room through another instance
+
+**Seen (with two instances):** someone in a room gets a push for a message there when they're connected to
+a different instance from the sender.
+
+**Why:** `sendMessagePush` skips recipients by `roomPresence.has`, which only knows this instance's sockets
+(scaling issue 2). Mail pushes skip the same way and have the same gap. Added 2026-11-12.
+
+**Fix:** comes with presence in Redis (scaling issue 2): check the shared presence hash instead.

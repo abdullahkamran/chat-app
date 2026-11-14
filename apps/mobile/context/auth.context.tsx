@@ -10,6 +10,7 @@ import {
     refreshRequest,
     saveRefreshToken,
 } from '@/lib/auth';
+import { unregisterPushToken } from '@/utils/notifications';
 
 interface AuthState {
     userId: string | null;
@@ -125,6 +126,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [applyTokens]);
 
     const logout = useCallback(async () => {
+        // While still signed in, so the server accepts it: this device stops getting this account's pushes.
+        await unregisterPushToken();
         const stored = await loadRefreshToken();
         if (stored) await logoutRequest(stored).catch(() => {});
         await clearRefreshToken();

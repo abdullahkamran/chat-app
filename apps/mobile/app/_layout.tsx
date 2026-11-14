@@ -1,5 +1,4 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-// import * as Notifications from 'expo-notifications';
 import { Fredoka_600SemiBold, Fredoka_700Bold } from '@expo-google-fonts/fredoka';
 import { Nunito_600SemiBold, Nunito_700Bold, Nunito_800ExtraBold } from '@expo-google-fonts/nunito';
 import { useFonts } from 'expo-font';
@@ -20,29 +19,18 @@ import { ActiveRoomContext } from '@/context/activeRoom.context';
 import { AuthProvider, useAuth } from '@/context/auth.context';
 import { UserContext } from '@/context/user.context';
 import { ThemeProvider, useTheme } from '@/constants/theme';
-// import { registerForPushNotificationsAsync, savePushTokenToServer } from '@/utils/notifications';
+import {
+  configureNotifications, listenForNotifications, registerForPushNotifications, setActivePushRoom,
+} from '@/utils/notifications';
 import { queryClient } from '@/utils/queryClient';
 
 // Keep the opaque, theme-styled stack header on iOS 26+ instead of SDK 58's Liquid Glass default.
 enableLegacyHeaderAppearance();
 
+configureNotifications();
+
 // Keep the native splash up until the fonts are in, then BootScreen takes over while signing in.
 SplashScreen.preventAutoHideAsync().catch(() => {});
-
-// // Smart foreground suppression: suppress notifications for the room the user is currently viewing
-// Notifications.setNotificationHandler({
-//   handleNotification: async (notification) => {
-//     const roomId = notification.request.content.data?.roomId;
-//     const shouldSuppress = roomId && roomId === activeRoomIdRef;
-//     return {
-//       shouldShowAlert: !shouldSuppress,
-//       shouldShowBanner: !shouldSuppress,
-//       shouldShowList: !shouldSuppress,
-//       shouldPlaySound: !shouldSuppress,
-//       shouldSetBadge: false,
-//     };
-//   },
-// });
 
 function AppNavigator() {
   const t = useTheme();
@@ -59,22 +47,24 @@ function AppNavigator() {
     }
   }, [isLoading, isAuthenticated]);
 
-  // // Register for push notifications once authenticated
-  // useEffect(() => {
-  //   if (!userId) return;
-  //   registerForPushNotificationsAsync().then((token) => {
-  //     if (token) savePushTokenToServer(token);
-  //   });
-  // }, [userId]);
+  // Pushes: register this device once signed in, and open the room of a tapped push.
+  useEffect(() => {
+    if (!userId) return;
+    let stopTokenRefresh: (() => void) | undefined;
+    let cancelled = false;
+    registerForPushNotifications()
+      .then((stop) => (cancelled ? stop() : (stopTokenRefresh = stop)))
+      .catch((e) => console.warn('Push registration failed', e));
+    const stopListening = listenForNotifications((roomId) => router.push(`/room/${roomId}`));
+    return () => {
+      cancelled = true;
+      stopTokenRefresh?.();
+      stopListening();
+    };
+  }, [userId, router]);
 
-  // // Handle notification taps — navigate to the room
-  // useEffect(() => {
-  //   const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-  //     const roomId = response.notification.request.content.data?.roomId;
-  //     if (roomId) router.push(`/room/${roomId}`);
-  //   });
-  //   return () => sub.remove();
-  // }, [router]);
+  // Pushes for the room on screen aren't shown.
+  useEffect(() => setActivePushRoom(activeRoomId), [activeRoomId]);
 
   // React Navigation's own theme, from ours: screen backgrounds, headers and the tab bar.
   const navigationTheme = useMemo(() => {

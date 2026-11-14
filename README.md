@@ -140,13 +140,46 @@ See [docs/auth.md](docs/auth.md) for the full breakdown.
 
 ---
 
+## Android dev build (local)
+
+Needed for anything with native code Expo Go doesn't have, such as push notifications. Windows can only build
+Android; iOS needs a Mac with Xcode.
+
+One-time setup on this machine (done 2026-11-14):
+
+- Android Studio, whose bundled Java (`C:\Program Files\Android\Android Studio\jbr`) is `JAVA_HOME`
+- Android SDK at `C:\Android\Sdk` (`ANDROID_HOME`). Keep it on a path with no spaces; the native build tools
+  break on them. `platform-tools` and `cmdline-tools\latest\bin` are on `Path`
+- On the phone: Developer options → USB debugging, plugged in, and `adb devices` lists it as `device`
+
+Then `pnpm build:android` from the repo root. It sets the API URL to this machine's LAN IP, generates
+`apps/mobile/android/` (gitignored) from `app.json`, builds, installs on the phone and starts Metro. The first
+build takes a while. After that `pnpm mobile` is enough; rebuild only after a native change (a new native
+library, or plugins in `app.json`).
+
+If the install step fails with `Shell does not have permission to access user 10`, the phone has a work
+profile or app cloning, and Expo tries to install for every profile. The build itself succeeded: run
+`pnpm install:android` to install it for the main profile only, then `pnpm mobile`.
+
+Builds fail on Windows with `ninja: manifest 'build.ninja' still dirty after 100 tries` when a native
+library's paths pass 260 characters (pnpm's folder names are long), because the `ninja` 1.10.2 bundled with
+the SDK's CMake 3.22.1 can't read long paths. Fixed on this machine by replacing
+`C:\Android\Sdk\cmake\3.22.1\bin\ninja.exe` with ninja 1.12.1 from github.com/ninja-build/ninja/releases
+(the old one is kept as `ninja-1.10.2.exe.bak`). Redo it if the SDK's CMake is reinstalled.
+
 ## Push Notifications
 
-1. Create a Firebase project and enable Cloud Messaging
-2. Place `google-services.json` in `apps/mobile/` (Android)
-3. Place `GoogleService-Info.plist` in `apps/mobile/` (iOS)
-4. Place your Firebase Admin SDK service account JSON in `apps/backend/` and set `FIREBASE_SERVICE_ACCOUNT_KEY` in `.env`
-5. Build a dev client (`npx expo run:android` / `npx expo run:ios`) — push notifications don't work in Expo Go
+Firebase Cloud Messaging on both platforms (`@react-native-firebase/messaging` in the app, Firebase Admin on
+the backend). How it works, what's sent and the setup checklist are in
+[docs/notifications.md](docs/notifications.md).
+
+1. `apps/mobile/google-services.json` (Android) and `apps/mobile/GoogleService-Info.plist` (iOS), from the
+   Firebase project. Both gitignored.
+2. iOS only: an APNs key (.p8) uploaded to the Firebase project.
+3. The Firebase Admin service account JSON at `apps/backend/firebase-service-account.json`, with
+   `FIREBASE_SERVICE_ACCOUNT_KEY=./firebase-service-account.json` in `apps/backend/.env`.
+4. A dev build on a physical device (`npx expo run:android` / `npx expo run:ios`, or EAS). Pushes don't work
+   in Expo Go or on simulators.
 
 ---
 

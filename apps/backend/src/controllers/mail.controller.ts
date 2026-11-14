@@ -5,7 +5,7 @@ import { ROOM_MAIL_MAX_LENGTH, type PublicUser, type RoomMail, type RoomMailbox 
 import Room, { IRoom, isRoomOwner } from '../models/room.model';
 import { MailboxRead, RoomMail as RoomMailModel, IRoomMail } from '../models/room-mail.model';
 import { PUBLIC_USER_FIELDS } from '../models/user.model';
-import { sendPushToUsers } from '../services/notification.service';
+import { pushPreview, sendPushToUsers } from '../services/notification.service';
 import { findAccessibleRoom, isPersonalRoom } from '../services/room-access.service';
 import { announceRoomMail } from '../sockets/socketHandler';
 import { roomPresence } from '../sockets/roomPresence';
@@ -13,8 +13,6 @@ import { sendIfNoAccess } from './room.controller';
 
 /** Most mails one fetch returns, newest first. */
 const MAILBOX_LIMIT = 50;
-/** Longest stretch of a mail's text put in its push. */
-const PUSH_PREVIEW_LENGTH = 100;
 
 type MailRoom = Pick<IRoom, '_id' | 'ownerId' | 'owners' | 'members' | 'category'>;
 
@@ -111,10 +109,9 @@ const controller = {
             const readers = readersOf(room, userId);
             announceRoomMail(req.app.get('io') as Server, readers, { roomId, roomName: room.name, username });
             const away = readers.filter((id) => !roomPresence.has(roomId, id));
-            const preview = text.length > PUSH_PREVIEW_LENGTH ? `${text.slice(0, PUSH_PREVIEW_LENGTH)}…` : text;
             sendPushToUsers(
                 away,
-                { title: room.name, body: `${username} left a mail: ${preview}`, type: 'mail' },
+                { title: room.name, body: `${username} left a mail: ${pushPreview(text)}`, type: 'mail' },
                 { roomId, senderUserId: userId },
             );
         } catch (e) {

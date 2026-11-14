@@ -9,11 +9,16 @@
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.chatapp.v2",
-      "googleServicesFile": "./GoogleService-Info.plist"
+      "bundleIdentifier": "com.kamico.chatapp",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
+      }
     },
     "android": {
-      "package": "com.chatapp.v2",
+      "package": "com.kamico.chatapp",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -29,6 +34,8 @@
     },
     "plugins": [
       "expo-notifications",
+      "@react-native-firebase/app",
+      "@react-native-firebase/messaging",
       [
         "expo-router",
         {
@@ -66,6 +73,9 @@
         {
           "android": {
             "enableMinifyInReleaseBuilds": false
+          },
+          "ios": {
+            "useFrameworks": "dynamic"
           }
         }
       ],
@@ -78,7 +88,7 @@
     "extra": {
       "invite": {
         "message": "Add me on Chat App! My username is {username}. Get the app: {link}",
-        "androidUrl": "https://play.google.com/store/apps/details?id=com.chatapp.v2",
+        "androidUrl": "https://play.google.com/store/apps/details?id=com.kamico.chatapp",
         "iosUrl": ""
       }
     }

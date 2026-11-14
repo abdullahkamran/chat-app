@@ -90,7 +90,8 @@ const UserSchema = new Schema<IUser, IUserModel>(
                 sus: { type: Number, default: 0 },
             },
         ],
-        pushTokens: [{ type: String }],
+        // Indexed: registering a device and pruning dead tokens look users up by token.
+        pushTokens: { type: [{ type: String }], index: true },
         refreshTokens: [{ type: String }],
         discoverableByPhone: { type: Boolean, default: true },
         contactMatches: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
