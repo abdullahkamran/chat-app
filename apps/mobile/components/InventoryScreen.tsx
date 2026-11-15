@@ -165,7 +165,10 @@ export default function InventoryScreen(): React.JSX.Element {
                 ) : animationsQuery.isError && !animationsQuery.data ? (
                     <ErrorState title="Couldn't load your animations" onRetry={() => animationsQuery.refetch()} retrying={animationsQuery.isRefetching} />
                 ) : (
+                    // Each tab's list has its own key: the tabs share one place in the tree, and a
+                    // FlatList can't take viewabilityConfigCallbackPairs after it has mounted.
                     <FlatList
+                        key="animations"
                         data={animationFilter.filtered}
                         keyExtractor={(a) => a._id}
                         contentContainerStyle={[styles.list, styles.animationsList]}
@@ -189,6 +192,7 @@ export default function InventoryScreen(): React.JSX.Element {
                     <ErrorState title="Couldn't load your items" onRetry={() => itemsQuery.refetch()} retrying={itemsQuery.isRefetching} />
                 ) : (
                     <FlatList
+                        key="items"
                         data={itemFilter.filtered}
                         keyExtractor={({ item }) => item._id}
                         contentContainerStyle={styles.list}
@@ -230,6 +234,7 @@ export default function InventoryScreen(): React.JSX.Element {
                     <ErrorState title="Couldn't load your outfits" onRetry={() => outfitsQuery.refetch()} retrying={outfitsQuery.isRefetching} />
                 ) : (
                     <FlatList
+                        key="outfits"
                         data={outfitFilter.filtered}
                         keyExtractor={(entry, index) => `${entry.item?._id ?? index}-${entry.variantId}`}
                         contentContainerStyle={styles.list}

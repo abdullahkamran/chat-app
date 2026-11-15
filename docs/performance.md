@@ -54,6 +54,9 @@ are fine, but a whole list of them slows the app.
 - **Clean up.** A frame callback must stop and unregister when its component unmounts or stops
   showing. Reanimated's `useFrameCallback` only reads its `autostart` argument on mount, so
   start and stop it with `setActive` in an effect (see `useAvatarPreviewPicture.ts`).
+- **Give each tab's FlatList its own `key`** when tabs swap lists in one spot (a `? :` chain).
+  Otherwise React reuses one FlatList across tabs, and passing it `viewabilityConfigCallbackPairs`
+  after it mounted throws "changing viewabilityConfigCallbackPairs on the fly is not supported".
 - **Still lists draw once.** Cards that never animate (Profile's avatar tiles, the avatar
   drawer) pass `animated={false}` and redraw only when their inputs change.
 - **Share expensive art.** Outfits that look the same share one composed atlas through
