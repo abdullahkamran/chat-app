@@ -5,7 +5,9 @@ import {
     AnimationCategory,
     EmoteType,
     ROOM_PEOPLE_PREVIEW,
+    ROOM_PERSON_LIMIT,
     RoomCategory,
+    type RoomFull,
     type MutualEmoteEndReason,
     type MutualEmoteRequest,
     type MutualEmoteRequestEnded,
@@ -136,6 +138,19 @@ function endEmoteRequestsOf(io: Server, roomId: string, userId: string): void {
  */
 async function roomToEnter(userId: string, roomId: unknown): Promise<Pick<IRoom, 'ownerId' | 'category' | 'name'> | null> {
     return (await findAccessibleRoom(roomId, userId, 'name')) || null;
+}
+
+/**
+ * Whether the room already holds ROOM_PERSON_LIMIT people, not counting `userId` (re-entering from
+ * a new socket keeps their place). A personal room's owner always gets in: friends fill at most
+ * the other ROOM_PERSON_LIMIT - 1 places. A group room can't have more members than the limit,
+ * so this only bites one made before it, or a personal room full of friends.
+ */
+function isRoomFull(room: Pick<IRoom, 'ownerId' | 'category'>, roomId: string, userId: string): boolean {
+    const personalOwner = isPersonalRoom(room) ? room.ownerId.toString() : null;
+    if (userId === personalOwner) return false;
+    const others = roomPresence.userIds(roomId).filter(id => id !== userId && id !== personalOwner).length;
+    return others >= (personalOwner ? ROOM_PERSON_LIMIT - 1 : ROOM_PERSON_LIMIT);
 }
 
 /** A friend who keeps popping in notifies the owner at most once per this long. */
@@ -338,6 +353,13 @@ const handler = {
             // A re-entry's seat may have moved or gone while the client was away; it then stands.
             const claimed = parseSit(action);
             const sit = claimed && (await seatExists(roomId, claimed)) ? claimed : null;
+            // After the last await, so two people entering at once can't both take the last place.
+            if (isRoomFull(room, roomId, userId)) {
+                console.log(SocketEvent.SEND_ENTER, 'refused: room full', { userId, roomId });
+                const full: RoomFull = { roomId, limit: ROOM_PERSON_LIMIT };
+                socket.emit(SocketEvent.RECEIVE_ROOM_FULL, full);
+                return;
+            }
             const holder = sit && roomPresence.seatHolder(roomId, sit);
             if (sit && holder && holder !== userId) {
                 socket.emit(SocketEvent.RECEIVE_SIT_REFUSED, { roomId, action: sit });

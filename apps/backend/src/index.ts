@@ -21,7 +21,7 @@ import devRouter from './routes/dev.route';
 import connect from './db/connect';
 import socketHandler from './sockets/socketHandler';
 import { syncCatalog } from './services/catalog-sync.service';
-import { backfillEntryDoor, backfillRoomDimensions } from './services/room-defaults.service';
+import { backfillEntryDoor, backfillRoomDimensions, dropStoredPersonLimit } from './services/room-defaults.service';
 
 const PORT = process.env.PORT;
 
@@ -67,6 +67,7 @@ async function main() {
     await syncCatalog();
     await backfillRoomDimensions();
     await backfillEntryDoor();
+    await dropStoredPersonLimit();
     server.listen(PORT, () => console.log(`Server started. Listening on port ${PORT}`));
 }
 

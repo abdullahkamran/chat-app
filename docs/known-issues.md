@@ -122,7 +122,7 @@ re-ask the moment they're declined (the prompt pops up again each time), and thr
 tap, which plays a sound on every device in the room. Allow a few requests per asker per target per minute,
 and a throw per user every second or so; the clients could also keep a short cooldown on the buttons.
 
-### 7. A removal can race an enter, a deleted room can leave mail behind, and room limits can be dodged
+### 7. A removal can race an enter, a deleted room can leave mail behind, and the room count can be dodged
 
 Found on 2026-10-23 while adding search-and-pick on Create Room, adding and removing members, and leaving.
 (Membership used to be stored twice, on the room and in `User.rooms`/`ownedRooms`, and the two could
@@ -131,7 +131,8 @@ disagree after a crash. Since 2026-11-11 the room's `members` and `owners` are t
 **Seen:**
 - A user removed at the same moment they enter can stay visible in the room until they walk out.
 - If the server fails while deleting a room, its postbox notes can be left behind with no room.
-- A client can create a room with any `personLimit` and as many rooms as it likes.
+- A client can create as many rooms as it likes. (It could also pick any `personLimit` until 2026-11-15;
+  now every room holds `ROOM_PERSON_LIMIT` from shared-types, and the client can't send one.)
 
 **Why:**
 - Deleting a room (`deleteRoom`, or the last person leaving) deletes the room, then its `room_mails` and
@@ -139,15 +140,13 @@ disagree after a crash. Since 2026-11-11 the room's `members` and `owners` are t
 - `SEND_ENTER` checks membership in the DB, then awaits a seat check before it adds the user to presence.
   A removal that lands in that gap evicts nothing (`announceMemberRemoved`), and the enter adds them after.
   Nothing more is relayed to them once the client exits, and they can't re-enter.
-- `createRoom` passes the client's `personLimit` to `resolveRoomDefaults` unchecked, and never checks
-  `User.maxRooms`. The new member limit is only as strict as that number.
+- `createRoom` never checks `User.maxRooms`.
 
 **Fix:**
 - Delete a room's postbox in the same transaction as the room, or sweep postboxes whose room is gone.
 - In `SEND_ENTER`, check membership again after the last await, or have removals mark the
   room/user pair so a pending enter is refused.
-- Clamp `personLimit` to a server maximum, or ignore it until rooms can be upgraded, and refuse
-  `createRoom` once the user owns `maxRooms` group rooms (`Room.countDocuments({ owners: userId, category: 'group' })`).
+- Refuse `createRoom` once the user owns `maxRooms` group rooms (`Room.countDocuments({ owners: userId, category: 'group' })`).
 
 ### 8. Smaller items
 
@@ -459,4 +458,16 @@ out of step. Added 2026-11-14.
 
 **Fix:** keep the instances' clocks synced (NTP, as any managed host does); nothing in the app needs to change.
 If that's ever not enough, take `serverNow` from one place (a Redis `TIME` call) instead of `Date.now()`.
+
+### 15. A room's 25-person cap counts each instance on its own
+
+**Seen (with two instances):** a room holds more than `ROOM_PERSON_LIMIT` people at once, up to that many per
+instance. A personal room full of friends is where it shows, since its friends aren't capped by a member list.
+
+**Why:** `SEND_ENTER` refuses a newcomer with `isRoomFull` in `socketHandler.ts`, which counts
+`roomPresence.userIds`, and that only knows this instance's sockets (scaling issue 2). Group rooms are still
+held to 25 by their member list, which lives in MongoDB. Added 2026-11-15.
+
+**Fix:** comes with presence in Redis (scaling issue 2). Count and add in one step so two instances can't both
+take the last place: a Lua script, or `HSETNX` on the presence hash then `HLEN`, undoing the add if it went over.
 

@@ -15,7 +15,7 @@ import { sendPushToUsers } from '../services/notification.service';
 import { findAccessibleRoom, isPersonalRoom } from '../services/room-access.service';
 import { resolveRoomDefaults } from '../services/room-defaults.service';
 import { addReturn, changeCounts, freeCount, giveBack, type Returns } from '../services/inventory.service';
-import { ROOM_PEOPLE_PREVIEW, RoomCategory, themeSlotsOf, type PublicUser, type RoomItemsUpdate, type RoomLeaveResult, type RoomMembers, type RoomThemeSlot } from '@chat-app/shared-types';
+import { ROOM_PEOPLE_PREVIEW, ROOM_PERSON_LIMIT, RoomCategory, themeSlotsOf, type PublicUser, type RoomItemsUpdate, type RoomLeaveResult, type RoomMembers, type RoomThemeSlot } from '@chat-app/shared-types';
 
 /**
  * The people `actorId` asked to add, deduplicated, leaving out `exclude` (the owner, people
@@ -167,11 +167,13 @@ const LEAVE_ATTEMPTS = 5;
 
 const ROOM_CHANGED = 'The room changed just now. Try again.';
 
+const ROOM_FULL_ERROR = `A room holds at most ${ROOM_PERSON_LIMIT} people, you included`;
+
 const controller = {
     // GET /rooms/:id — the room's summary, for anyone who may enter it.
     getByID: async (req: Request, res: Response, id: string): Promise<void> => {
         try {
-            const room = await findAccessibleRoom(id, req.user!.userId, 'name description personLimit dimensions createdAt updatedAt');
+            const room = await findAccessibleRoom(id, req.user!.userId, 'name description dimensions createdAt updatedAt');
             if (sendIfNoAccess(res, room)) return;
             await room.populate([
                 { path: 'ownerId', select: PUBLIC_USER_FIELDS },
@@ -184,9 +186,9 @@ const controller = {
         }
     },
 
-    // POST /rooms { name, description?, members?, personLimit? } — a group room. Personal rooms are only made at signup.
+    // POST /rooms { name, description?, members? } — a group room. Personal rooms are only made at signup.
     createRoom: async (req: Request, res: Response): Promise<void> => {
-        const { name, description, members, personLimit } = req.body;
+        const { name, description, members } = req.body;
         if (!name || typeof name !== 'string' || !name.trim()) {
             res.status(400).send({ error: 'name is required' });
             return;
@@ -199,12 +201,12 @@ const controller = {
                 return;
             }
             const memberIds = picked.ids;
-            const roomDefaults = await resolveRoomDefaults({ personLimit });
             // The owner takes a place too.
-            if (memberIds.length + 1 > roomDefaults.personLimit) {
-                res.status(400).send({ error: `A room holds at most ${roomDefaults.personLimit} people, you included` });
+            if (memberIds.length + 1 > ROOM_PERSON_LIMIT) {
+                res.status(400).send({ error: ROOM_FULL_ERROR });
                 return;
             }
+            const roomDefaults = await resolveRoomDefaults();
             const room = new Room({
                 ...roomDefaults,
                 name: name.trim(),
@@ -441,7 +443,7 @@ const controller = {
         const { roomId } = req.params;
         const userId = req.user!.userId;
         try {
-            const room = await findAccessibleRoom(roomId, userId, 'personLimit');
+            const room = await findAccessibleRoom(roomId, userId, '');
             if (sendIfNoAccess(res, room)) return;
             const ownerIds = room.owners.map((id) => id.toString());
             // A personal room has no members; its owner is the only one who belongs to it.
@@ -455,7 +457,7 @@ const controller = {
                 members,
                 ownerIds,
                 creatorId: isProtectedCreator(room, room.ownerId.toString()) ? room.ownerId.toString() : null,
-                personLimit: room.personLimit,
+                personLimit: ROOM_PERSON_LIMIT,
                 canManageMembers: canManageMembers(room, userId),
             };
             res.send(body);
@@ -474,7 +476,7 @@ const controller = {
             return;
         }
         try {
-            const room = await Room.findById(roomId).select('owners members personLimit name category');
+            const room = await Room.findById(roomId).select('owners members name category');
             if (!room) {
                 res.status(404).send({ error: 'Room not found' });
                 return;
@@ -505,12 +507,12 @@ const controller = {
                 {
                     _id: room._id,
                     owners: userId,
-                    $expr: { $lte: [{ $add: [{ $size: '$members' }, newIds.length] }, '$personLimit'] },
+                    $expr: { $lte: [{ $add: [{ $size: '$members' }, newIds.length] }, ROOM_PERSON_LIMIT] },
                 },
                 { $addToSet: { members: { $each: newIds.map((id) => new mongoose.Types.ObjectId(id)) } } },
             );
             if (!updated) {
-                res.status(400).send({ error: `A room holds at most ${room.personLimit} people, you included` });
+                res.status(400).send({ error: ROOM_FULL_ERROR });
                 return;
             }
             res.sendStatus(204);

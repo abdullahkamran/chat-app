@@ -5,7 +5,6 @@ import { DEFAULT_ENTRY_DOOR } from '@chat-app/shared-types';
 import { ROOM_DEFAULTS_CATALOG } from '../catalog/room-defaults.catalog';
 
 export interface ResolvedRoomDefaults {
-    personLimit: number;
     dimensions: { x: number; y: number; z: number };
     theme: {
         floor: mongoose.Types.ObjectId | null;
@@ -15,13 +14,9 @@ export interface ResolvedRoomDefaults {
     doors: typeof ROOM_DEFAULTS_CATALOG.doors;
 }
 
-/**
- * Resolves mandatory room defaults by looking up theme item IDs from the DB.
- * Pass overrides to let the room creator override specific defaults (e.g. personLimit).
- */
-export async function resolveRoomDefaults(overrides: { personLimit?: number } = {}): Promise<ResolvedRoomDefaults> {
+/** Resolves mandatory room defaults by looking up theme item IDs from the DB. */
+export async function resolveRoomDefaults(): Promise<ResolvedRoomDefaults> {
     const { theme: themeNames, doors } = ROOM_DEFAULTS_CATALOG;
-    const personLimit = overrides.personLimit ?? ROOM_DEFAULTS_CATALOG.personLimit;
 
     const uniqueNames = [...new Set([
         themeNames.floorItemName,
@@ -40,7 +35,6 @@ export async function resolveRoomDefaults(overrides: { personLimit?: number } = 
     }
 
     return {
-        personLimit,
         dimensions: { ...ROOM_DEFAULTS_CATALOG.dimensions },
         theme: {
             floor: findId(themeNames.floorItemName),
@@ -62,6 +56,15 @@ export async function backfillRoomDimensions(): Promise<void> {
         { $set: { dimensions: ROOM_DEFAULTS_CATALOG.dimensions } },
     );
     if (modifiedCount) console.log(`[room-defaults] gave ${modifiedCount} room(s) the default dimensions`);
+}
+
+/**
+ * Drops the `personLimit` rooms used to store (10 each, until 2026-11-15). Every room now holds
+ * ROOM_PERSON_LIMIT. Idempotent, so it's safe on every boot and on several instances at once.
+ */
+export async function dropStoredPersonLimit(): Promise<void> {
+    const { modifiedCount } = await RoomModel.updateMany({ personLimit: { $exists: true } }, { $unset: { personLimit: '' } }, { strict: false });
+    if (modifiedCount) console.log(`[room-defaults] dropped the stored person limit from ${modifiedCount} room(s)`);
 }
 
 /** Default entry doors rooms were given before, as floor row and rows tall: row 4 until 2026-11-12, then 3 rows tall briefly. */

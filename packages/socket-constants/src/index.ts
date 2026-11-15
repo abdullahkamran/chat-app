@@ -41,6 +41,8 @@ export const SocketEvent = {
   RECEIVE_ADDED_TO_ROOM: "receive_added_to_room",
   /** Sent to a user's own channel: they were removed from a room, left it (on this or another device), or it was deleted. */
   RECEIVE_REMOVED_FROM_ROOM: "receive_removed_from_room",
+  /** Sent to the socket that tried to enter: the room already holds ROOM_PERSON_LIMIT people (RoomFull). */
+  RECEIVE_ROOM_FULL: "receive_room_full",
   /** Sent to a room: someone was added, removed or left, or the owners changed (also to new owners' own channels). Refetch the member list. */
   RECEIVE_ROOM_MEMBERS_CHANGED: "receive_room_members_changed",
   /** Sent to a user's own channel: a friend request to or from them, or a friendship, was made or ended. Refetch friends and requests. */

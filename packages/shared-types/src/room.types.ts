@@ -14,6 +14,14 @@ export const RoomCategory = {
 
 export type RoomCategory = (typeof RoomCategory)[keyof typeof RoomCategory];
 
+/**
+ * Most people a room holds, the same for every room. A group room can't have more members than
+ * this, owners included. Any room, personal ones too, lets at most this many people in at once,
+ * and a personal room always keeps a place for its owner. The server enforces it; the app uses
+ * it to cap pickers. Change it here and every room follows, old ones included.
+ */
+export const ROOM_PERSON_LIMIT = 25;
+
 export interface Room {
     _id: string;
     /** Who made the room. For a personal room, whose it is. Rights go by `owners`, not this. */
@@ -27,7 +35,6 @@ export interface Room {
     name: string;
     description: string;
     category: RoomCategory;
-    personLimit: number;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -222,7 +229,7 @@ export interface RoomMembers {
      * the creator or dismiss them as an owner.
      */
     creatorId: string | null;
-    /** Most people the room holds, owners included. */
+    /** Most people the room holds, owners included: ROOM_PERSON_LIMIT, sent so the server decides. */
     personLimit: number;
     /** Whether the caller may add and remove people, make and dismiss owners and delete the room: an owner. */
     canManageMembers: boolean;
@@ -241,6 +248,12 @@ export interface RoomLeaveResult {
  * an owner deleted the room, or no longer friends with the owner of a personal room they could visit.
  */
 export type RoomRemovalReason = 'removed' | 'left' | 'deleted' | 'unfriended';
+
+/** `RECEIVE_ROOM_FULL`, to the socket that tried to enter: the room already holds `limit` people. */
+export interface RoomFull {
+    roomId: string;
+    limit: number;
+}
 
 /** `RECEIVE_ROOM_VISITED`, to a personal room's owner: a friend came in while they weren't there. */
 export interface RoomVisit {

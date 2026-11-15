@@ -9,8 +9,7 @@ import { DEFAULT_ENTRY_DOOR, DEFAULT_ROOM_DIMENSIONS } from '@chat-app/shared-ty
  * but creation still succeeds (theme slot will be null).
  */
 export const ROOM_DEFAULTS_CATALOG = {
-    /** Default person limit for every new room. Can be overridden by the room creator. */
-    personLimit: 10,
+    // How many people a room holds isn't stored per room: it's ROOM_PERSON_LIMIT in shared-types.
 
     /** Floor size of every new room, in grid cells. Rooms can't be resized yet. */
     dimensions: DEFAULT_ROOM_DIMENSIONS,

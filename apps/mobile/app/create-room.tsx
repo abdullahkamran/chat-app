@@ -9,7 +9,7 @@ import { AppText, Button, ScreenHeader, TextField } from '@/components/ui';
 import { makeStyles } from '@/constants/theme';
 import { useAuth } from '@/context/auth.context';
 import { api } from '@/lib/api';
-import { PublicUser, Room } from '@chat-app/shared-types';
+import { PublicUser, Room, ROOM_PERSON_LIMIT } from '@chat-app/shared-types';
 
 const useStyles = makeStyles(t => ({
   root: {
@@ -127,7 +127,8 @@ export default function CreateRoom() {
       ) : (
         /* ── Step 2: Add people ── */
         <View style={[styles.stepContainer, { paddingBottom: insets.bottom }]}>
-          <UserPicker selected={members} onChange={setMembers} />
+          {/* You take a place too. */}
+          <UserPicker selected={members} onChange={setMembers} maxSelected={ROOM_PERSON_LIMIT - 1} />
 
           {error ? <AppText variant="label" color="error" align="center" style={styles.errorText}>{error}</AppText> : null}
 

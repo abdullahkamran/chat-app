@@ -42,7 +42,6 @@ const RoomSchema = new Schema<IRoom, IRoomModel>(
         name: { type: String, required: true },
         description: { type: String, default: '' },
         category: { type: String, enum: Object.values(RoomCategory), default: RoomCategory.GROUP },
-        personLimit: { type: Number, default: 10 },
         owners: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
         members: {
             type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],

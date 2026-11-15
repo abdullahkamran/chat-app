@@ -2,7 +2,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import type { RoomRemovalReason } from '@chat-app/shared-types';
+import type { RoomFull, RoomRemovalReason } from '@chat-app/shared-types';
 import { SocketEvent } from '@chat-app/socket-constants';
 import { showToast } from '@/components/Toast';
 import { useActiveRoom } from '@/context/activeRoom.context';
@@ -32,9 +32,17 @@ export default function RoomScreen() {
       if (p.reason === 'deleted') showToast({ text: 'An owner deleted this room.', icon: 'trash-outline' });
       if (p.reason === 'unfriended') showToast({ text: "Room closed: you're no longer friends with its owner.", icon: 'heart-dislike-outline' });
     };
+    // The server let us in no further: the room already holds ROOM_PERSON_LIMIT people.
+    const onFull = (p: RoomFull) => {
+      if (p.roomId !== roomId) return;
+      router.dismissTo('/conversations');
+      showToast({ text: `This room is full (${p.limit} people). Try again in a bit.`, icon: 'people-outline' });
+    };
     socket.on(SocketEvent.RECEIVE_REMOVED_FROM_ROOM, onRemoved);
+    socket.on(SocketEvent.RECEIVE_ROOM_FULL, onFull);
     return () => {
       socket.off(SocketEvent.RECEIVE_REMOVED_FROM_ROOM, onRemoved);
+      socket.off(SocketEvent.RECEIVE_ROOM_FULL, onFull);
     };
   }, [roomId, router]);
 
