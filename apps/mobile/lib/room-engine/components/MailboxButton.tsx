@@ -14,8 +14,14 @@ interface Props {
 
 /** The hint's arrow, a square turned 45° so a corner points down at the button. */
 const ARROW = 12;
+/** How far the arrow's centre sits below the bubble's inner (padding) edge. */
+const ARROW_DROP = 1;
 
-const useStyles = makeStyles(t => ({
+const useStyles = makeStyles(t => {
+  // How far the turned square's tip hangs below the bubble's outer edge: half its diagonal,
+  // plus its drop, less the bubble's border (absolute children sit inside the border).
+  const arrowReach = (ARROW * Math.SQRT2) / 2 + ARROW_DROP - t.borderWidth.thick;
+  return {
   anchor: {
     alignItems: 'center',
   },
@@ -23,7 +29,8 @@ const useStyles = makeStyles(t => ({
     position: 'absolute',
     bottom: '100%',
     right: 0,
-    marginBottom: t.space.md,
+    // The arrow's tip stops just short of the button.
+    marginBottom: Math.round(arrowReach) + t.space.xxs,
     width: 190,
     paddingHorizontal: t.space.md,
     paddingVertical: t.space.sm,
@@ -35,7 +42,7 @@ const useStyles = makeStyles(t => ({
   },
   hintArrow: {
     position: 'absolute',
-    bottom: -ARROW / 2 - 1,
+    bottom: -ARROW / 2 - ARROW_DROP,
     width: ARROW,
     height: ARROW,
     backgroundColor: t.colors.surfaceElevated,
@@ -44,7 +51,8 @@ const useStyles = makeStyles(t => ({
     borderColor: t.colors.border,
     transform: [{ rotate: '45deg' }],
   },
-}));
+  };
+});
 
 /** Toolbar button that opens the room's postbox, with the unread count and an optional hint above it. */
 export function MailboxButton({ unread, hint, size, onPress }: Readonly<Props>) {
