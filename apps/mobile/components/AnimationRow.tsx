@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
-import { useIsFocused } from '@react-navigation/native';
+// From expo-router, not @react-navigation/native: the router keeps its own navigation context.
+import { useIsFocused } from 'expo-router';
 import { View } from 'react-native';
 import { Animation, AnimationCategory, EmoteType } from '@chat-app/shared-types';
 import { useAuth } from '@/context/auth.context';
