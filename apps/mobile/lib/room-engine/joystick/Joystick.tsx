@@ -1,9 +1,7 @@
-import * as Haptics from 'expo-haptics';
 import { useEffect, useMemo } from 'react';
 import { View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
-import { scheduleOnRN } from 'react-native-worklets';
 
 import { makeStyles } from '@/constants/theme';
 import { STICK_REST, type StickVector } from './steerMath';
@@ -51,10 +49,6 @@ const useStyles = makeStyles(t => ({
   },
 }));
 
-function grabbed() {
-  Haptics.selectionAsync().catch(() => {});
-}
-
 interface Props {
   /** Written with the push direction (unit length) while held outside the dead zone, else STICK_REST. */
   stick: SharedValue<StickVector>;
@@ -89,7 +83,6 @@ export function Joystick({ stick }: Readonly<Props>) {
       .onBegin(e => {
         held.set(withTiming(1, { duration: 120 }));
         aim(e.x, e.y);
-        scheduleOnRN(grabbed);
       })
       .onUpdate(e => aim(e.x, e.y))
       .onFinalize(() => {
