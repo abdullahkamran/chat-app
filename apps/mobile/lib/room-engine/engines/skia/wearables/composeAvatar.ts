@@ -12,6 +12,7 @@ import {
 } from '@chat-app/shared-types';
 import type { AvatarArt, ViewDrawList } from '../skeleton/avatarArt';
 import { BONE_INDEX } from '../skeleton/humanoidV1';
+import { orderVariants, type OrderedPiece } from '../skeleton/limbOrder';
 
 /** One equipped wearable: its packed art, decoded atlas and the colours its tintable pieces take. */
 export interface WornPart {
@@ -51,7 +52,7 @@ interface Entry {
 }
 
 /**
- * Bakes an avatar's worn pieces into one atlas, tinted and in rig draw order, so the
+ * Bakes an avatar's worn pieces into one atlas, tinted, with its draw list in each limb order, so the
  * frame loop still draws each avatar with a single drawAtlas call. Runs on the JS
  * thread once per distinct outfit.
  */
@@ -93,6 +94,7 @@ export function composeAvatar(parts: WornPart[]): AvatarArt {
 
   const empty = (): ViewDrawList => ({ bone: [], src: [], srcMirror: [], pivotX: [], pivotXMirror: [], pivotY: [], pivotYMirror: [] });
   const views: Record<RigView, ViewDrawList> = { front: empty(), back: empty() };
+  const pieces: Record<RigView, OrderedPiece[]> = { front: [], back: [] };
 
   const draw = (e: Entry, sprite: AtlasSprite, left: number, paint: ReturnType<typeof Skia.Paint>) => {
     const { region } = sprite;
@@ -114,6 +116,7 @@ export function composeAvatar(parts: WornPart[]): AvatarArt {
     draw(e, e.att.west, westX, paint);
 
     const list = views[e.view];
+    pieces[e.view].push({ bone: slotBone(e.slot), band: e.att.band ?? 'body' });
     list.bone.push(BONE_INDEX[slotBone(e.slot)]);
     list.src.push(Skia.XYWHRect(e.x, e.y, e.att.east.region.w * e.k, e.att.east.region.h * e.k));
     list.srcMirror.push(Skia.XYWHRect(westX, e.y, e.att.west.region.w * e.k, e.att.west.region.h * e.k));
@@ -127,5 +130,13 @@ export function composeAvatar(parts: WornPart[]): AvatarArt {
   const snapshot = surface.makeImageSnapshot();
   // A CPU-backed copy can be drawn from the UI thread's canvas.
   const image = snapshot.makeNonTextureImage() ?? snapshot;
-  return { image, scale: WEARABLE_ART_SCALE, ghost: false, views };
+  return {
+    image,
+    scale: WEARABLE_ART_SCALE,
+    ghost: false,
+    views: {
+      front: orderVariants('front', pieces.front, views.front),
+      back: orderVariants('back', pieces.back, views.back),
+    },
+  };
 }

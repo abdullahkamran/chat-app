@@ -88,32 +88,34 @@ const WALK_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
       { t: 0.8, v: 10 },
     ],
   },
+  // The shoulders are a body's width apart on screen, so a wide swing would bring both
+  // hands together in front of the hips. Kept small: each hand stays on its own side.
   'upperArm.L': {
     rotate: [
-      { t: 0, v: 18, ease: 'inOut' },
-      { t: 0.4, v: -18, ease: 'inOut' },
-      { t: 0.8, v: 18 },
+      { t: 0, v: 14, ease: 'inOut' },
+      { t: 0.4, v: -13, ease: 'inOut' },
+      { t: 0.8, v: 14 },
     ],
   },
   'foreArm.L': {
     rotate: [
-      { t: 0, v: -5, ease: 'inOut' },
-      { t: 0.4, v: -25, ease: 'inOut' },
-      { t: 0.8, v: -5 },
+      { t: 0, v: -4, ease: 'inOut' },
+      { t: 0.4, v: -18, ease: 'inOut' },
+      { t: 0.8, v: -4 },
     ],
   },
   'upperArm.R': {
     rotate: [
-      { t: 0, v: -18, ease: 'inOut' },
-      { t: 0.4, v: 18, ease: 'inOut' },
-      { t: 0.8, v: -18 },
+      { t: 0, v: -13, ease: 'inOut' },
+      { t: 0.4, v: 14, ease: 'inOut' },
+      { t: 0.8, v: -13 },
     ],
   },
   'foreArm.R': {
     rotate: [
-      { t: 0, v: -25, ease: 'inOut' },
-      { t: 0.4, v: -5, ease: 'inOut' },
-      { t: 0.8, v: -25 },
+      { t: 0, v: -18, ease: 'inOut' },
+      { t: 0.4, v: -4, ease: 'inOut' },
+      { t: 0.8, v: -18 },
     ],
   },
 };
@@ -191,8 +193,10 @@ const SIT_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
   'shin.L': { rotate: [{ t: 0, v: 80 }] },
   'thigh.R': { rotate: [{ t: 0, v: -80 }] },
   'shin.R': { rotate: [{ t: 0, v: 80 }] },
-  'upperArm.L': { rotate: [{ t: 0, v: -30 }] },
-  'foreArm.L': { rotate: [{ t: 0, v: -45 }] },
+  // Each hand on its own thigh: the near shoulder is already over its knee, so that arm
+  // barely leaves the side.
+  'upperArm.L': { rotate: [{ t: 0, v: -5 }] },
+  'foreArm.L': { rotate: [{ t: 0, v: -55 }] },
   'upperArm.R': { rotate: [{ t: 0, v: -30 }] },
   'foreArm.R': { rotate: [{ t: 0, v: -45 }] },
 };
@@ -205,6 +209,12 @@ const SIT_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
  *
  * The head is large and the arms short, so a hand only reaches the face with the upper
  * arm raised past horizontal (about -110) and the forearm folded back towards the head.
+ *
+ * The shoulders are 19 px apart on screen, so two arms given the same angles stay that far
+ * apart. For the hands to meet (a clap) or to open out to both sides (a shrug), the near
+ * arm turns inwards or outwards: positive angles, towards screen left. Those clips are
+ * written for the front view's near (`.L`) and far (`.R`) arms; `sidesSwapped` gives the
+ * back view, where `.R` is the near one.
  */
 function keys(times: number[], values: number[]): ClipKey<number>[] {
   return times.map((t, i) => ({ t, v: values[i], ease: 'inOut' }));
@@ -218,13 +228,14 @@ const WAVE_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
   head: { rotate: keys([0, 0.3, 1.5, 1.8], [0, 5, 5, 0]) },
 };
 
-/** Both hands come up in front and clap five times. */
+/**
+ * Both hands come up in front of the chest and clap: the elbows stay at the sides and the
+ * forearms fold up and in until the fingertips meet, then part and meet four times.
+ */
 const CLAP_BEATS = [0.3, 0.45, 0.6, 0.75, 0.9, 1.05, 1.2, 1.35];
 const CLAP_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
-  'upperArm.L': { rotate: keys([0, 0.25, 1.35, 1.6], [0, -50, -50, 0]) },
-  'upperArm.R': { rotate: keys([0, 0.25, 1.35, 1.6], [0, -50, -50, 0]) },
-  'foreArm.L': { rotate: keys([0, ...CLAP_BEATS, 1.6], [0, -60, -85, -60, -85, -60, -85, -60, -85, 0]) },
-  'foreArm.R': { rotate: keys([0, ...CLAP_BEATS, 1.6], [0, -85, -60, -85, -60, -85, -60, -85, -60, 0]) },
+  'foreArm.L': { rotate: keys([0, ...CLAP_BEATS, 1.6], [0, 152, 138, 152, 138, 152, 138, 152, 138, 0]) },
+  'foreArm.R': { rotate: keys([0, ...CLAP_BEATS, 1.6], [0, -152, -138, -152, -138, -152, -138, -152, -138, 0]) },
   head: { rotate: keys([0, 0.3, 1.35, 1.6], [0, 3, 3, 0]) },
 };
 
@@ -233,10 +244,11 @@ const LAUGH_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
   chest: { rotate: keys([0, 0.25, 0.4, 0.55, 0.7, 0.85, 1.1, 1.4, 1.6], [0, -8, -5, -8, -5, -8, 6, 6, 0]) },
   head: { rotate: keys([0, 0.25, 0.85, 1.1, 1.4, 1.6], [0, -10, -10, 4, 4, 0]) },
   hip: { translate: [0, 0.3, 0.45, 0.6, 0.75, 0.9, 1.6].map((t, i) => ({ t, v: [0, i % 2 ? 1.5 : 0] as [number, number], ease: 'inOut' as const })) },
-  'upperArm.L': { rotate: keys([0, 0.25, 1.4, 1.6], [0, -25, -25, 0]) },
-  'foreArm.L': { rotate: keys([0, 0.25, 1.4, 1.6], [0, -80, -80, 0]) },
-  'upperArm.R': { rotate: keys([0, 0.25, 1.4, 1.6], [0, -25, -25, 0]) },
-  'foreArm.R': { rotate: keys([0, 0.25, 1.4, 1.6], [0, -80, -80, 0]) },
+  // Both hands on the belly: the far arm reaches across, the near forearm folds in.
+  'upperArm.L': { rotate: keys([0, 0.25, 1.4, 1.6], [0, 2, 2, 0]) },
+  'foreArm.L': { rotate: keys([0, 0.25, 1.4, 1.6], [0, 80, 80, 0]) },
+  'upperArm.R': { rotate: keys([0, 0.25, 1.4, 1.6], [0, -12, -12, 0]) },
+  'foreArm.R': { rotate: keys([0, 0.25, 1.4, 1.6], [0, -62, -62, 0]) },
 };
 
 /** Eight beats of 0.4 s: hips sway and bob, arms pump up in turn, knees dip on each beat. */
@@ -269,12 +281,12 @@ const THUMBS_UP_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
   head: { rotate: keys([0, 0.4, 0.6, 0.8, 1.6], [0, 6, 0, 6, 0]) },
 };
 
-/** Arms out with palms up, head tilted, a little bounce at the top. */
+/** Arms out to both sides with palms up, head tilted, a little bounce at the top. */
 const SHRUG_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
   'upperArm.L': { rotate: keys([0, 0.3, 1.1, 1.4], [0, -20, -20, 0]) },
-  'upperArm.R': { rotate: keys([0, 0.3, 1.1, 1.4], [0, -20, -20, 0]) },
+  'upperArm.R': { rotate: keys([0, 0.3, 1.1, 1.4], [0, 20, 20, 0]) },
   'foreArm.L': { rotate: keys([0, 0.3, 1.1, 1.4], [0, -75, -75, 0]) },
-  'foreArm.R': { rotate: keys([0, 0.3, 1.1, 1.4], [0, -75, -75, 0]) },
+  'foreArm.R': { rotate: keys([0, 0.3, 1.1, 1.4], [0, 75, 75, 0]) },
   head: { rotate: keys([0, 0.3, 1.1, 1.4], [0, -8, -8, 0]) },
   hip: { translate: [0, 0.3, 0.5, 1.1, 1.4].map((t, i) => ({ t, v: [0, i === 1 ? -1 : 0] as [number, number], ease: 'inOut' as const })) },
 };
@@ -346,13 +358,13 @@ const POINT_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
   head: { rotate: keys([0, 0.25, 1.2, 1.5], [0, 3, 3, 0]) },
 };
 
-/** Double biceps: upper arms forward, fists up, muscles pulsing; leaning back proudly. */
+/** Double biceps: upper arms out to both sides, fists up, muscles pulsing; leaning back proudly. */
 const FLEX_BEATS = [0, 0.3, 0.6, 0.9, 1.2, 1.5, 1.8];
 const FLEX_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
   'upperArm.L': { rotate: keys([0, 0.3, 1.5, 1.8], [0, -80, -80, 0]) },
-  'upperArm.R': { rotate: keys([0, 0.3, 1.5, 1.8], [0, -80, -80, 0]) },
+  'upperArm.R': { rotate: keys([0, 0.3, 1.5, 1.8], [0, 80, 80, 0]) },
   'foreArm.L': { rotate: keys(FLEX_BEATS, [0, -95, -115, -95, -115, -95, 0]) },
-  'foreArm.R': { rotate: keys(FLEX_BEATS, [0, -95, -115, -95, -115, -95, 0]) },
+  'foreArm.R': { rotate: keys(FLEX_BEATS, [0, 95, 115, 95, 115, 95, 0]) },
   chest: { rotate: keys([0, 0.3, 1.5, 1.8], [0, -5, -5, 0]) },
   head: { rotate: keys([0, 0.3, 1.5, 1.8], [0, -4, -4, 0]) },
 };
@@ -455,7 +467,7 @@ export const THROW_RELEASE_S = 0.42;
 const THROW_TRACKS: Partial<Record<BoneName, BoneTrack>> = {
   'upperArm.L': { rotate: keys([0, 0.3, THROW_RELEASE_S, 0.55, 1], [0, 70, -150, -70, 0]) },
   'foreArm.L': { rotate: keys([0, 0.3, THROW_RELEASE_S, 0.55, 1], [0, -90, -20, -10, 0]) },
-  'upperArm.R': { rotate: keys([0, 0.3, 0.45, 1], [0, -40, 20, 0]) },
+  'upperArm.R': { rotate: keys([0, 0.3, 0.45, 1], [0, -15, 15, 0]) },
   chest: { rotate: keys([0, 0.3, 0.45, 0.6, 1], [0, -8, 10, 6, 0]) },
   head: { rotate: keys([0, 0.3, 0.45, 1], [0, -4, 4, 0]) },
   'thigh.L': { rotate: keys([0, 0.3, 0.45, 1], [0, 0, -20, 0]) },
@@ -477,6 +489,19 @@ function bothViews(base: Omit<AnimationClip, 'view'>): Record<RigView, Animation
   return { front: { ...base, view: 'front' }, back: { ...base, view: 'back' } };
 }
 
+/**
+ * For emotes and sitting: the back view plays each side's tracks on the other side, because
+ * the near arm is `.L` from the front and `.R` from the back. A one-armed gesture (a wave, a
+ * high five) then always uses the near arm, which shows beside the body from behind where the
+ * far arm would be hidden by it, and arms that meet or spread do so in both views. Idle and
+ * walk keep their sides, so turning a corner mid-stride doesn't skip half a step.
+ */
+function sidesSwapped(base: Omit<AnimationClip, 'view'>): Record<RigView, AnimationClip> {
+  const swap = (bone: string) => (bone.endsWith('.L') ? bone.replace(/\.L$/, '.R') : bone.replace(/\.R$/, '.L'));
+  const tracks = Object.fromEntries(Object.entries(base.tracks).map(([bone, track]) => [swap(bone), track]));
+  return { front: { ...base, view: 'front' }, back: { ...base, tracks, view: 'back' } };
+}
+
 export const CLIPS = {
   idle: bothViews({ name: 'idle', duration: 2.4, loop: true, tracks: IDLE_TRACKS }),
   walk: bothViews({
@@ -486,28 +511,28 @@ export const CLIPS = {
     tracks: WALK_TRACKS,
     events: [{ t: 0, name: 'footstep' }, { t: 0.4, name: 'footstep' }],
   }),
-  sit: bothViews({ name: 'sit', duration: 2.8, loop: true, tracks: SIT_TRACKS }),
-  wave: bothViews({ name: 'wave', duration: 1.8, loop: false, tracks: WAVE_TRACKS }),
-  clap: bothViews({ name: 'clap', duration: 1.6, loop: false, tracks: CLAP_TRACKS }),
-  laugh: bothViews({ name: 'laugh', duration: 1.6, loop: false, tracks: LAUGH_TRACKS }),
-  dance: bothViews({ name: 'dance', duration: 3.2, loop: false, tracks: DANCE_TRACKS }),
-  thumbsUp: bothViews({ name: 'thumbsUp', duration: 1.6, loop: false, tracks: THUMBS_UP_TRACKS }),
-  shrug: bothViews({ name: 'shrug', duration: 1.4, loop: false, tracks: SHRUG_TRACKS }),
-  facepalm: bothViews({ name: 'facepalm', duration: 1.8, loop: false, tracks: FACEPALM_TRACKS }),
-  cheer: bothViews({ name: 'cheer', duration: 1.8, loop: false, tracks: CHEER_TRACKS }),
-  bow: bothViews({ name: 'bow', duration: 1.7, loop: false, tracks: BOW_TRACKS }),
-  cry: bothViews({ name: 'cry', duration: 2, loop: false, tracks: CRY_TRACKS }),
-  jump: bothViews({ name: 'jump', duration: 1.1, loop: false, tracks: JUMP_TRACKS }),
-  point: bothViews({ name: 'point', duration: 1.5, loop: false, tracks: POINT_TRACKS }),
-  flex: bothViews({ name: 'flex', duration: 1.8, loop: false, tracks: FLEX_TRACKS }),
-  blowKiss: bothViews({ name: 'blowKiss', duration: 1.6, loop: false, tracks: BLOW_KISS_TRACKS }),
-  moonwalk: bothViews({ name: 'moonwalk', duration: 2.9, loop: false, tracks: MOONWALK_TRACKS }),
-  highFiveGive: bothViews({ name: 'highFiveGive', duration: 1.4, loop: false, tracks: HIGH_FIVE_GIVE_TRACKS }),
-  highFiveTake: bothViews({ name: 'highFiveTake', duration: 1.4, loop: false, tracks: HIGH_FIVE_TAKE_TRACKS }),
-  hugGive: bothViews({ name: 'hugGive', duration: 2.2, loop: false, tracks: HUG_GIVE_TRACKS }),
-  hugTake: bothViews({ name: 'hugTake', duration: 2.2, loop: false, tracks: HUG_TAKE_TRACKS }),
-  throw: bothViews({ name: 'throw', duration: 1, loop: false, tracks: THROW_TRACKS }),
-  hitReact: bothViews({ name: 'hitReact', duration: 1.1, loop: false, tracks: HIT_REACT_TRACKS }),
+  sit: sidesSwapped({ name: 'sit', duration: 2.8, loop: true, tracks: SIT_TRACKS }),
+  wave: sidesSwapped({ name: 'wave', duration: 1.8, loop: false, tracks: WAVE_TRACKS }),
+  clap: sidesSwapped({ name: 'clap', duration: 1.6, loop: false, tracks: CLAP_TRACKS }),
+  laugh: sidesSwapped({ name: 'laugh', duration: 1.6, loop: false, tracks: LAUGH_TRACKS }),
+  dance: sidesSwapped({ name: 'dance', duration: 3.2, loop: false, tracks: DANCE_TRACKS }),
+  thumbsUp: sidesSwapped({ name: 'thumbsUp', duration: 1.6, loop: false, tracks: THUMBS_UP_TRACKS }),
+  shrug: sidesSwapped({ name: 'shrug', duration: 1.4, loop: false, tracks: SHRUG_TRACKS }),
+  facepalm: sidesSwapped({ name: 'facepalm', duration: 1.8, loop: false, tracks: FACEPALM_TRACKS }),
+  cheer: sidesSwapped({ name: 'cheer', duration: 1.8, loop: false, tracks: CHEER_TRACKS }),
+  bow: sidesSwapped({ name: 'bow', duration: 1.7, loop: false, tracks: BOW_TRACKS }),
+  cry: sidesSwapped({ name: 'cry', duration: 2, loop: false, tracks: CRY_TRACKS }),
+  jump: sidesSwapped({ name: 'jump', duration: 1.1, loop: false, tracks: JUMP_TRACKS }),
+  point: sidesSwapped({ name: 'point', duration: 1.5, loop: false, tracks: POINT_TRACKS }),
+  flex: sidesSwapped({ name: 'flex', duration: 1.8, loop: false, tracks: FLEX_TRACKS }),
+  blowKiss: sidesSwapped({ name: 'blowKiss', duration: 1.6, loop: false, tracks: BLOW_KISS_TRACKS }),
+  moonwalk: sidesSwapped({ name: 'moonwalk', duration: 2.9, loop: false, tracks: MOONWALK_TRACKS }),
+  highFiveGive: sidesSwapped({ name: 'highFiveGive', duration: 1.4, loop: false, tracks: HIGH_FIVE_GIVE_TRACKS }),
+  highFiveTake: sidesSwapped({ name: 'highFiveTake', duration: 1.4, loop: false, tracks: HIGH_FIVE_TAKE_TRACKS }),
+  hugGive: sidesSwapped({ name: 'hugGive', duration: 2.2, loop: false, tracks: HUG_GIVE_TRACKS }),
+  hugTake: sidesSwapped({ name: 'hugTake', duration: 2.2, loop: false, tracks: HUG_TAKE_TRACKS }),
+  throw: sidesSwapped({ name: 'throw', duration: 1, loop: false, tracks: THROW_TRACKS }),
+  hitReact: sidesSwapped({ name: 'hitReact', duration: 1.1, loop: false, tracks: HIT_REACT_TRACKS }),
 } satisfies Record<string, Record<RigView, AnimationClip>>;
 
 export type ClipId = keyof typeof CLIPS;

@@ -11,6 +11,7 @@ import type { Facing } from '@chat-app/shared-types';
 import { facingToView } from '../../core/facing';
 import type { ClipId } from './skeleton/clips';
 import type { AvatarArt } from './skeleton/avatarArt';
+import { orderVariantOf } from './skeleton/limbOrder';
 import { COMPILED_CLIPS, blendPose, samplePose, solveWorld } from './skeleton/sampler';
 
 const ATLAS_SAMPLING = { filter: FilterMode.Linear, mipmap: MipmapMode.None };
@@ -29,7 +30,7 @@ export interface AvatarPlayhead {
 
 /**
  * Draws one avatar with its feet at (feetX, feetY): sample the clip (crossfading from the
- * previous one), solve the bones, then one drawAtlas. A UI-thread worklet; rooms and the
+ * previous one), solve the bones, pick the limb order the pose calls for, then one drawAtlas. A UI-thread worklet; rooms and the
  * avatar editor's preview both draw through it. `ghost` is this frame's colour for the
  * loading ghost (see avatarGhost.ts); dressed avatars ignore it.
  */
@@ -50,7 +51,8 @@ export function drawAvatar(
   const bones = solveWorld(pose, view);
 
   // RSXform can't reflect, so the west pair uses pre-flipped sprites with x and angle negated.
-  const list = art.views[view];
+  // The pose decides which limbs are in front (an arm reaching forward, the leading leg).
+  const list = art.views[view][orderVariantOf(bones, view)];
   const xforms = [];
   const colors: SkColor[] = [];
   for (let i = 0; i < list.bone.length; i++) {

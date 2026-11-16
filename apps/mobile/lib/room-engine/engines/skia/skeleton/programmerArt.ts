@@ -4,6 +4,7 @@ import { artPalette } from '@/constants/theme';
 import type { RigView, SlotName } from '@chat-app/shared-types';
 import type { AvatarArt, ViewDrawList } from './avatarArt';
 import { BONE_INDEX, HUMANOID_V1 } from './humanoidV1';
+import { orderVariants, type OrderedPiece } from './limbOrder';
 
 /**
  * The loading ghost: a plain silhouette of the rig, one rounded shape per bone with no
@@ -105,6 +106,7 @@ function buildArt(): AvatarArt {
 
   const empty = (): ViewDrawList => ({ bone: [], src: [], srcMirror: [], pivotX: [], pivotXMirror: [], pivotY: [], pivotYMirror: [] });
   const views: Record<RigView, ViewDrawList> = { front: empty(), back: empty() };
+  const pieces: Record<RigView, OrderedPiece[]> = { front: [], back: [] };
 
   let top = 0;
   entries.forEach(({ view, slot, piece }, i) => {
@@ -128,7 +130,9 @@ function buildArt(): AvatarArt {
     canvas.restore();
 
     const list = views[view];
-    list.bone.push(BONE_INDEX[HUMANOID_V1.slots.find(s => s.name === slot)!.bone]);
+    const bone = HUMANOID_V1.slots.find(s => s.name === slot)!.bone;
+    pieces[view].push({ bone, band: 'body' });
+    list.bone.push(BONE_INDEX[bone]);
     list.src.push(Skia.XYWHRect(0, top, w, h));
     list.srcMirror.push(Skia.XYWHRect(mirrorLeft, top, w, h));
     list.pivotX.push(pivotX);
@@ -141,7 +145,15 @@ function buildArt(): AvatarArt {
   const snapshot = surface.makeImageSnapshot();
   // A CPU-backed copy can be drawn from the UI thread's canvas.
   const image = snapshot.makeNonTextureImage() ?? snapshot;
-  return { image, scale: ART_SCALE, ghost: true, views };
+  return {
+    image,
+    scale: ART_SCALE,
+    ghost: true,
+    views: {
+      front: orderVariants('front', pieces.front, views.front),
+      back: orderVariants('back', pieces.back, views.back),
+    },
+  };
 }
 
 let art: AvatarArt | null = null;

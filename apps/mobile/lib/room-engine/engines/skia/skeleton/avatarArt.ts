@@ -1,7 +1,7 @@
 import type { SkImage, SkRect } from '@shopify/react-native-skia';
 
 /**
- * What the UI thread needs to draw one view, in draw order. `srcMirror` holds the
+ * What the UI thread needs to draw one view, in one draw order. `srcMirror` holds the
  * horizontally flipped sprites for the west-facing pair (RSXform can't flip).
  */
 export interface ViewDrawList {
@@ -24,5 +24,6 @@ export interface AvatarArt {
    * as it's drawn. Dressed avatars come pre-coloured.
    */
   ghost: boolean;
-  views: Record<'front' | 'back', ViewDrawList>;
+  /** Each view's draw list in every limb order, by order variant (see limbOrder.ts). */
+  views: Record<'front' | 'back', ViewDrawList[]>;
 }

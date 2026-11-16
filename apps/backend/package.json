@@ -11,6 +11,7 @@
     "art:starter": "ts-node scripts/starter-art.ts",
     "art:pack": "ts-node scripts/pack-wearables.ts",
     "art:preview": "ts-node scripts/preview-avatar.ts",
+    "art:poses": "ts-node --transpile-only scripts/pose-sheet.ts",
     "art:items": "ts-node scripts/item-placeholders.ts"
   },
   "dependencies": {

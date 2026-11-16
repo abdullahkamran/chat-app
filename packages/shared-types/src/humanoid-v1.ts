@@ -74,28 +74,40 @@ function layersOf(bone: BoneName): SlotLayer[] {
 }
 
 /**
- * Bones back to front in the front view: far (right) limbs, legs, skirt panels, torso,
- * head, near (left) arm. Within the `body` band only; see `DrawBand`.
+ * Bones back to front in the front view, at rest: legs (far, then near), skirt panels,
+ * torso, head, then both arms (far, then near). Within the `body` band only; see `DrawBand`.
+ * Both arms are in front of the body, so neither is hidden when it swings or reaches across.
+ *
+ * This is the resting order. The engine moves an arm behind the body when the pose calls
+ * for it, and swaps the legs as they pass (mobile: skeleton/limbOrder.ts).
  */
 const FRONT_BONE_ORDER: BoneName[] = [
-  'upperArm.R', 'foreArm.R', 'hand.R',
   'thigh.R', 'shin.R', 'foot.R',
   'thigh.L', 'shin.L', 'foot.L',
   'skirt.R', 'skirt.L',
   'hip', 'spine', 'chest', 'neck', 'hairBack', 'head',
+  'upperArm.R', 'foreArm.R', 'hand.R',
   'upperArm.L', 'foreArm.L', 'hand.L',
 ];
 
-/** In the back view the avatar's right side is nearer, so left and right swap. */
+/**
+ * In the back view the avatar's right side is nearer, so left and right swap, and the arms
+ * are on the far side of the whole body: drawn first, before the legs, skirt and torso.
+ */
 function swapSide(bone: BoneName): BoneName {
   if (bone.endsWith('.L')) return bone.replace(/\.L$/, '.R') as BoneName;
   if (bone.endsWith('.R')) return bone.replace(/\.R$/, '.L') as BoneName;
   return bone;
 }
 
+const isArm = (bone: BoneName) => /^(upperArm|foreArm|hand)\./.test(bone);
+
 const BONE_ORDER: Record<RigView, BoneName[]> = {
   front: FRONT_BONE_ORDER,
-  back: FRONT_BONE_ORDER.map(swapSide),
+  back: [
+    ...FRONT_BONE_ORDER.filter(isArm),
+    ...FRONT_BONE_ORDER.filter(b => !isArm(b)),
+  ].map(swapSide),
 };
 
 function slotsInOrder(view: RigView): SlotName[] {
